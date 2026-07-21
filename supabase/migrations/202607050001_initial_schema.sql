@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS public.seasons (
   leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   start_date TIMESTAMPTZ NOT NULL,
-  end_date TIMESTAMPTZ, -- Null means runs indefinitely
+  end_date TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -101,7 +101,7 @@ CREATE TABLE IF NOT EXISTS public.score_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
   member_id UUID NOT NULL REFERENCES public.leaderboard_members(id) ON DELETE CASCADE,
-  rule_id UUID REFERENCES public.scoring_rules(id) ON DELETE SET NULL, -- Null if custom point adjustment
+  rule_id UUID REFERENCES public.scoring_rules(id) ON DELETE SET NULL,
   points DOUBLE PRECISION NOT NULL,
   reason TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -130,7 +130,7 @@ BEGIN
     pts_str := NEW.points::text;
   END IF;
   msg := p_name || ' score adjusted by ' || pts_str || ' points: ' || NEW.reason;
-  
+
   INSERT INTO public.activity_logs (leaderboard_id, message, created_at)
   VALUES (NEW.leaderboard_id, msg, NEW.created_at);
   RETURN NEW;
@@ -154,7 +154,7 @@ CREATE TRIGGER on_score_event_added
 -- ==========================================
 
 CREATE OR REPLACE VIEW public.leaderboard_rankings AS
-SELECT 
+SELECT
   m.id as member_id,
   m.leaderboard_id,
   m.name as player_name,
@@ -211,7 +211,7 @@ CREATE POLICY "Owners can delete their own leaderboards" ON public.leaderboards
 CREATE POLICY "Anyone can select seasons for accessible leaderboards" ON public.seasons
   FOR SELECT USING (
     EXISTS (
-      SELECT 1 FROM public.leaderboards l 
+      SELECT 1 FROM public.leaderboards l
       WHERE l.id = leaderboard_id AND (l.visibility = 'public' OR auth.uid() = l.owner_id)
     )
   );
@@ -219,7 +219,7 @@ CREATE POLICY "Anyone can select seasons for accessible leaderboards" ON public.
 CREATE POLICY "Owners can manage seasons" ON public.seasons
   FOR ALL USING (
     EXISTS (
-      SELECT 1 FROM public.leaderboards l 
+      SELECT 1 FROM public.leaderboards l
       WHERE l.id = leaderboard_id AND auth.uid() = l.owner_id
     )
   );
@@ -228,7 +228,7 @@ CREATE POLICY "Owners can manage seasons" ON public.seasons
 CREATE POLICY "Anyone can view scoring rules for accessible leaderboards" ON public.scoring_rules
   FOR SELECT USING (
     EXISTS (
-      SELECT 1 FROM public.leaderboards l 
+      SELECT 1 FROM public.leaderboards l
       WHERE l.id = leaderboard_id AND (l.visibility = 'public' OR auth.uid() = l.owner_id)
     )
   );
@@ -236,7 +236,7 @@ CREATE POLICY "Anyone can view scoring rules for accessible leaderboards" ON pub
 CREATE POLICY "Owners can manage scoring rules" ON public.scoring_rules
   FOR ALL USING (
     EXISTS (
-      SELECT 1 FROM public.leaderboards l 
+      SELECT 1 FROM public.leaderboards l
       WHERE l.id = leaderboard_id AND auth.uid() = l.owner_id
     )
   );
@@ -245,7 +245,7 @@ CREATE POLICY "Owners can manage scoring rules" ON public.scoring_rules
 CREATE POLICY "Anyone can view leaderboard members for accessible leaderboards" ON public.leaderboard_members
   FOR SELECT USING (
     EXISTS (
-      SELECT 1 FROM public.leaderboards l 
+      SELECT 1 FROM public.leaderboards l
       WHERE l.id = leaderboard_id AND (l.visibility = 'public' OR auth.uid() = l.owner_id)
     )
   );
@@ -253,7 +253,7 @@ CREATE POLICY "Anyone can view leaderboard members for accessible leaderboards" 
 CREATE POLICY "Owners can manage leaderboard members" ON public.leaderboard_members
   FOR ALL USING (
     EXISTS (
-      SELECT 1 FROM public.leaderboards l 
+      SELECT 1 FROM public.leaderboards l
       WHERE l.id = leaderboard_id AND auth.uid() = l.owner_id
     )
   );
@@ -262,7 +262,7 @@ CREATE POLICY "Owners can manage leaderboard members" ON public.leaderboard_memb
 CREATE POLICY "Anyone can view score events for accessible leaderboards" ON public.score_events
   FOR SELECT USING (
     EXISTS (
-      SELECT 1 FROM public.leaderboards l 
+      SELECT 1 FROM public.leaderboards l
       WHERE l.id = leaderboard_id AND (l.visibility = 'public' OR auth.uid() = l.owner_id)
     )
   );
@@ -270,7 +270,7 @@ CREATE POLICY "Anyone can view score events for accessible leaderboards" ON publ
 CREATE POLICY "Owners can manage score events" ON public.score_events
   FOR ALL USING (
     EXISTS (
-      SELECT 1 FROM public.leaderboards l 
+      SELECT 1 FROM public.leaderboards l
       WHERE l.id = leaderboard_id AND auth.uid() = l.owner_id
     )
   );
@@ -279,7 +279,7 @@ CREATE POLICY "Owners can manage score events" ON public.score_events
 CREATE POLICY "Anyone can view activity logs for accessible leaderboards" ON public.activity_logs
   FOR SELECT USING (
     EXISTS (
-      SELECT 1 FROM public.leaderboards l 
+      SELECT 1 FROM public.leaderboards l
       WHERE l.id = leaderboard_id AND (l.visibility = 'public' OR auth.uid() = l.owner_id)
     )
   );
@@ -287,7 +287,7 @@ CREATE POLICY "Anyone can view activity logs for accessible leaderboards" ON pub
 CREATE POLICY "Owners can manage activity logs" ON public.activity_logs
   FOR ALL USING (
     EXISTS (
-      SELECT 1 FROM public.leaderboards l 
+      SELECT 1 FROM public.leaderboards l
       WHERE l.id = leaderboard_id AND auth.uid() = l.owner_id
     )
   );

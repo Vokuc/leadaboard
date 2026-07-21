@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useParams, useRouter } from 'next/navigation';
 import { DatabaseService } from '@/lib/db';
@@ -9,29 +9,24 @@ import {
   Trophy, 
   ArrowLeft, 
   Share2, 
-  QrCode, 
-  Users, 
-  Calendar, 
+  QrCode,
   Activity, 
-  Settings, 
-  Plus, 
   Edit2, 
   Trash2, 
   Award, 
   Check, 
-  Copy, 
-  Download,
   AlertCircle,
-  HelpCircle,
   ExternalLink,
-  ChevronRight,
   UserPlus,
-  RefreshCw,
   Search
 } from 'lucide-react';
 import Link from 'next/link';
 import QRCode from 'qrcode';
 import confetti from 'canvas-confetti';
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
 
 export default function LeaderboardManagementPage() {
   const { profile, loading: authLoading } = useAuth();
@@ -85,6 +80,11 @@ export default function LeaderboardManagementPage() {
   // Players Search Filter
   const [playerSearchQuery, setPlayerSearchQuery] = useState('');
 
+  function showToast(message: string, type: 'success' | 'error') {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  }
+
   // Auto-redirect if unauthenticated
   useEffect(() => {
     if (!authLoading && !profile) {
@@ -92,7 +92,7 @@ export default function LeaderboardManagementPage() {
     }
   }, [profile, authLoading, router]);
 
-  const loadAllData = async () => {
+  const loadAllData = useCallback(async () => {
     if (!profile || !boardId) return;
     try {
       const lb = await DatabaseService.getLeaderboardById(boardId);
@@ -119,9 +119,7 @@ export default function LeaderboardManagementPage() {
 
       const mems = await DatabaseService.getMembers(boardId);
       setMembers(mems);
-      if (mems.length > 0 && !selectedMemberId) {
-        setSelectedMemberId(mems[0].id);
-      }
+      setSelectedMemberId((current) => current || mems[0]?.id || '');
 
       const ranks = await DatabaseService.getRankings(boardId);
       setRankings(ranks);
@@ -135,13 +133,15 @@ export default function LeaderboardManagementPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [boardId, profile, router]);
 
   useEffect(() => {
     if (profile && boardId) {
-      loadAllData();
+      queueMicrotask(() => {
+        void loadAllData();
+      });
     }
-  }, [profile, boardId]);
+  }, [boardId, loadAllData, profile]);
 
   // QR Code Renderer
   useEffect(() => {
@@ -163,11 +163,6 @@ export default function LeaderboardManagementPage() {
       );
     }
   }, [publicUrl, activeTab]);
-
-  const showToast = (message: string, type: 'success' | 'error') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
 
   const copyPublicLink = () => {
     navigator.clipboard.writeText(publicUrl);
@@ -199,10 +194,10 @@ export default function LeaderboardManagementPage() {
       setShowAddPlayerModal(false);
       
       // Reload lists
-      loadAllData();
-    } catch (err: any) {
+      void loadAllData();
+    } catch (err: unknown) {
       console.error(err);
-      showToast(err.message || 'Failed to add player.', 'error');
+      showToast(getErrorMessage(err, 'Failed to add player.'), 'error');
     } finally {
       setSaving(false);
     }
@@ -224,10 +219,10 @@ export default function LeaderboardManagementPage() {
 
       showToast(`Updated player "${playerName}" successfully.`, 'success');
       setShowEditPlayerModal(null);
-      loadAllData();
-    } catch (err: any) {
+      void loadAllData();
+    } catch (err: unknown) {
       console.error(err);
-      showToast(err.message || 'Failed to update player.', 'error');
+      showToast(getErrorMessage(err, 'Failed to update player.'), 'error');
     } finally {
       setSaving(false);
     }
@@ -241,26 +236,27 @@ export default function LeaderboardManagementPage() {
     try {
       await DatabaseService.removeMember(id);
       showToast(`Removed player "${name}".`, 'success');
-      loadAllData();
+      void loadAllData();
     } catch (err) {
       console.error(err);
       showToast('Failed to remove player.', 'error');
     }
   };
 
-  // Trigger preset when rule select changes
-  useEffect(() => {
-    if (selectedRuleId === 'custom') {
+  const handleRuleSelectionChange = (ruleId: string) => {
+    setSelectedRuleId(ruleId);
+    if (ruleId === 'custom') {
       setPointsAdjustment(10);
       setAdjustmentReason('Custom Point Adjustment');
-    } else {
-      const rule = rules.find(r => r.id === selectedRuleId);
-      if (rule) {
-        setPointsAdjustment(rule.points);
-        setAdjustmentReason(rule.event_name);
-      }
+      return;
     }
-  }, [selectedRuleId, rules]);
+
+    const rule = rules.find((item) => item.id === ruleId);
+    if (rule) {
+      setPointsAdjustment(rule.points);
+      setAdjustmentReason(rule.event_name);
+    }
+  };
 
   // Award Points
   const handleAwardScore = async (e: React.FormEvent) => {
@@ -306,7 +302,7 @@ export default function LeaderboardManagementPage() {
       const mems = await DatabaseService.getMembers(boardId);
       setMembers(mems);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       showToast('Failed to adjust score.', 'error');
     } finally {
@@ -762,7 +758,7 @@ export default function LeaderboardManagementPage() {
                   <label className="block font-semibold text-neutral-400 mb-1.5 uppercase tracking-wide">Select Scoring Event Rule</label>
                   <select
                     value={selectedRuleId}
-                    onChange={(e) => setSelectedRuleId(e.target.value)}
+                      onChange={(e) => handleRuleSelectionChange(e.target.value)}
                     className="block w-full px-3 py-2 bg-neutral-900 border border-neutral-850 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all text-xs cursor-pointer"
                   >
                     <option value="custom">Custom Point Override</option>
@@ -912,7 +908,7 @@ export default function LeaderboardManagementPage() {
                     <label className="block font-semibold text-neutral-400 mb-1.5 uppercase tracking-wide">Visibility Privacy</label>
                     <select
                       value={settingsVisibility}
-                      onChange={(e) => setSettingsVisibility(e.target.value as any)}
+                      onChange={(e) => setSettingsVisibility(e.target.value as 'public' | 'private')}
                       className="block w-full px-3.5 py-2.5 bg-neutral-900 border border-neutral-850 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-violet-500 text-xs transition-all cursor-pointer"
                     >
                       <option value="public">Public (Everyone can see)</option>

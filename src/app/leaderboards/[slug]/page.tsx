@@ -1,31 +1,26 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useParams } from 'next/navigation';
 import { DatabaseService, isSupabaseConfigured, supabase } from '@/lib/db';
 import { Leaderboard, Season, ActivityLog, Ranking, ScoreEvent } from '@/types';
 import { 
   Trophy, 
   Search, 
   Calendar, 
-  ExternalLink, 
-  Users, 
   Activity, 
   Clock, 
   Share2, 
-  QrCode, 
   X, 
   Sparkles, 
   Copy,
-  ChevronRight,
-  TrendingUp,
-  Award
+  TrendingUp
 } from 'lucide-react';
+import Link from 'next/link';
 import QRCode from 'qrcode';
 
 export default function PublicLeaderboardPage() {
   const params = useParams();
-  const router = useRouter();
   const slug = params.slug as string;
 
   const [leaderboard, setLeaderboard] = useState<Leaderboard | null>(null);
@@ -50,7 +45,7 @@ export default function PublicLeaderboardPage() {
   const [shareUrl, setShareUrl] = useState('');
   const [copied, setCopied] = useState(false);
 
-  const loadData = async (isSilent = false) => {
+  const loadData = useCallback(async (isSilent = false) => {
     if (!slug) return;
     if (!isSilent) setLoading(true);
     try {
@@ -80,12 +75,14 @@ export default function PublicLeaderboardPage() {
     } finally {
       if (!isSilent) setLoading(false);
     }
-  };
+  }, [slug]);
 
   // Initial Load
   useEffect(() => {
-    loadData();
-  }, [slug]);
+    queueMicrotask(() => {
+      void loadData();
+    });
+  }, [loadData]);
 
   // Real-Time Subscriptions
   useEffect(() => {
@@ -101,7 +98,7 @@ export default function PublicLeaderboardPage() {
           table: 'score_events', 
           filter: `leaderboard_id=eq.${leaderboard.id}` 
         }, () => {
-          loadData(true); // Silent reload on score additions
+          void loadData(true); // Silent reload on score additions
         })
         .subscribe();
 
@@ -112,14 +109,14 @@ export default function PublicLeaderboardPage() {
       // Demo Mode: Binds to storage updates across browser tabs
       const handleStorageUpdate = (e: StorageEvent) => {
         if (e.key && e.key.startsWith('leagueboard_')) {
-          loadData(true); // Silent reload on local updates
+          void loadData(true); // Silent reload on local updates
         }
       };
       window.addEventListener('storage', handleStorageUpdate);
       
       // Keep a fallback minor poll just in case of local same-window sandboxing
       const interval = setInterval(() => {
-        loadData(true);
+        void loadData(true);
       }, 3000);
 
       return () => {
@@ -127,7 +124,7 @@ export default function PublicLeaderboardPage() {
         clearInterval(interval);
       };
     }
-  }, [leaderboard]);
+  }, [leaderboard, loadData]);
 
   // QR rendering when modal opens
   useEffect(() => {
@@ -414,7 +411,7 @@ export default function PublicLeaderboardPage() {
                       </td>
                     </tr>
                   ) : (
-                    filteredRankings.map((r, idx) => {
+                    filteredRankings.map((r) => {
                       const absoluteRank = rankings.findIndex(rank => rank.member_id === r.member_id) + 1;
                       
                       return (

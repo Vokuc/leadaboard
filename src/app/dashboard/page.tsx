@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { DatabaseService } from '@/lib/db';
@@ -21,10 +21,8 @@ import {
   Users, 
   Search, 
   FolderLock, 
-  Sparkles,
   ArchiveRestore,
   BookOpen,
-  HelpCircle,
   GraduationCap
 } from 'lucide-react';
 import Link from 'next/link';
@@ -43,6 +41,11 @@ export default function DashboardPage() {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
+  function showToast(message: string, type: 'success' | 'error') {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  }
+
   // Redirect if not logged in
   useEffect(() => {
     if (!authLoading && !profile) {
@@ -50,7 +53,7 @@ export default function DashboardPage() {
     }
   }, [profile, authLoading, router]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!profile) return;
     setLoading(true);
     try {
@@ -83,18 +86,15 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab, profile]);
 
   useEffect(() => {
     if (profile) {
-      loadData();
+      queueMicrotask(() => {
+        void loadData();
+      });
     }
-  }, [profile, activeTab]);
-
-  const showToast = (message: string, type: 'success' | 'error') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
+  }, [loadData, profile]);
 
   const handleLogout = async () => {
     await logout();

@@ -1,13 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Trophy, Mail, User, ShieldAlert, Sparkles, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export default function LoginPage() {
-  const { login, signUp, isDemoMode } = useAuth();
+  const { login, signUp, signInWithGoogle, isDemoMode, profile, loading: authLoading } = useAuth();
   const router = useRouter();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
@@ -15,38 +19,59 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  const getNextPath = () => {
+    if (typeof window === 'undefined') {
+      return '/dashboard';
+    }
+
+    const nextParam = new URLSearchParams(window.location.search).get('next');
+    return nextParam && nextParam.startsWith('/') ? nextParam : '/dashboard';
+  };
+
+  useEffect(() => {
+    if (!authLoading && profile) {
+      router.replace('/dashboard');
+    }
+  }, [authLoading, profile, router]);
+
+  const isBusy = loading || authLoading;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setMessage(null);
 
+    const trimmedEmail = email.trim();
+    const trimmedName = name.trim();
+    const nextPath = getNextPath();
+
     try {
       if (isSignUp) {
-        await signUp(email, name);
+        await signUp(trimmedEmail, trimmedName, nextPath);
         if (!isDemoMode) {
           setMessage({
             type: 'success',
             text: 'Check your email for a confirmation link to complete registration.'
           });
         } else {
-          router.push('/dashboard');
+          router.replace('/dashboard');
         }
       } else {
-        await login(email, name || 'Alex Mercer');
+        await login(trimmedEmail, trimmedName || 'Alex Mercer', nextPath);
         if (!isDemoMode) {
           setMessage({
             type: 'success',
             text: 'Magic login link sent! Check your email inbox.'
           });
         } else {
-          router.push('/dashboard');
+          router.replace('/dashboard');
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       setMessage({
         type: 'error',
-        text: err.message || 'Authentication failed. Please try again.'
+        text: getErrorMessage(err, 'Authentication failed. Please try again.')
       });
     } finally {
       setLoading(false);
@@ -58,11 +83,11 @@ export default function LoginPage() {
     setMessage(null);
     try {
       await login('creator@leagueboard.com', 'Alex Mercer');
-      router.push('/dashboard');
-    } catch (err: any) {
+      router.replace('/dashboard');
+    } catch (err: unknown) {
       setMessage({
         type: 'error',
-        text: err.message || 'Demo login failed.'
+        text: getErrorMessage(err, 'Demo login failed.')
       });
     } finally {
       setLoading(false);
@@ -174,10 +199,10 @@ export default function LoginPage() {
               <div>
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={isBusy}
                   className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-xl text-sm font-semibold text-white bg-violet-600 hover:bg-violet-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-violet-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
                 >
-                  {loading ? 'Processing...' : isSignUp ? 'Create Free Account' : 'Request Access (Magic Link)'}
+                  {isBusy ? 'Processing...' : isSignUp ? 'Create Free Account' : 'Request Access (Magic Link)'}
                 </button>
               </div>
             </form>
@@ -193,7 +218,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={handleDemoModeLogin}
-                disabled={loading}
+                disabled={isBusy}
                 className="mt-5 w-full flex justify-center items-center gap-2 py-2.5 px-4 border border-violet-500/20 rounded-xl text-sm font-semibold text-violet-300 bg-violet-500/10 hover:bg-violet-500/15 focus:outline-none transition-all cursor-pointer glow-primary"
               >
                 <Sparkles className="w-4 h-4 text-violet-400" />
@@ -202,11 +227,11 @@ export default function LoginPage() {
             ) : (
               <button
                 type="button"
-                onClick={handleDemoModeLogin}
-                disabled={loading}
+                onClick={() => void signInWithGoogle(getNextPath())}
+                disabled={isBusy}
                 className="mt-5 w-full flex justify-center items-center gap-2 py-2.5 px-4 border border-neutral-850 rounded-xl text-sm font-semibold text-neutral-300 bg-neutral-900 hover:bg-neutral-850 focus:outline-none transition-all cursor-pointer"
               >
-                Sign In with Google (Mockup)
+                Sign In with Google
               </button>
             )}
 
