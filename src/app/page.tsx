@@ -204,7 +204,7 @@ export default function LandingPage() {
           </div>
 
           <div className="space-y-3">
-            {activeData.players.map((p, idx) => (
+            {activeData.players.map((p) => (
               <div 
                 key={p.name}
                 className="flex items-center justify-between p-3.5 rounded-xl border border-white/5 bg-black/40 hover:bg-black/60 transition-all hover:translate-x-1"
@@ -266,7 +266,7 @@ export default function LandingPage() {
               <Palette className="w-6 h-6" />
             </div>
             <h3 className="mt-5 font-bold text-lg">Visual Customization</h3>
-            <p className="mt-2 text-sm text-neutral-400 leading-relaxed">Modify themes, typography, columns, avatar borders, and colors to matches your organization's brand identity.</p>
+            <p className="mt-2 text-sm text-neutral-400 leading-relaxed">Modify themes, typography, columns, avatar borders, and colors to match your organization&apos;s brand identity.</p>
           </div>
 
           {/* F2 */}

@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr';
 import { 
   Profile, 
   Leaderboard, 
@@ -16,7 +16,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey && !supabaseUrl.includes('your-project-id'));
 
 export const supabase = isSupabaseConfigured 
-  ? createClient(supabaseUrl, supabaseAnonKey) 
+  ? createBrowserClient(supabaseUrl, supabaseAnonKey) 
   : null;
 
 // ==========================================
@@ -192,7 +192,7 @@ class LocalDb {
     }
   }
 
-  private set(key: string, val: any): void {
+  private set(key: string, val: unknown): void {
     if (typeof window === 'undefined') return;
     localStorage.setItem(`leagueboard_${key}`, JSON.stringify(val));
   }
@@ -708,7 +708,7 @@ export const DatabaseService = {
         .from('activity_logs')
         .select('*')
         .eq('leaderboard_id', leaderboardId)
-        .order('created_at', { descending: true });
+        .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
     }
@@ -778,7 +778,7 @@ export const DatabaseService = {
         .from('score_events')
         .select('*')
         .eq('member_id', memberId)
-        .order('created_at', { descending: true });
+        .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
     }

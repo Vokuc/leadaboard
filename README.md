@@ -49,12 +49,19 @@ To connect LeagueBoard to your live Supabase database, follow these steps:
 
 1. Create a new project in your [Supabase Dashboard](https://supabase.com).
 2. Grab the URL and Anon Key from the **Project Settings -> API** tab and paste them in `.env.local`.
-3. Open the **SQL Editor** tab in your Supabase Console.
-4. Open the `schema.sql` file at the root of this project, copy its contents, paste them into the SQL editor, and click **Run**.
-5. Enable **Realtime** on the `score_events` table by executing:
+3. Open the **Authentication -> Providers** panel and enable the **Google** provider if you want live Google sign-in.
+4. Open the **SQL Editor** tab in your Supabase Console.
+5. Run the migration at `supabase/migrations/202607050001_initial_schema.sql`.
+6. Enable **Realtime** on the `score_events` table by executing:
    ```sql
    alter publication supabase_realtime add table score_events;
    ```
+
+The root `schema.sql` file mirrors the same schema for quick copy/paste setup.
+
+## 🌱 Demo Seed Data
+
+LeagueBoard ships with browser-backed demo data so the product works instantly without Supabase credentials. The demo leaderboards, members, scoring rules, and activity logs live in `src/lib/db.ts` and are loaded automatically whenever the app runs in Demo Sandbox Mode.
 
 ---
 
@@ -62,6 +69,9 @@ To connect LeagueBoard to your live Supabase database, follow these steps:
 
 ```text
 ├── schema.sql           # Database schema, triggers, view and RLS policies
+├── supabase/
+│   └── migrations/
+│       └── 202607050001_initial_schema.sql # Supabase-ready initial migration
 ├── .env.example         # Template configuration keys
 ├── src/
 │   ├── app/
@@ -73,7 +83,7 @@ To connect LeagueBoard to your live Supabase database, follow these steps:
 │   ├── context/
 │   │   └── AuthContext.tsx # Handles Supabase auth & local mock fallback
 │   ├── lib/
-│   │   └── db.ts        # Unified DB access interface (Supabase + Local fallback)
+│   │   └── db.ts        # Unified DB access interface + demo seed data
 │   └── types/
 │       └── index.ts     # TypeScript interfaces
 ```

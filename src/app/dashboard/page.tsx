@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { DatabaseService } from '@/lib/db';
@@ -21,13 +21,13 @@ import {
   Users, 
   Search, 
   FolderLock, 
-  Sparkles,
   ArchiveRestore,
   BookOpen,
-  HelpCircle,
   GraduationCap
 } from 'lucide-react';
 import Link from 'next/link';
+import HelpModal from '@/components/HelpModal';
+import { dashboardHelp } from '@/lib/help-content';
 
 export default function DashboardPage() {
   const { profile, logout, loading: authLoading } = useAuth();
@@ -43,6 +43,11 @@ export default function DashboardPage() {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
+  function showToast(message: string, type: 'success' | 'error') {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  }
+
   // Redirect if not logged in
   useEffect(() => {
     if (!authLoading && !profile) {
@@ -50,7 +55,7 @@ export default function DashboardPage() {
     }
   }, [profile, authLoading, router]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!profile) return;
     setLoading(true);
     try {
@@ -83,18 +88,15 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab, profile]);
 
   useEffect(() => {
     if (profile) {
-      loadData();
+      queueMicrotask(() => {
+        void loadData();
+      });
     }
-  }, [profile, activeTab]);
-
-  const showToast = (message: string, type: 'success' | 'error') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
+  }, [loadData, profile]);
 
   const handleLogout = async () => {
     await logout();
@@ -260,12 +262,15 @@ export default function DashboardPage() {
             <h1 className="text-2xl font-bold tracking-tight text-white">My Leaderboards</h1>
             <p className="text-sm text-neutral-400 mt-1">Configure scoring, register players, and audit event logs.</p>
           </div>
-          <Link
-            href="/dashboard/create"
-            className="flex items-center gap-1.5 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-sm font-semibold rounded-xl text-white shadow-lg shadow-violet-500/20 transition-all cursor-pointer"
-          >
-            <Plus className="w-4 h-4" /> Create Leaderboard
-          </Link>
+          <div className="flex items-center gap-2">
+            <HelpModal {...dashboardHelp} />
+            <Link
+              href="/dashboard/create"
+              className="flex items-center gap-1.5 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-sm font-semibold rounded-xl text-white shadow-lg shadow-violet-500/20 transition-all cursor-pointer"
+            >
+              <Plus className="w-4 h-4" /> Create Leaderboard
+            </Link>
+          </div>
         </div>
 
         {/* Filters and Tabs */}

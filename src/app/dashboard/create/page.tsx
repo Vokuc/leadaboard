@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { DatabaseService } from '@/lib/db';
-import { CompetitionType, VisibilityType, ScoringRule } from '@/types';
+import { CompetitionType, VisibilityType, ScoringRule, Season } from '@/types';
 import { 
   Trophy, 
   ArrowLeft, 
@@ -12,23 +12,70 @@ import {
   Check, 
   Plus, 
   Trash2, 
-  Gamepad2, 
-  Activity, 
-  Briefcase, 
   Info,
   Calendar,
-  Eye,
-  Settings2,
   Sparkles,
   Lock,
-  Globus
+  Globe
 } from 'lucide-react';
 import Link from 'next/link';
+import HelpModal from '@/components/HelpModal';
+import { createLeaderboardHelp } from '@/lib/help-content';
 
 interface ScoringRuleInput {
   event_name: string;
   points: number;
   description: string;
+}
+
+const coverArtTemplates: Record<CompetitionType, string> = {
+  gaming: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=800&q=80',
+  sports: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=800&q=80',
+  fitness: 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?auto=format&fit=crop&w=800&q=80',
+  workplace: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80',
+  reading: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=800&q=80',
+  education: 'https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?auto=format&fit=crop&w=800&q=80',
+  custom: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=800&q=80'
+};
+
+const rulePresets: Record<CompetitionType, ScoringRuleInput[]> = {
+  gaming: [
+    { event_name: 'Win Match', points: 30, description: 'Awarded when the team wins a full match' },
+    { event_name: 'Match MVP', points: 15, description: 'Selected as the most valuable player of the round' },
+    { event_name: 'Kill Streak (5)', points: 10, description: 'Achieved 5 consecutive eliminations' },
+    { event_name: 'Match Loss', points: -10, description: 'Penalty for losing a match' }
+  ],
+  sports: [
+    { event_name: 'Match Won', points: 3, description: 'Team wins a match' },
+    { event_name: 'Match Drawn', points: 1, description: 'Team draws a match' },
+    { event_name: 'Match Lost', points: 0, description: 'Team loses a match' }
+  ],
+  fitness: [
+    { event_name: 'Activity Completed', points: 50, description: 'Completed a workout session' },
+    { event_name: 'New Personal Record', points: 100, description: 'Broke a historical personal milestone' },
+    { event_name: 'Daily Streak Milestone', points: 30, description: 'Finished a 5-day active logging streak' }
+  ],
+  workplace: [
+    { event_name: 'Deal Closed', points: 100, description: 'Closed a new enterprise customer contract' },
+    { event_name: 'Meeting Booked', points: 15, description: 'Successfully scheduled a qualified demo' },
+    { event_name: 'Upsell Landed', points: 50, description: 'Added user seats to existing customer contracts' }
+  ],
+  reading: [
+    { event_name: 'Book Finished', points: 100, description: 'Completed reading a full book' },
+    { event_name: 'Chapter Finished', points: 10, description: 'Completed a single chapter' }
+  ],
+  education: [
+    { event_name: 'Test Aced', points: 50, description: 'Achieved a grade of 95% or higher on a test' },
+    { event_name: 'Homework Submitted', points: 10, description: 'Submitted coursework assignments on time' }
+  ],
+  custom: [
+    { event_name: 'Gold Achievement', points: 50, description: 'Completed a primary goal' },
+    { event_name: 'Silver Achievement', points: 25, description: 'Completed a secondary goal' }
+  ]
+};
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Failed to create leaderboard. Please try again.';
 }
 
 export default function CreateLeaderboardPage() {
@@ -51,7 +98,7 @@ export default function CreateLeaderboardPage() {
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState<VisibilityType>('public');
   const [competitionType, setCompetitionType] = useState<CompetitionType>('gaming');
-  const [coverImageUrl, setCoverImageUrl] = useState('');
+  const [coverImageUrl, setCoverImageUrl] = useState(coverArtTemplates.gaming);
   
   // Scoring rules list
   const [scoringRules, setScoringRules] = useState<ScoringRuleInput[]>([]);
@@ -66,61 +113,14 @@ export default function CreateLeaderboardPage() {
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState('');
 
-  // Auto-apply cover images and rule presets based on competition type
-  const coverArtTemplates: Record<CompetitionType, string> = {
-    gaming: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=800&q=80',
-    sports: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=800&q=80',
-    fitness: 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?auto=format&fit=crop&w=800&q=80',
-    workplace: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80',
-    reading: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=800&q=80',
-    education: 'https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?auto=format&fit=crop&w=800&q=80',
-    custom: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=800&q=80'
-  };
-
-  const rulePresets: Record<CompetitionType, ScoringRuleInput[]> = {
-    gaming: [
-      { event_name: 'Win Match', points: 30, description: 'Awarded when the team wins a full match' },
-      { event_name: 'Match MVP', points: 15, description: 'Selected as the most valuable player of the round' },
-      { event_name: 'Kill Streak (5)', points: 10, description: 'Achieved 5 consecutive eliminations' },
-      { event_name: 'Match Loss', points: -10, description: 'Penalty for losing a match' }
-    ],
-    sports: [
-      { event_name: 'Match Won', points: 3, description: 'Team wins a match' },
-      { event_name: 'Match Drawn', points: 1, description: 'Team draws a match' },
-      { event_name: 'Match Lost', points: 0, description: 'Team loses a match' }
-    ],
-    fitness: [
-      { event_name: 'Activity Completed', points: 50, description: 'Completed a workout session' },
-      { event_name: 'New Personal Record', points: 100, description: 'Broke a historical personal milestone' },
-      { event_name: 'Daily Streak Milestone', points: 30, description: 'Finished a 5-day active logging streak' }
-    ],
-    workplace: [
-      { event_name: 'Deal Closed', points: 100, description: 'Closed a new enterprise customer contract' },
-      { event_name: 'Meeting Booked', points: 15, description: 'Successfully scheduled a qualified demo' },
-      { event_name: 'Upsell Landed', points: 50, description: 'Added user seats to existing customer contracts' }
-    ],
-    reading: [
-      { event_name: 'Book Finished', points: 100, description: 'Completed reading a full book' },
-      { event_name: 'Chapter Finished', points: 10, description: 'Completed a single chapter' }
-    ],
-    education: [
-      { event_name: 'Test Aced', points: 50, description: 'Achieved a grade of 95% or higher on a test' },
-      { event_name: 'Homework Submitted', points: 10, description: 'Submitted coursework assignments on time' }
-    ],
-    custom: [
-      { event_name: 'Gold Achievement', points: 50, description: 'Completed a primary goal' },
-      { event_name: 'Silver Achievement', points: 25, description: 'Completed a secondary goal' }
-    ]
-  };
-
-  // Trigger cover image update when type changes
-  useEffect(() => {
-    setCoverImageUrl(coverArtTemplates[competitionType]);
-  }, [competitionType]);
-
   // Load rules template based on type
   const loadPresetRules = () => {
     setScoringRules(rulePresets[competitionType]);
+  };
+
+  const handleCompetitionTypeChange = (nextType: CompetitionType) => {
+    setCompetitionType(nextType);
+    setCoverImageUrl(coverArtTemplates[nextType]);
   };
 
   const handleAddRule = () => {
@@ -163,13 +163,13 @@ export default function CreateLeaderboardPage() {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)+/g, '') + '-' + Math.random().toString(36).substr(2, 4);
 
-      const rulesToInsert = scoringRules.map(r => ({
+      const rulesToInsert: Omit<ScoringRule, 'id' | 'leaderboard_id' | 'created_at'>[] = scoringRules.map((r) => ({
         event_name: r.event_name,
         points: r.points,
         description: r.description || null
       }));
 
-      const seasonToInsert = hasSeason ? {
+      const seasonToInsert: Omit<Season, 'id' | 'leaderboard_id' | 'created_at'> | null = hasSeason ? {
         name: seasonName,
         start_date: new Date(startDate).toISOString(),
         end_date: endDate ? new Date(endDate).toISOString() : null
@@ -184,14 +184,14 @@ export default function CreateLeaderboardPage() {
           competition_type: competitionType,
           cover_image_url: coverImageUrl || null
         },
-        rulesToInsert as any,
-        seasonToInsert as any
+        rulesToInsert,
+        seasonToInsert
       );
 
       router.push(`/dashboard/leaderboards/${created.id}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || 'Failed to create leaderboard. Please try again.');
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -218,6 +218,8 @@ export default function CreateLeaderboardPage() {
             LeagueBoard
           </span>
         </div>
+
+        <HelpModal {...createLeaderboardHelp} />
       </header>
 
       <main className="flex-1 max-w-2xl mx-auto w-full px-6 mt-10">
@@ -292,7 +294,7 @@ export default function CreateLeaderboardPage() {
                   </label>
                   <select
                     value={competitionType}
-                    onChange={(e) => setCompetitionType(e.target.value as CompetitionType)}
+                    onChange={(e) => handleCompetitionTypeChange(e.target.value as CompetitionType)}
                     className="block w-full px-3.5 py-2.5 bg-neutral-900/60 border border-neutral-850 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-violet-500 focus:border-violet-500 text-sm transition-all cursor-pointer"
                   >
                     <option value="gaming">Gaming / Esports</option>
@@ -317,7 +319,7 @@ export default function CreateLeaderboardPage() {
                         visibility === 'public' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white'
                       }`}
                     >
-                      <Globus className="w-3.5 h-3.5" /> Public
+                      <Globe className="w-3.5 h-3.5" /> Public
                     </button>
                     <button
                       type="button"
