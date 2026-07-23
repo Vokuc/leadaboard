@@ -26,6 +26,8 @@ import {
   GraduationCap
 } from 'lucide-react';
 import Link from 'next/link';
+import HelpModal from '@/components/HelpModal';
+import { dashboardHelp } from '@/lib/help-content';
 
 export default function DashboardPage() {
   const { profile, logout, loading: authLoading } = useAuth();
@@ -260,12 +262,15 @@ export default function DashboardPage() {
             <h1 className="text-2xl font-bold tracking-tight text-white">My Leaderboards</h1>
             <p className="text-sm text-neutral-400 mt-1">Configure scoring, register players, and audit event logs.</p>
           </div>
-          <Link
-            href="/dashboard/create"
-            className="flex items-center gap-1.5 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-sm font-semibold rounded-xl text-white shadow-lg shadow-violet-500/20 transition-all cursor-pointer"
-          >
-            <Plus className="w-4 h-4" /> Create Leaderboard
-          </Link>
+          <div className="flex items-center gap-2">
+            <HelpModal {...dashboardHelp} />
+            <Link
+              href="/dashboard/create"
+              className="flex items-center gap-1.5 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-sm font-semibold rounded-xl text-white shadow-lg shadow-violet-500/20 transition-all cursor-pointer"
+            >
+              <Plus className="w-4 h-4" /> Create Leaderboard
+            </Link>
+          </div>
         </div>
 
         {/* Filters and Tabs */}

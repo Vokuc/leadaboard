@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import QRCode from 'qrcode';
+import HelpModal from '@/components/HelpModal';
+import { publicLeaderboardHelp } from '@/lib/help-content';
 
 export default function PublicLeaderboardPage() {
   const params = useParams();
@@ -237,12 +239,15 @@ export default function PublicLeaderboardPage() {
           </span>
         </Link>
         
-        <button
-          onClick={() => setShowShareModal(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 border border-neutral-850 hover:border-neutral-700 bg-neutral-900/60 hover:bg-neutral-900 text-xs font-semibold rounded-xl text-neutral-300 hover:text-white transition-colors cursor-pointer"
-        >
-          <Share2 className="w-3.5 h-3.5" /> Share Page
-        </button>
+        <div className="flex items-center gap-2">
+          <HelpModal {...publicLeaderboardHelp} />
+          <button
+            onClick={() => setShowShareModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-neutral-850 hover:border-neutral-700 bg-neutral-900/60 hover:bg-neutral-900 text-xs font-semibold rounded-xl text-neutral-300 hover:text-white transition-colors cursor-pointer"
+          >
+            <Share2 className="w-3.5 h-3.5" /> Share Page
+          </button>
+        </div>
       </header>
 
       <main className="flex-1 max-w-5xl mx-auto w-full px-6 mt-8">

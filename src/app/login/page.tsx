@@ -5,6 +5,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Trophy, Mail, User, ShieldAlert, Sparkles, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import HelpModal from '@/components/HelpModal';
+import { loginHelp } from '@/lib/help-content';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -103,12 +105,15 @@ export default function LoginPage() {
       <div className="flex-1 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative z-10 px-4">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
           {/* Back Home */}
-          <Link 
-            href="/" 
-            className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground transition-colors mb-6 gap-1"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" /> Back to Landing Page
-          </Link>
+          <div className="flex items-center justify-between mb-6">
+            <Link 
+              href="/" 
+              className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground transition-colors gap-1"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" /> Back to Landing Page
+            </Link>
+            <HelpModal {...loginHelp} />
+          </div>
 
           {/* Branding */}
           <div className="flex justify-center items-center gap-2 mb-2">

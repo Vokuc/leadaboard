@@ -19,6 +19,8 @@ import {
   Globe
 } from 'lucide-react';
 import Link from 'next/link';
+import HelpModal from '@/components/HelpModal';
+import { createLeaderboardHelp } from '@/lib/help-content';
 
 interface ScoringRuleInput {
   event_name: string;
@@ -216,6 +218,8 @@ export default function CreateLeaderboardPage() {
             LeagueBoard
           </span>
         </div>
+
+        <HelpModal {...createLeaderboardHelp} />
       </header>
 
       <main className="flex-1 max-w-2xl mx-auto w-full px-6 mt-10">

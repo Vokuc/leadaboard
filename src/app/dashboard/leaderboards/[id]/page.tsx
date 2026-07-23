@@ -23,6 +23,8 @@ import {
 import Link from 'next/link';
 import QRCode from 'qrcode';
 import confetti from 'canvas-confetti';
+import HelpModal from '@/components/HelpModal';
+import { leaderboardManagementHelp } from '@/lib/help-content';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -398,6 +400,8 @@ export default function LeaderboardManagementPage() {
             LeagueBoard
           </span>
         </div>
+
+        <HelpModal {...leaderboardManagementHelp} />
       </header>
 
       {/* Main Board Container */}
