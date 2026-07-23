@@ -74,10 +74,10 @@ export default function LandingPage() {
   const activeData = previewData[activePreviewTab];
 
   return (
-    <div className="min-h-screen bg-black bg-grid flex flex-col relative text-white">
+    <div className="min-h-screen bg-black bg-grid flex flex-col relative text-white overflow-x-hidden">
       {/* Background Gradients */}
-      <div className="absolute top-[-10%] right-[-10%] w-[550px] h-[550px] rounded-full bg-violet-600/10 blur-[130px] animate-pulse-glow" />
-      <div className="absolute bottom-[20%] left-[-15%] w-[650px] h-[650px] rounded-full bg-indigo-600/10 blur-[140px]" />
+      <div className="absolute top-[-10%] right-[-10%] w-[550px] h-[550px] rounded-full bg-violet-600/10 blur-[130px] animate-pulse-glow pointer-events-none" />
+      <div className="absolute bottom-[20%] left-[-15%] w-[full] md:w-[650px] max-w-[350px] md:max-w-[650px] h-[650px] rounded-full bg-indigo-600/10 blur-[140px] pointer-events-none overflow-x-hidden" />
 
       {/* Navigation Header */}
       <header className="sticky top-0 z-50 glass border-b border-white/5 py-4 px-6 md:px-12 flex justify-between items-center">
@@ -158,7 +158,7 @@ export default function LandingPage() {
         <div className="flex justify-center border-b border-neutral-800 p-1 mb-8 max-w-md mx-auto bg-neutral-900/40 rounded-xl border">
           <button 
             onClick={() => setActivePreviewTab('gaming')}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all cursor-pointer ${
+            className={`flex items-center gap-1 md:gap-2 px-2 md:px-4 py-1 md:py-2 text-sm font-semibold rounded-lg transition-all cursor-pointer ${
               activePreviewTab === 'gaming' 
                 ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' 
                 : 'text-neutral-400 hover:text-white'
@@ -168,7 +168,7 @@ export default function LandingPage() {
           </button>
           <button 
             onClick={() => setActivePreviewTab('sports')}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all cursor-pointer ${
+            className={`flex items-center gap-1 md:gap-2 px-2 md:px-4 py-1 md:py-2 text-sm font-semibold rounded-lg transition-all cursor-pointer ${
               activePreviewTab === 'sports' 
                 ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-500/20' 
                 : 'text-neutral-400 hover:text-white'
@@ -178,7 +178,7 @@ export default function LandingPage() {
           </button>
           <button 
             onClick={() => setActivePreviewTab('workplace')}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all cursor-pointer ${
+            className={`flex items-center gap-1 md:gap-2 px-2 md:px-4 py-1 md:py-2 text-sm font-semibold rounded-lg transition-all cursor-pointer ${
               activePreviewTab === 'workplace' 
                 ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20' 
                 : 'text-neutral-400 hover:text-white'
