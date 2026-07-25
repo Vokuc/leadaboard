@@ -57,6 +57,8 @@ To connect LeagueBoard to your live Supabase database, follow these steps:
    alter publication supabase_realtime add table score_events;
    ```
 
+The same migration now also creates a public Storage bucket named `leaderboard-media` for tournament banners and player avatars. This is a non-breaking change: the existing `cover_image_url` and `avatar_url` columns stay the same and simply begin storing Supabase public URLs.
+
 The root `schema.sql` file mirrors the same schema for quick copy/paste setup.
 
 ## 🌱 Demo Seed Data

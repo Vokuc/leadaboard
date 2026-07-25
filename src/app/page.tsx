@@ -20,6 +20,7 @@ import {
   Briefcase
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import SafeImage from '@/components/SafeImage';
 
 export default function LandingPage() {
   const { profile } = useAuth();
@@ -220,7 +221,7 @@ export default function LandingPage() {
                   </span>
                   
                   {/* Avatar */}
-                  <img src={p.avatar} alt={p.name} className="w-9 h-9 rounded-lg border border-white/10" />
+                  <SafeImage src={p.avatar} alt={p.name} width={36} height={36} className="h-9 w-9 rounded-lg border border-white/10 object-cover" />
 
                   {/* Name and Team */}
                   <div>

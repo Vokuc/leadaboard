@@ -20,6 +20,7 @@ import Link from 'next/link';
 import QRCode from 'qrcode';
 import HelpModal from '@/components/HelpModal';
 import { publicLeaderboardHelp } from '@/lib/help-content';
+import SafeImage from '@/components/SafeImage';
 
 export default function PublicLeaderboardPage() {
   const params = useParams();
@@ -296,9 +297,11 @@ export default function PublicLeaderboardPage() {
 
                   {/* Avatar Frame with metallic borders */}
                   <div className="relative mb-3">
-                    <img 
-                      src={player.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(player.player_name)}`} 
-                      alt={player.player_name} 
+                    <SafeImage
+                      src={player.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(player.player_name)}`}
+                      alt={player.player_name}
+                      width={isFirst ? 80 : 64}
+                      height={isFirst ? 80 : 64}
                       className={`w-16 h-16 rounded-full object-cover border-2 shadow-xl ${
                         isFirst ? 'w-20 h-20 border-amber-500 glow-primary' :
                         isSecond ? 'border-neutral-300' :
@@ -436,10 +439,12 @@ export default function PublicLeaderboardPage() {
                             </span>
                           </td>
                           <td className="px-6 py-4 flex items-center gap-3">
-                            <img 
-                              src={r.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(r.player_name)}`} 
-                              alt={r.player_name} 
-                              className="w-7 h-7 rounded border border-white/5 group-hover:border-violet-500/35 transition-colors" 
+                            <SafeImage
+                              src={r.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(r.player_name)}`}
+                              alt={r.player_name}
+                              width={28}
+                              height={28}
+                              className="h-7 w-7 rounded border border-white/5 object-cover group-hover:border-violet-500/35 transition-colors"
                             />
                             <span className="font-bold text-white group-hover:text-violet-400 transition-colors text-sm">{r.player_name}</span>
                           </td>
@@ -514,10 +519,12 @@ export default function PublicLeaderboardPage() {
 
             {/* Profile Hero */}
             <div className="flex flex-col items-center text-center pb-5 border-b border-white/5">
-              <img 
-                src={selectedPlayer.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(selectedPlayer.player_name)}`} 
+              <SafeImage
+                src={selectedPlayer.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(selectedPlayer.player_name)}`}
                 alt={selectedPlayer.player_name}
-                className="w-16 h-16 rounded-2xl border-2 border-violet-500/30 object-cover mb-3 glow-primary"
+                width={64}
+                height={64}
+                className="h-16 w-16 rounded-2xl border-2 border-violet-500/30 object-cover mb-3 glow-primary"
               />
               <h3 className="font-bold text-lg text-white leading-none">{selectedPlayer.player_name}</h3>
               {selectedPlayer.team && (
