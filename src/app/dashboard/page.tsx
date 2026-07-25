@@ -28,6 +28,7 @@ import {
 import Link from 'next/link';
 import HelpModal from '@/components/HelpModal';
 import { dashboardHelp } from '@/lib/help-content';
+import SafeImage from '@/components/SafeImage';
 
 export default function DashboardPage() {
   const { profile, logout, loading: authLoading } = useAuth();
@@ -214,7 +215,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-3">
             {profile?.avatar_url && (
-              <img src={profile.avatar_url} alt="Profile" className="w-8 h-8 rounded-lg border border-white/10" />
+              <SafeImage src={profile.avatar_url} alt="Profile" width={32} height={32} className="h-8 w-8 rounded-lg border border-white/10 object-cover" />
             )}
             <div className="hidden md:block text-left">
               <h4 className="text-xs font-bold leading-none">{profile?.full_name}</h4>

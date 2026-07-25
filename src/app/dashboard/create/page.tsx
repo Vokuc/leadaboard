@@ -21,6 +21,8 @@ import {
 import Link from 'next/link';
 import HelpModal from '@/components/HelpModal';
 import { createLeaderboardHelp } from '@/lib/help-content';
+import { uploadImageAsset } from '@/lib/image-upload';
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 
 interface ScoringRuleInput {
   event_name: string;
@@ -92,6 +94,9 @@ export default function CreateLeaderboardPage() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [coverImageUploading, setCoverImageUploading] = useState(false);
+  const [isLeavingPage, setIsLeavingPage] = useState(false);
+  const defaultStartDate = new Date().toISOString().split('T')[0];
 
   // Form Fields
   const [name, setName] = useState('');
@@ -110,8 +115,29 @@ export default function CreateLeaderboardPage() {
   // Season Fields
   const [hasSeason, setHasSeason] = useState(true);
   const [seasonName, setSeasonName] = useState('Season 1');
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(defaultStartDate);
   const [endDate, setEndDate] = useState('');
+
+  const hasUnsavedChanges = Boolean(
+    name.trim() ||
+    description.trim() ||
+    visibility !== 'public' ||
+    competitionType !== 'gaming' ||
+    coverImageUrl !== coverArtTemplates.gaming ||
+    scoringRules.length > 0 ||
+    ruleName.trim() ||
+    rulePoints !== 10 ||
+    ruleDesc.trim() ||
+    !hasSeason ||
+    seasonName !== 'Season 1' ||
+    startDate !== defaultStartDate ||
+    endDate
+  );
+
+  useUnsavedChangesWarning(
+    hasUnsavedChanges && !loading && !isLeavingPage,
+    'Your leaderboard setup is not saved yet. Leave this page anyway?'
+  );
 
   // Load rules template based on type
   const loadPresetRules = () => {
@@ -121,6 +147,27 @@ export default function CreateLeaderboardPage() {
   const handleCompetitionTypeChange = (nextType: CompetitionType) => {
     setCompetitionType(nextType);
     setCoverImageUrl(coverArtTemplates[nextType]);
+  };
+
+  const handleCoverImageSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    setCoverImageUploading(true);
+    setError(null);
+
+    try {
+      const uploadedImage = await uploadImageAsset(file, 'leaderboard-cover');
+      setCoverImageUrl(uploadedImage);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
+    } finally {
+      setCoverImageUploading(false);
+    }
   };
 
   const handleAddRule = () => {
@@ -188,8 +235,10 @@ export default function CreateLeaderboardPage() {
         seasonToInsert
       );
 
-      router.push(`/dashboard/leaderboards/${created.id}`);
+      setIsLeavingPage(true);
+      router.replace(`/dashboard/leaderboards/${created.id}`);
     } catch (err: unknown) {
+      setIsLeavingPage(false);
       console.error(err);
       setError(getErrorMessage(err));
     } finally {
@@ -345,6 +394,33 @@ export default function CreateLeaderboardPage() {
                   onChange={(e) => setCoverImageUrl(e.target.value)}
                   className="block w-full px-3.5 py-2.5 bg-neutral-900/60 border border-neutral-850 rounded-xl text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-violet-500 focus:border-violet-500 text-sm transition-all"
                 />
+                <div className="mt-3 space-y-3 rounded-xl border border-neutral-850 bg-neutral-950/50 p-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-white">Upload from device</p>
+                      <p className="text-[11px] text-neutral-500">Choose a JPG, PNG, or WebP image up to 2 MB. With Supabase connected, this stores a public image URL automatically.</p>
+                    </div>
+                    <label className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-xs font-semibold text-neutral-300 transition-all hover:border-neutral-700 hover:text-white">
+                      {coverImageUploading ? 'Uploading...' : 'Choose image'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleCoverImageSelected}
+                        className="hidden"
+                        disabled={coverImageUploading}
+                      />
+                    </label>
+                  </div>
+
+                  {coverImageUrl && (
+                    <div className="overflow-hidden rounded-xl border border-white/5 bg-black/30">
+                      <div
+                        className="h-32 w-full bg-cover bg-center"
+                        style={{ backgroundImage: `url(${coverImageUrl})` }}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="pt-4 border-t border-white/5 flex justify-end">

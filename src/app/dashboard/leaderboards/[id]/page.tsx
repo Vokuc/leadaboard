@@ -25,6 +25,9 @@ import QRCode from 'qrcode';
 import confetti from 'canvas-confetti';
 import HelpModal from '@/components/HelpModal';
 import { leaderboardManagementHelp } from '@/lib/help-content';
+import { uploadImageAsset } from '@/lib/image-upload';
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
+import SafeImage from '@/components/SafeImage';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -48,6 +51,8 @@ export default function LeaderboardManagementPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [coverUploading, setCoverUploading] = useState(false);
 
   // Layout Tab
   const [activeTab, setActiveTab] = useState<'overview' | 'players' | 'scores' | 'settings'>('overview');
@@ -81,6 +86,28 @@ export default function LeaderboardManagementPage() {
 
   // Players Search Filter
   const [playerSearchQuery, setPlayerSearchQuery] = useState('');
+
+  const settingsDirty = !!leaderboard && (
+    settingsName !== leaderboard.name ||
+    settingsDesc !== (leaderboard.description || '') ||
+    settingsVisibility !== leaderboard.visibility ||
+    settingsCoverUrl !== (leaderboard.cover_image_url || '')
+  );
+
+  const playerModalDirty = showAddPlayerModal
+    ? Boolean(playerName.trim() || playerEmail.trim() || playerTeam.trim() || playerNotes.trim() || playerAvatarUrl.trim())
+    : !!showEditPlayerModal && (
+        playerName !== showEditPlayerModal.name ||
+        playerEmail !== (showEditPlayerModal.email || '') ||
+        playerTeam !== (showEditPlayerModal.team || '') ||
+        playerNotes !== (showEditPlayerModal.notes || '') ||
+        playerAvatarUrl !== (showEditPlayerModal.avatar_url || '')
+      );
+
+  useUnsavedChangesWarning(
+    (settingsDirty || playerModalDirty) && !saving,
+    'You have unsaved leaderboard changes. Leave this page anyway?'
+  );
 
   function showToast(message: string, type: 'success' | 'error') {
     setToast({ message, type });
@@ -169,6 +196,46 @@ export default function LeaderboardManagementPage() {
   const copyPublicLink = () => {
     navigator.clipboard.writeText(publicUrl);
     showToast('Public leaderboard link copied to clipboard.', 'success');
+  };
+
+  const handlePlayerAvatarSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    setAvatarUploading(true);
+
+    try {
+      const uploadedImage = await uploadImageAsset(file, 'player-avatar');
+      setPlayerAvatarUrl(uploadedImage);
+    } catch (err: unknown) {
+      showToast(getErrorMessage(err, 'Failed to load image.'), 'error');
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const handleCoverImageSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    setCoverUploading(true);
+
+    try {
+      const uploadedImage = await uploadImageAsset(file, 'leaderboard-cover');
+      setSettingsCoverUrl(uploadedImage);
+    } catch (err: unknown) {
+      showToast(getErrorMessage(err, 'Failed to load image.'), 'error');
+    } finally {
+      setCoverUploading(false);
+    }
   };
 
   // Add Member
@@ -586,10 +653,12 @@ export default function LeaderboardManagementPage() {
                     filteredMembers.map((m) => (
                       <tr key={m.id} className="hover:bg-white/[0.01] transition-all">
                         <td className="px-6 py-3.5 flex items-center gap-3">
-                          <img 
-                            src={m.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(m.name)}`} 
-                            alt={m.name} 
-                            className="w-8 h-8 rounded-lg border border-white/5" 
+                          <SafeImage
+                            src={m.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(m.name)}`}
+                            alt={m.name}
+                            width={32}
+                            height={32}
+                            className="h-8 w-8 rounded-lg border border-white/5 object-cover"
                           />
                           <div>
                             <span className="font-bold text-white block text-sm">{m.name}</span>
@@ -688,6 +757,31 @@ export default function LeaderboardManagementPage() {
                         onChange={(e) => setPlayerAvatarUrl(e.target.value)}
                         className="block w-full px-3 py-2 bg-neutral-900 border border-neutral-850 rounded-lg text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-violet-500 text-xs transition-all"
                       />
+                      <div className="mt-2 space-y-2 rounded-lg border border-neutral-850 bg-black/25 p-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <p className="text-[11px] text-neutral-500">Or upload an avatar from this device and store it as a public Supabase asset.</p>
+                          <label className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-[11px] font-semibold text-neutral-300 transition-all hover:border-neutral-700 hover:text-white">
+                            {avatarUploading ? 'Uploading...' : 'Choose image'}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handlePlayerAvatarSelected}
+                              className="hidden"
+                              disabled={avatarUploading}
+                            />
+                          </label>
+                        </div>
+
+                        {playerAvatarUrl && (
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="h-14 w-14 rounded-xl border border-white/10 bg-cover bg-center"
+                              style={{ backgroundImage: `url(${playerAvatarUrl})` }}
+                            />
+                            <p className="text-[11px] text-neutral-500">Preview of the avatar that will be saved for this player.</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div>
@@ -837,10 +931,12 @@ export default function LeaderboardManagementPage() {
                           {idx + 1}
                         </span>
                         
-                        <img 
-                          src={r.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(r.player_name)}`} 
-                          alt={r.player_name} 
-                          className="w-7 h-7 rounded border border-white/5" 
+                        <SafeImage
+                          src={r.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(r.player_name)}`}
+                          alt={r.player_name}
+                          width={28}
+                          height={28}
+                          className="h-7 w-7 rounded border border-white/5 object-cover"
                         />
                         <div>
                           <span className="font-bold text-white block">{r.player_name}</span>
@@ -906,6 +1002,30 @@ export default function LeaderboardManagementPage() {
                       onChange={(e) => setSettingsCoverUrl(e.target.value)}
                       className="block w-full px-3.5 py-2.5 bg-neutral-900 border border-neutral-850 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-violet-500 text-xs transition-all"
                     />
+                    <div className="mt-2 space-y-2 rounded-xl border border-neutral-850 bg-black/25 p-3">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-[11px] text-neutral-500">Or upload a banner image from this device and save the public URL automatically.</p>
+                        <label className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-[11px] font-semibold text-neutral-300 transition-all hover:border-neutral-700 hover:text-white">
+                          {coverUploading ? 'Uploading...' : 'Choose image'}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleCoverImageSelected}
+                            className="hidden"
+                            disabled={coverUploading}
+                          />
+                        </label>
+                      </div>
+
+                      {settingsCoverUrl && (
+                        <div className="overflow-hidden rounded-xl border border-white/5 bg-black/30">
+                          <div
+                            className="h-28 w-full bg-cover bg-center"
+                            style={{ backgroundImage: `url(${settingsCoverUrl})` }}
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div>
