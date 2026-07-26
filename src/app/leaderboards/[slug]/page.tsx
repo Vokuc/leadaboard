@@ -3,7 +3,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { DatabaseService, isSupabaseConfigured, supabase } from '@/lib/db';
-import { Leaderboard, Season, ActivityLog, Ranking, ScoreEvent } from '@/types';
+import { LeagueService } from '@/lib/league/service';
+import { CompetitionConfig, Leaderboard, Season, ActivityLog, Ranking, ScoreEvent } from '@/types';
 import { 
   Trophy, 
   Search, 
@@ -21,6 +22,7 @@ import QRCode from 'qrcode';
 import HelpModal from '@/components/HelpModal';
 import { publicLeaderboardHelp } from '@/lib/help-content';
 import SafeImage from '@/components/SafeImage';
+import LeaguePublicView from '@/components/league/LeaguePublicView';
 
 export default function PublicLeaderboardPage() {
   const params = useParams();
@@ -30,6 +32,7 @@ export default function PublicLeaderboardPage() {
   const [season, setSeason] = useState<Season | null>(null);
   const [rankings, setRankings] = useState<Ranking[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [competitionConfig, setCompetitionConfig] = useState<CompetitionConfig | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Filters & Search
@@ -58,6 +61,8 @@ export default function PublicLeaderboardPage() {
         return;
       }
       setLeaderboard(lb);
+      const config = await LeagueService.getCompetitionConfig(lb.id);
+      setCompetitionConfig(config);
 
       const host = typeof window !== 'undefined' ? window.location.origin : '';
       setShareUrl(`${host}/leaderboards/${lb.slug}`);
@@ -194,6 +199,85 @@ export default function PublicLeaderboardPage() {
     );
   }
 
+  if (competitionConfig?.engine_type === 'league_table') {
+    return (
+      <div className="min-h-screen bg-black bg-grid flex flex-col text-white pb-16 relative">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[400px] rounded-full blur-[140px] pointer-events-none opacity-40 bg-cyan-900/15" />
+        <header className="glass border-b border-white/5 py-4 px-6 md:px-12 flex justify-between items-center sticky top-0 z-40">
+          <Link href="/" className="flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-violet-500 animate-pulse-glow" />
+            <span className="font-bold text-base tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
+              LeagueBoard
+            </span>
+          </Link>
+
+          <div className="flex items-center gap-2">
+            <HelpModal {...publicLeaderboardHelp} />
+            <button
+              onClick={() => setShowShareModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-neutral-850 hover:border-neutral-700 bg-neutral-900/60 hover:bg-neutral-900 text-xs font-semibold rounded-xl text-neutral-300 hover:text-white transition-colors cursor-pointer"
+            >
+              <Share2 className="w-3.5 h-3.5" /> Share Page
+            </button>
+          </div>
+        </header>
+
+        <main className="flex-1 max-w-6xl mx-auto w-full px-6 mt-8 space-y-10">
+          <div className="text-center max-w-2xl mx-auto">
+            <div className="flex justify-center items-center gap-2 mb-3">
+              <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
+                League Table
+              </span>
+              {season && (
+                <span className="text-xs text-neutral-600 flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5" /> {season.name}
+                </span>
+              )}
+            </div>
+
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">{leaderboard.name}</h1>
+            <p className="text-sm text-neutral-400 mt-2 leading-relaxed">{leaderboard.description}</p>
+          </div>
+
+          <LeaguePublicView leaderboard={leaderboard} competitionConfig={competitionConfig} />
+        </main>
+
+        {showShareModal && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="absolute inset-0" onClick={() => setShowShareModal(false)} />
+
+            <div className="glass-premium max-w-sm w-full p-6 rounded-2xl shadow-2xl relative border-white/10 glow-primary z-10 flex flex-col items-center text-center">
+              <button
+                onClick={() => setShowShareModal(false)}
+                className="absolute top-4 right-4 text-neutral-500 hover:text-white p-1 hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-4.5 h-4.5" />
+              </button>
+
+              <Share2 className="w-5 h-5 text-violet-400 mb-2" />
+              <h3 className="font-bold text-sm text-white">Share League</h3>
+              <p className="text-[10px] text-neutral-500 mt-1 max-w-[200px]">Copy the public link or scan the code invitation.</p>
+
+              <div className="mt-5 p-2 bg-white rounded-xl shadow-inner border border-neutral-200">
+                <canvas ref={qrCanvasRef} />
+              </div>
+
+              <div className="mt-6 flex w-full border border-neutral-850 p-1 bg-neutral-950/65 rounded-xl text-xs gap-1.5 items-center">
+                <span className="flex-1 text-neutral-450 truncate text-[11px] px-2 text-left">{shareUrl}</span>
+                <button
+                  onClick={copyLink}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-500 rounded-lg text-[10px] font-bold text-white transition-all cursor-pointer whitespace-nowrap glow-primary"
+                >
+                  <Copy className="w-3 h-3" /> {copied ? 'Copied!' : 'Copy Link'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // Calculate unique teams for filter options
   const teams = Array.from(new Set(rankings.map(r => r.team).filter(Boolean))) as string[];
 
@@ -273,7 +357,7 @@ export default function PublicLeaderboardPage() {
             VISUAL PODIUM SECTION (TOP 3)
             ========================================== */}
         {rankings.length > 0 && (
-          <div className="flex flex-col sm:flex-row justify-center items-end gap-6 sm:gap-4 mb-16 max-w-3xl mx-auto px-4 mt-8">
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-6 sm:gap-4 mb-16 max-w-3xl mx-auto px-4 mt-8">
             {podiumOrder.map((player) => {
               if (!player) return null;
               
@@ -323,7 +407,7 @@ export default function PublicLeaderboardPage() {
                     isSecond ? 'h-32' :
                     'h-28'
                   }`}>
-                    <div>
+                    <div className="flex flex-col items-center">
                       <h4 className="font-bold text-sm truncate max-w-[120px] text-white">{player.player_name}</h4>
                       <p className="text-[10px] text-neutral-500 truncate max-w-[125px] font-semibold mt-0.5">
                         {player.team || 'Freelance'}

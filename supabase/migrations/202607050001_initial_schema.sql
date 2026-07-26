@@ -115,6 +115,153 @@ CREATE TABLE IF NOT EXISTS public.activity_logs (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS public.competition_configs (
+  leaderboard_id UUID PRIMARY KEY REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  engine_type TEXT NOT NULL CHECK (engine_type IN ('simple_points', 'league_table')) DEFAULT 'simple_points',
+  template_key TEXT NOT NULL,
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('individual', 'team')) DEFAULT 'team',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.statistics_registry (
+  key TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  category TEXT NOT NULL CHECK (category IN ('input', 'derived')),
+  calculation_type TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.competition_templates (
+  key TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  description TEXT NOT NULL,
+  competition_type TEXT NOT NULL,
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('individual', 'team')),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.competition_statistics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  statistic_key TEXT NOT NULL REFERENCES public.statistics_registry(key) ON DELETE CASCADE,
+  label TEXT NOT NULL,
+  category TEXT NOT NULL CHECK (category IN ('input', 'derived')),
+  calculation_type TEXT,
+  is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  display_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (leaderboard_id, statistic_key)
+);
+
+CREATE TABLE IF NOT EXISTS public.competition_stat_values (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  member_id UUID NOT NULL REFERENCES public.leaderboard_members(id) ON DELETE CASCADE,
+  statistic_key TEXT NOT NULL REFERENCES public.statistics_registry(key) ON DELETE CASCADE,
+  value DOUBLE PRECISION NOT NULL DEFAULT 0,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (leaderboard_id, member_id, statistic_key)
+);
+
+CREATE TABLE IF NOT EXISTS public.competition_ranking_rules (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  criterion_type TEXT NOT NULL CHECK (criterion_type IN ('statistic', 'alphabetical')),
+  statistic_key TEXT REFERENCES public.statistics_registry(key) ON DELETE CASCADE,
+  label TEXT NOT NULL,
+  direction TEXT NOT NULL CHECK (direction IN ('asc', 'desc')) DEFAULT 'desc',
+  priority INTEGER NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (leaderboard_id, priority)
+);
+
+CREATE TABLE IF NOT EXISTS public.league_settings (
+  leaderboard_id UUID PRIMARY KEY REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  season_name TEXT NOT NULL,
+  points_for_win DOUBLE PRECISION NOT NULL DEFAULT 3,
+  points_for_draw DOUBLE PRECISION NOT NULL DEFAULT 1,
+  points_for_loss DOUBLE PRECISION NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.fixtures (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  home_member_id UUID NOT NULL REFERENCES public.leaderboard_members(id) ON DELETE CASCADE,
+  away_member_id UUID NOT NULL REFERENCES public.leaderboard_members(id) ON DELETE CASCADE,
+  round_name TEXT,
+  scheduled_at TIMESTAMPTZ,
+  status TEXT NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'live', 'completed')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CHECK (home_member_id <> away_member_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.fixture_results (
+  fixture_id UUID PRIMARY KEY REFERENCES public.fixtures(id) ON DELETE CASCADE,
+  home_score DOUBLE PRECISION NOT NULL DEFAULT 0,
+  away_score DOUBLE PRECISION NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO public.statistics_registry (key, label, category, calculation_type)
+VALUES
+  ('points', 'Points', 'input', NULL),
+  ('wins', 'Wins', 'input', NULL),
+  ('draws', 'Draws', 'input', NULL),
+  ('losses', 'Losses', 'input', NULL),
+  ('goals_for', 'Goals For', 'input', NULL),
+  ('goals_against', 'Goals Against', 'input', NULL),
+  ('points_scored', 'Points Scored', 'input', NULL),
+  ('points_allowed', 'Points Allowed', 'input', NULL),
+  ('sets_won', 'Sets Won', 'input', NULL),
+  ('sets_lost', 'Sets Lost', 'input', NULL),
+  ('kills', 'Kills', 'input', NULL),
+  ('deaths', 'Deaths', 'input', NULL),
+  ('runs', 'Runs', 'input', NULL),
+  ('runs_allowed', 'Runs Allowed', 'input', NULL),
+  ('frames_won', 'Frames Won', 'input', NULL),
+  ('frames_lost', 'Frames Lost', 'input', NULL),
+  ('played', 'Played', 'derived', 'played'),
+  ('goal_difference', 'Goal Difference', 'derived', 'goal_difference'),
+  ('point_difference', 'Point Difference', 'derived', 'point_difference'),
+  ('set_difference', 'Set Difference', 'derived', 'set_difference'),
+  ('win_percentage', 'Win Percentage', 'derived', 'win_percentage'),
+  ('average_points', 'Average Points', 'derived', 'average_points'),
+  ('kill_death_ratio', 'Kill/Death Ratio', 'derived', 'kill_death_ratio')
+ON CONFLICT (key) DO UPDATE
+SET
+  label = EXCLUDED.label,
+  category = EXCLUDED.category,
+  calculation_type = EXCLUDED.calculation_type;
+
+INSERT INTO public.competition_templates (key, label, description, competition_type, entity_type)
+VALUES
+  ('football', 'Football', 'Classic league table with goal statistics and draw support.', 'sports', 'team'),
+  ('basketball', 'Basketball', 'Win percentage and scoring difference standings.', 'sports', 'team'),
+  ('volleyball', 'Volleyball', 'Set based standings with set difference.', 'sports', 'team'),
+  ('cricket', 'Cricket', 'League points with run totals and draw support.', 'sports', 'team'),
+  ('rugby', 'Rugby', 'Team standings with scoring difference.', 'sports', 'team'),
+  ('baseball', 'Baseball', 'Run difference and win percentage table.', 'sports', 'team'),
+  ('hockey', 'Hockey', 'Goal difference standings for hockey leagues.', 'sports', 'team'),
+  ('table_tennis', 'Table Tennis', 'Set based standings for players or doubles.', 'sports', 'individual'),
+  ('tennis', 'Tennis', 'Set based standings for tennis ladders.', 'sports', 'individual'),
+  ('chess', 'Chess', 'Individual standings with draws and points.', 'education', 'individual'),
+  ('esports', 'Esports', 'League table with wins and kill/death ratio.', 'gaming', 'team'),
+  ('racing', 'Racing', 'Season standings for race events.', 'sports', 'individual'),
+  ('swimming', 'Swimming', 'Meet standings for swimmers.', 'fitness', 'individual'),
+  ('athletics', 'Athletics', 'Track and field season standings.', 'fitness', 'individual'),
+  ('custom', 'Custom', 'Flexible competition template with editable columns and ranking rules.', 'custom', 'team')
+ON CONFLICT (key) DO UPDATE
+SET
+  label = EXCLUDED.label,
+  description = EXCLUDED.description,
+  competition_type = EXCLUDED.competition_type,
+  entity_type = EXCLUDED.entity_type;
+
 -- Trigger to automatically create activity log entry on score events
 CREATE OR REPLACE FUNCTION public.log_score_event()
 RETURNS TRIGGER AS $$
@@ -175,11 +322,11 @@ CREATE POLICY "Authenticated users can update leaderboard media" ON storage.obje
   FOR UPDATE TO authenticated
   USING (
     bucket_id = 'leaderboard-media'
-    AND owner_id = (SELECT auth.uid())
+    AND owner_id = (SELECT auth.uid()::text)
   )
   WITH CHECK (
     bucket_id = 'leaderboard-media'
-    AND owner_id = (SELECT auth.uid())
+    AND owner_id = (SELECT auth.uid()::text)
   );
 
 DROP POLICY IF EXISTS "Authenticated users can delete leaderboard media" ON storage.objects;
@@ -187,7 +334,7 @@ CREATE POLICY "Authenticated users can delete leaderboard media" ON storage.obje
   FOR DELETE TO authenticated
   USING (
     bucket_id = 'leaderboard-media'
-    AND owner_id = (SELECT auth.uid())
+    AND owner_id = (SELECT auth.uid()::text)
   );
 
 

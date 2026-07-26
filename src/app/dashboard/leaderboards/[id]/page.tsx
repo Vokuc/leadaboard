@@ -4,7 +4,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useParams, useRouter } from 'next/navigation';
 import { DatabaseService } from '@/lib/db';
-import { Leaderboard, Season, ScoringRule, LeaderboardMember, ActivityLog, Ranking } from '@/types';
+import { LeagueService } from '@/lib/league/service';
+import { CompetitionConfig, Leaderboard, Season, ScoringRule, LeaderboardMember, ActivityLog, Ranking } from '@/types';
 import { 
   Trophy, 
   ArrowLeft, 
@@ -28,6 +29,7 @@ import { leaderboardManagementHelp } from '@/lib/help-content';
 import { uploadImageAsset } from '@/lib/image-upload';
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 import SafeImage from '@/components/SafeImage';
+import LeagueManagementPanel from '@/components/league/LeagueManagementPanel';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -46,6 +48,7 @@ export default function LeaderboardManagementPage() {
   const [members, setMembers] = useState<LeaderboardMember[]>([]);
   const [rankings, setRankings] = useState<Ranking[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [competitionConfig, setCompetitionConfig] = useState<CompetitionConfig | null>(null);
   
   // Loading states
   const [loading, setLoading] = useState(true);
@@ -139,6 +142,9 @@ export default function LeaderboardManagementPage() {
       const host = typeof window !== 'undefined' ? window.location.origin : '';
       setPublicUrl(`${host}/leaderboards/${lb.slug}`);
 
+      const config = await LeagueService.getCompetitionConfig(boardId);
+      setCompetitionConfig(config);
+
       // Fetch children
       const seas = await DatabaseService.getSeasons(boardId);
       setSeasons(seas);
@@ -194,8 +200,36 @@ export default function LeaderboardManagementPage() {
   }, [publicUrl, activeTab]);
 
   const copyPublicLink = () => {
-    navigator.clipboard.writeText(publicUrl);
-    showToast('Public leaderboard link copied to clipboard.', 'success');
+    const resolvedPublicUrl = publicUrl || (typeof window !== 'undefined' && leaderboard ? `${window.location.origin}/leaderboards/${leaderboard.slug}` : '');
+
+    if (!resolvedPublicUrl) {
+      showToast('Public link is not ready yet.', 'error');
+      return;
+    }
+
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      navigator.share({
+        title: leaderboard?.name || 'LeagueBoard',
+        text: 'Open this leaderboard',
+        url: resolvedPublicUrl,
+      }).then(() => {
+        showToast('Share sheet opened.', 'success');
+      }).catch(async () => {
+        try {
+          await navigator.clipboard.writeText(resolvedPublicUrl);
+          showToast('Public leaderboard link copied to clipboard.', 'success');
+        } catch {
+          showToast('Could not share the link from this browser.', 'error');
+        }
+      });
+      return;
+    }
+
+    navigator.clipboard.writeText(resolvedPublicUrl).then(() => {
+      showToast('Public leaderboard link copied to clipboard.', 'success');
+    }).catch(() => {
+      showToast('Could not copy the public link.', 'error');
+    });
   };
 
   const handlePlayerAvatarSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -437,6 +471,74 @@ export default function LeaderboardManagementPage() {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center text-neutral-400">
         <Trophy className="w-8 h-8 text-violet-500 animate-bounce" />
+      </div>
+    );
+  }
+
+  if (leaderboard && competitionConfig?.engine_type === 'league_table') {
+    return (
+      <div className="min-h-screen bg-black bg-grid flex flex-col text-white pb-16">
+        {toast && (
+          <div className={`fixed bottom-5 right-5 z-50 p-4 rounded-xl shadow-2xl border text-sm flex items-center gap-2.5 transition-all animate-bounce ${
+            toast.type === 'success'
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+              : 'bg-red-500/10 border-red-500/30 text-red-400'
+          }`}>
+            <div className={`w-2 h-2 rounded-full ${toast.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'}`} />
+            {toast.message}
+          </div>
+        )}
+
+        <header className="glass border-b border-white/5 py-4 px-6 md:px-12 flex justify-between items-center sticky top-0 z-40">
+          <Link href="/dashboard" className="flex items-center gap-2 text-neutral-400 hover:text-white transition-colors text-sm">
+            <ArrowLeft className="w-4 h-4" /> Back to Console
+          </Link>
+
+          <div className="flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-violet-500" />
+            <span className="font-bold text-base tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
+              LeagueBoard
+            </span>
+          </div>
+
+          <HelpModal {...leaderboardManagementHelp} />
+        </header>
+
+        <main className="flex-1 max-w-6xl mx-auto w-full px-6 mt-8 space-y-8">
+          <div className="glass p-6 rounded-2xl border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-violet-600/5 blur-[50px] pointer-events-none" />
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[10px] font-bold text-violet-400 uppercase tracking-widest bg-violet-500/10 px-2 py-0.5 rounded border border-violet-500/20">
+                  league table
+                </span>
+                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">
+                  {leaderboard.visibility}
+                </span>
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight text-white">{leaderboard.name}</h1>
+              <p className="text-xs text-neutral-400 mt-1 max-w-xl">{leaderboard.description || 'No description supplied.'}</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={copyPublicLink}
+                className="flex items-center gap-1.5 px-3 py-2 border border-neutral-800 hover:border-neutral-700 bg-neutral-900 rounded-xl text-xs font-semibold text-neutral-300 hover:text-white transition-all cursor-pointer"
+              >
+                <Share2 className="w-3.5 h-3.5" /> Share
+              </button>
+              <a
+                href={`/leaderboards/${leaderboard.slug}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-violet-600 hover:bg-violet-500 rounded-xl text-xs font-semibold text-white shadow-lg transition-all cursor-pointer"
+              >
+                Public View <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
+          </div>
+
+          <LeagueManagementPanel leaderboard={leaderboard} competitionConfig={competitionConfig} onLeaderboardUpdated={setLeaderboard} />
+        </main>
       </div>
     );
   }
