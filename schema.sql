@@ -115,6 +115,162 @@ CREATE TABLE IF NOT EXISTS public.activity_logs (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 8. Competition engine configuration
+CREATE TABLE IF NOT EXISTS public.competition_configs (
+  leaderboard_id UUID PRIMARY KEY REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  engine_type TEXT NOT NULL CHECK (engine_type IN ('simple_points', 'league_table')) DEFAULT 'simple_points',
+  template_key TEXT NOT NULL,
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('individual', 'team')) DEFAULT 'team',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 9. Central statistics registry
+CREATE TABLE IF NOT EXISTS public.statistics_registry (
+  key TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  category TEXT NOT NULL CHECK (category IN ('input', 'derived')),
+  calculation_type TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 10. Reusable template registry
+CREATE TABLE IF NOT EXISTS public.competition_templates (
+  key TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  description TEXT NOT NULL,
+  competition_type TEXT NOT NULL,
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('individual', 'team')),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 11. Competition statistic configuration per leaderboard
+CREATE TABLE IF NOT EXISTS public.competition_statistics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  statistic_key TEXT NOT NULL REFERENCES public.statistics_registry(key) ON DELETE CASCADE,
+  label TEXT NOT NULL,
+  category TEXT NOT NULL CHECK (category IN ('input', 'derived')),
+  calculation_type TEXT,
+  is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  display_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (leaderboard_id, statistic_key)
+);
+
+-- 12. Stored input statistic values per competitor/team
+CREATE TABLE IF NOT EXISTS public.competition_stat_values (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  member_id UUID NOT NULL REFERENCES public.leaderboard_members(id) ON DELETE CASCADE,
+  statistic_key TEXT NOT NULL REFERENCES public.statistics_registry(key) ON DELETE CASCADE,
+  value DOUBLE PRECISION NOT NULL DEFAULT 0,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (leaderboard_id, member_id, statistic_key)
+);
+
+-- 13. Ranking configuration for league standings
+CREATE TABLE IF NOT EXISTS public.competition_ranking_rules (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  criterion_type TEXT NOT NULL CHECK (criterion_type IN ('statistic', 'alphabetical')),
+  statistic_key TEXT REFERENCES public.statistics_registry(key) ON DELETE CASCADE,
+  label TEXT NOT NULL,
+  direction TEXT NOT NULL CHECK (direction IN ('asc', 'desc')) DEFAULT 'desc',
+  priority INTEGER NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (leaderboard_id, priority)
+);
+
+-- 14. League specific settings
+CREATE TABLE IF NOT EXISTS public.league_settings (
+  leaderboard_id UUID PRIMARY KEY REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  season_name TEXT NOT NULL,
+  points_for_win DOUBLE PRECISION NOT NULL DEFAULT 3,
+  points_for_draw DOUBLE PRECISION NOT NULL DEFAULT 1,
+  points_for_loss DOUBLE PRECISION NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 15. Fixtures
+CREATE TABLE IF NOT EXISTS public.fixtures (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  home_member_id UUID NOT NULL REFERENCES public.leaderboard_members(id) ON DELETE CASCADE,
+  away_member_id UUID NOT NULL REFERENCES public.leaderboard_members(id) ON DELETE CASCADE,
+  round_name TEXT,
+  scheduled_at TIMESTAMPTZ,
+  status TEXT NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'live', 'completed')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CHECK (home_member_id <> away_member_id)
+);
+
+-- 16. Fixture results
+CREATE TABLE IF NOT EXISTS public.fixture_results (
+  fixture_id UUID PRIMARY KEY REFERENCES public.fixtures(id) ON DELETE CASCADE,
+  home_score DOUBLE PRECISION NOT NULL DEFAULT 0,
+  away_score DOUBLE PRECISION NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO public.statistics_registry (key, label, category, calculation_type)
+VALUES
+  ('points', 'Points', 'input', NULL),
+  ('wins', 'Wins', 'input', NULL),
+  ('draws', 'Draws', 'input', NULL),
+  ('losses', 'Losses', 'input', NULL),
+  ('goals_for', 'Goals For', 'input', NULL),
+  ('goals_against', 'Goals Against', 'input', NULL),
+  ('points_scored', 'Points Scored', 'input', NULL),
+  ('points_allowed', 'Points Allowed', 'input', NULL),
+  ('sets_won', 'Sets Won', 'input', NULL),
+  ('sets_lost', 'Sets Lost', 'input', NULL),
+  ('kills', 'Kills', 'input', NULL),
+  ('deaths', 'Deaths', 'input', NULL),
+  ('runs', 'Runs', 'input', NULL),
+  ('runs_allowed', 'Runs Allowed', 'input', NULL),
+  ('frames_won', 'Frames Won', 'input', NULL),
+  ('frames_lost', 'Frames Lost', 'input', NULL),
+  ('played', 'Played', 'derived', 'played'),
+  ('goal_difference', 'Goal Difference', 'derived', 'goal_difference'),
+  ('point_difference', 'Point Difference', 'derived', 'point_difference'),
+  ('set_difference', 'Set Difference', 'derived', 'set_difference'),
+  ('win_percentage', 'Win Percentage', 'derived', 'win_percentage'),
+  ('average_points', 'Average Points', 'derived', 'average_points'),
+  ('kill_death_ratio', 'Kill/Death Ratio', 'derived', 'kill_death_ratio')
+ON CONFLICT (key) DO UPDATE
+SET
+  label = EXCLUDED.label,
+  category = EXCLUDED.category,
+  calculation_type = EXCLUDED.calculation_type;
+
+INSERT INTO public.competition_templates (key, label, description, competition_type, entity_type)
+VALUES
+  ('football', 'Football', 'Classic league table with goal statistics and draw support.', 'sports', 'team'),
+  ('basketball', 'Basketball', 'Win percentage and scoring difference standings.', 'sports', 'team'),
+  ('volleyball', 'Volleyball', 'Set based standings with set difference.', 'sports', 'team'),
+  ('cricket', 'Cricket', 'League points with run totals and draw support.', 'sports', 'team'),
+  ('rugby', 'Rugby', 'Team standings with scoring difference.', 'sports', 'team'),
+  ('baseball', 'Baseball', 'Run difference and win percentage table.', 'sports', 'team'),
+  ('hockey', 'Hockey', 'Goal difference standings for hockey leagues.', 'sports', 'team'),
+  ('table_tennis', 'Table Tennis', 'Set based standings for players or doubles.', 'sports', 'individual'),
+  ('tennis', 'Tennis', 'Set based standings for tennis ladders.', 'sports', 'individual'),
+  ('chess', 'Chess', 'Individual standings with draws and points.', 'education', 'individual'),
+  ('esports', 'Esports', 'League table with wins and kill/death ratio.', 'gaming', 'team'),
+  ('racing', 'Racing', 'Season standings for race events.', 'sports', 'individual'),
+  ('swimming', 'Swimming', 'Meet standings for swimmers.', 'fitness', 'individual'),
+  ('athletics', 'Athletics', 'Track and field season standings.', 'fitness', 'individual'),
+  ('custom', 'Custom', 'Flexible competition template with editable columns and ranking rules.', 'custom', 'team')
+ON CONFLICT (key) DO UPDATE
+SET
+  label = EXCLUDED.label,
+  description = EXCLUDED.description,
+  competition_type = EXCLUDED.competition_type,
+  entity_type = EXCLUDED.entity_type;
+
 -- Trigger to automatically create activity log entry on score events
 CREATE OR REPLACE FUNCTION public.log_score_event()
 RETURNS TRIGGER AS $$
@@ -175,11 +331,11 @@ CREATE POLICY "Authenticated users can update leaderboard media" ON storage.obje
   FOR UPDATE TO authenticated
   USING (
     bucket_id = 'leaderboard-media'
-    AND owner_id = (SELECT auth.uid())
+    AND owner_id = (SELECT auth.uid()::text)
   )
   WITH CHECK (
     bucket_id = 'leaderboard-media'
-    AND owner_id = (SELECT auth.uid())
+    AND owner_id = (SELECT auth.uid()::text)
   );
 
 DROP POLICY IF EXISTS "Authenticated users can delete leaderboard media" ON storage.objects;
@@ -187,7 +343,7 @@ CREATE POLICY "Authenticated users can delete leaderboard media" ON storage.obje
   FOR DELETE TO authenticated
   USING (
     bucket_id = 'leaderboard-media'
-    AND owner_id = (SELECT auth.uid())
+    AND owner_id = (SELECT auth.uid()::text)
   );
 
 
@@ -230,6 +386,15 @@ ALTER TABLE public.scoring_rules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.leaderboard_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.score_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.competition_configs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.statistics_registry ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.competition_templates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.competition_statistics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.competition_stat_values ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.competition_ranking_rules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.league_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.fixtures ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.fixture_results ENABLE ROW LEVEL SECURITY;
 
 -- 1. Profiles Policies
 CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles
@@ -302,6 +467,131 @@ CREATE POLICY "Owners can manage leaderboard members" ON public.leaderboard_memb
     EXISTS (
       SELECT 1 FROM public.leaderboards l 
       WHERE l.id = leaderboard_id AND auth.uid() = l.owner_id
+    )
+  );
+
+-- 8. Competition config policies
+CREATE POLICY "Anyone can view competition config for accessible leaderboards" ON public.competition_configs
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.leaderboards l
+      WHERE l.id = leaderboard_id AND (l.visibility = 'public' OR auth.uid() = l.owner_id)
+    )
+  );
+
+CREATE POLICY "Owners can manage competition config" ON public.competition_configs
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.leaderboards l
+      WHERE l.id = leaderboard_id AND auth.uid() = l.owner_id
+    )
+  );
+
+-- 9. Registry policies
+CREATE POLICY "Anyone can read statistics registry" ON public.statistics_registry
+  FOR SELECT USING (true);
+
+CREATE POLICY "Anyone can read competition templates" ON public.competition_templates
+  FOR SELECT USING (true);
+
+-- 10. League statistic/ranking/fixture policies
+CREATE POLICY "Anyone can read competition statistics" ON public.competition_statistics
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.leaderboards l
+      WHERE l.id = leaderboard_id AND (l.visibility = 'public' OR auth.uid() = l.owner_id)
+    )
+  );
+
+CREATE POLICY "Owners can manage competition statistics" ON public.competition_statistics
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.leaderboards l
+      WHERE l.id = leaderboard_id AND auth.uid() = l.owner_id
+    )
+  );
+
+CREATE POLICY "Anyone can read competition stat values" ON public.competition_stat_values
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.leaderboards l
+      WHERE l.id = leaderboard_id AND (l.visibility = 'public' OR auth.uid() = l.owner_id)
+    )
+  );
+
+CREATE POLICY "Owners can manage competition stat values" ON public.competition_stat_values
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.leaderboards l
+      WHERE l.id = leaderboard_id AND auth.uid() = l.owner_id
+    )
+  );
+
+CREATE POLICY "Anyone can read ranking rules" ON public.competition_ranking_rules
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.leaderboards l
+      WHERE l.id = leaderboard_id AND (l.visibility = 'public' OR auth.uid() = l.owner_id)
+    )
+  );
+
+CREATE POLICY "Owners can manage ranking rules" ON public.competition_ranking_rules
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.leaderboards l
+      WHERE l.id = leaderboard_id AND auth.uid() = l.owner_id
+    )
+  );
+
+CREATE POLICY "Anyone can read league settings" ON public.league_settings
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.leaderboards l
+      WHERE l.id = leaderboard_id AND (l.visibility = 'public' OR auth.uid() = l.owner_id)
+    )
+  );
+
+CREATE POLICY "Owners can manage league settings" ON public.league_settings
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.leaderboards l
+      WHERE l.id = leaderboard_id AND auth.uid() = l.owner_id
+    )
+  );
+
+CREATE POLICY "Anyone can read fixtures" ON public.fixtures
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.leaderboards l
+      WHERE l.id = leaderboard_id AND (l.visibility = 'public' OR auth.uid() = l.owner_id)
+    )
+  );
+
+CREATE POLICY "Owners can manage fixtures" ON public.fixtures
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.leaderboards l
+      WHERE l.id = leaderboard_id AND auth.uid() = l.owner_id
+    )
+  );
+
+CREATE POLICY "Anyone can read fixture results" ON public.fixture_results
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1
+      FROM public.fixtures f
+      JOIN public.leaderboards l ON l.id = f.leaderboard_id
+      WHERE f.id = fixture_id AND (l.visibility = 'public' OR auth.uid() = l.owner_id)
+    )
+  );
+
+CREATE POLICY "Owners can manage fixture results" ON public.fixture_results
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1
+      FROM public.fixtures f
+      JOIN public.leaderboards l ON l.id = f.leaderboard_id
+      WHERE f.id = fixture_id AND auth.uid() = l.owner_id
     )
   );
 

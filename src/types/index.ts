@@ -10,6 +10,36 @@ export interface Profile {
 export type CompetitionType = 'custom' | 'sports' | 'gaming' | 'reading' | 'fitness' | 'workplace' | 'education';
 export type VisibilityType = 'public' | 'private';
 export type LeaderboardStatus = 'active' | 'archived';
+export type CompetitionEngine = 'simple_points' | 'league_table';
+export type CompetitionEntityType = 'individual' | 'team';
+export type StatisticCategory = 'input' | 'derived';
+export type StatisticCalculationType =
+  | 'played'
+  | 'goal_difference'
+  | 'point_difference'
+  | 'set_difference'
+  | 'win_percentage'
+  | 'average_points'
+  | 'kill_death_ratio';
+export type RankingCriterionType = 'statistic' | 'alphabetical';
+export type RankingDirection = 'asc' | 'desc';
+export type FixtureStatus = 'scheduled' | 'live' | 'completed';
+export type CompetitionTemplateKey =
+  | 'football'
+  | 'basketball'
+  | 'volleyball'
+  | 'cricket'
+  | 'rugby'
+  | 'baseball'
+  | 'hockey'
+  | 'table_tennis'
+  | 'tennis'
+  | 'chess'
+  | 'esports'
+  | 'racing'
+  | 'swimming'
+  | 'athletics'
+  | 'custom';
 
 export interface Leaderboard {
   id: string;
@@ -85,4 +115,117 @@ export interface Ranking {
   total_points: number;
   last_score_at: string;
   joined_at: string;
+}
+
+export interface CompetitionConfig {
+  leaderboard_id: string;
+  engine_type: CompetitionEngine;
+  template_key: CompetitionTemplateKey;
+  entity_type: CompetitionEntityType;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StatisticsRegistryItem {
+  key: string;
+  label: string;
+  category: StatisticCategory;
+  calculation_type: StatisticCalculationType | null;
+  created_at?: string;
+}
+
+export interface CompetitionStatistic {
+  id: string;
+  leaderboard_id: string;
+  statistic_key: string;
+  label: string;
+  category: StatisticCategory;
+  calculation_type: StatisticCalculationType | null;
+  is_enabled: boolean;
+  display_order: number;
+  created_at: string;
+}
+
+export interface CompetitionStatValue {
+  id: string;
+  leaderboard_id: string;
+  member_id: string;
+  statistic_key: string;
+  value: number;
+  updated_at: string;
+}
+
+export interface CompetitionRankingRule {
+  id: string;
+  leaderboard_id: string;
+  criterion_type: RankingCriterionType;
+  statistic_key: string | null;
+  label: string;
+  direction: RankingDirection;
+  priority: number;
+  created_at: string;
+}
+
+export interface LeagueSettings {
+  leaderboard_id: string;
+  season_name: string;
+  points_for_win: number;
+  points_for_draw: number;
+  points_for_loss: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Fixture {
+  id: string;
+  leaderboard_id: string;
+  home_member_id: string;
+  away_member_id: string;
+  round_name: string | null;
+  scheduled_at: string | null;
+  status: FixtureStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FixtureResult {
+  fixture_id: string;
+  home_score: number;
+  away_score: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LeagueStandingRow {
+  member_id: string;
+  name: string;
+  avatar_url: string | null;
+  team: string | null;
+  notes: string | null;
+  is_active: boolean;
+  stats: Record<string, number>;
+  position: number;
+}
+
+export interface CompetitionTemplate {
+  key: CompetitionTemplateKey;
+  label: string;
+  description: string;
+  competition_type: CompetitionType;
+  entity_type: CompetitionEntityType;
+  supports_draws: boolean;
+  score_label: string;
+  scored_stat_key: string;
+  allowed_stat_key: string;
+  default_points_for_win: number;
+  default_points_for_draw: number;
+  default_points_for_loss: number;
+  statistic_keys: string[];
+  standings_column_keys: string[];
+  ranking_rules: Array<{
+    criterion_type: RankingCriterionType;
+    statistic_key: string | null;
+    label: string;
+    direction: RankingDirection;
+  }>;
 }

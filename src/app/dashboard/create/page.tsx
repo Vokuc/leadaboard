@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { DatabaseService } from '@/lib/db';
-import { CompetitionType, VisibilityType, ScoringRule, Season } from '@/types';
+import { LeagueService } from '@/lib/league/service';
+import { CompetitionEngine, CompetitionTemplateKey, CompetitionType, VisibilityType, ScoringRule, Season } from '@/types';
 import { 
   Trophy, 
   ArrowLeft, 
@@ -80,6 +81,9 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Failed to create leaderboard. Please try again.';
 }
 
+const DEFAULT_ENGINE: CompetitionEngine = 'simple_points';
+const DEFAULT_TEMPLATE_KEY: CompetitionTemplateKey = 'football';
+
 export default function CreateLeaderboardPage() {
   const { profile, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -104,6 +108,11 @@ export default function CreateLeaderboardPage() {
   const [visibility, setVisibility] = useState<VisibilityType>('public');
   const [competitionType, setCompetitionType] = useState<CompetitionType>('gaming');
   const [coverImageUrl, setCoverImageUrl] = useState(coverArtTemplates.gaming);
+  const [competitionEngine, setCompetitionEngine] = useState<CompetitionEngine>(DEFAULT_ENGINE);
+  const [templateKey, setTemplateKey] = useState<CompetitionTemplateKey>(DEFAULT_TEMPLATE_KEY);
+  const [pointsForWin, setPointsForWin] = useState(3);
+  const [pointsForDraw, setPointsForDraw] = useState(1);
+  const [pointsForLoss, setPointsForLoss] = useState(0);
   
   // Scoring rules list
   const [scoringRules, setScoringRules] = useState<ScoringRuleInput[]>([]);
@@ -124,6 +133,11 @@ export default function CreateLeaderboardPage() {
     visibility !== 'public' ||
     competitionType !== 'gaming' ||
     coverImageUrl !== coverArtTemplates.gaming ||
+    competitionEngine !== DEFAULT_ENGINE ||
+    templateKey !== DEFAULT_TEMPLATE_KEY ||
+    pointsForWin !== 3 ||
+    pointsForDraw !== 1 ||
+    pointsForLoss !== 0 ||
     scoringRules.length > 0 ||
     ruleName.trim() ||
     rulePoints !== 10 ||
@@ -147,6 +161,15 @@ export default function CreateLeaderboardPage() {
   const handleCompetitionTypeChange = (nextType: CompetitionType) => {
     setCompetitionType(nextType);
     setCoverImageUrl(coverArtTemplates[nextType]);
+  };
+
+  const applyLeagueTemplate = (nextTemplateKey: CompetitionTemplateKey) => {
+    const template = LeagueService.getTemplate(nextTemplateKey);
+    setTemplateKey(nextTemplateKey);
+    setCompetitionType(template.competition_type);
+    setPointsForWin(template.default_points_for_win);
+    setPointsForDraw(template.default_points_for_draw);
+    setPointsForLoss(template.default_points_for_loss);
   };
 
   const handleCoverImageSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -222,18 +245,38 @@ export default function CreateLeaderboardPage() {
         end_date: endDate ? new Date(endDate).toISOString() : null
       } : null;
 
-      const created = await DatabaseService.createLeaderboard(
-        {
-          name,
-          description: description || null,
-          slug,
-          visibility,
-          competition_type: competitionType,
-          cover_image_url: coverImageUrl || null
-        },
-        rulesToInsert,
-        seasonToInsert
-      );
+      const created = competitionEngine === 'league_table'
+        ? await LeagueService.createLeagueCompetition({
+            name,
+            description: description || null,
+            slug,
+            visibility,
+            competitionType,
+            coverImageUrl: coverImageUrl || null,
+            templateKey,
+            entityType: LeagueService.getTemplate(templateKey).entity_type,
+            seasonName: seasonName || 'Season 1',
+            startDate,
+            endDate: endDate || null,
+            pointsForWin,
+            pointsForDraw,
+            pointsForLoss,
+            selectedStatisticKeys: LeagueService.getTemplate(templateKey).statistic_keys,
+            standingsColumnKeys: LeagueService.getTemplate(templateKey).standings_column_keys,
+            rankingRules: LeagueService.getTemplate(templateKey).ranking_rules,
+          })
+        : await DatabaseService.createLeaderboard(
+            {
+              name,
+              description: description || null,
+              slug,
+              visibility,
+              competition_type: competitionType,
+              cover_image_url: coverImageUrl || null
+            },
+            rulesToInsert,
+            seasonToInsert
+          );
 
       setIsLeavingPage(true);
       router.replace(`/dashboard/leaderboards/${created.id}`);
@@ -339,6 +382,31 @@ export default function CreateLeaderboardPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">
+                    Scoring Engine
+                  </label>
+                  <div className="flex gap-2 p-1 bg-neutral-950/60 border border-neutral-850 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => setCompetitionEngine('simple_points')}
+                      className={`flex-1 rounded-lg px-3 py-2 text-xs font-bold transition-all ${competitionEngine === 'simple_points' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white'}`}
+                    >
+                      Simple Points
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCompetitionEngine('league_table');
+                        applyLeagueTemplate(templateKey);
+                      }}
+                      className={`flex-1 rounded-lg px-3 py-2 text-xs font-bold transition-all ${competitionEngine === 'league_table' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white'}`}
+                    >
+                      League Table
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">
                     Competition Type
                   </label>
                   <select
@@ -355,6 +423,24 @@ export default function CreateLeaderboardPage() {
                     <option value="custom">Custom Tracker</option>
                   </select>
                 </div>
+
+                {competitionEngine === 'league_table' && (
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">
+                      League Template
+                    </label>
+                    <select
+                      value={templateKey}
+                      onChange={(e) => applyLeagueTemplate(e.target.value as CompetitionTemplateKey)}
+                      className="block w-full px-3.5 py-2.5 bg-neutral-900/60 border border-neutral-850 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-violet-500 focus:border-violet-500 text-sm transition-all cursor-pointer"
+                    >
+                      {LeagueService.getTemplates().map((template) => (
+                        <option key={template.key} value={template.key}>{template.label}</option>
+                      ))}
+                    </select>
+                    <p className="mt-2 text-xs text-neutral-500">League mode keeps the existing points engine untouched and creates a separate standings workflow with fixtures and results.</p>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">
@@ -429,7 +515,7 @@ export default function CreateLeaderboardPage() {
                   onClick={handleNextStep}
                   className="flex items-center gap-1.5 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-sm font-semibold rounded-xl text-white transition-all cursor-pointer"
                 >
-                  Configure Scoring <ArrowRight className="w-4 h-4" />
+                  {competitionEngine === 'league_table' ? 'Configure League Rules' : 'Configure Scoring'} <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -441,119 +527,163 @@ export default function CreateLeaderboardPage() {
               <div>
                 <div className="flex justify-between items-start">
                   <div>
-                    <h2 className="text-xl font-bold text-white tracking-tight">Step 2: Scoring Rules Engine</h2>
-                    <p className="text-xs text-neutral-400 mt-1">Specify how users earn points. Add points for wins or deduct for penatlies.</p>
+                    <h2 className="text-xl font-bold text-white tracking-tight">Step 2: {competitionEngine === 'league_table' ? 'League Rules & Table Columns' : 'Scoring Rules Engine'}</h2>
+                    <p className="text-xs text-neutral-400 mt-1">{competitionEngine === 'league_table' ? 'Set table points and confirm the standings structure for fixtures and results.' : 'Specify how users earn points. Add points for wins or deduct for penatlies.'}</p>
                   </div>
                   
-                  <button
-                    type="button"
-                    onClick={loadPresetRules}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-violet-500/20 bg-violet-500/10 text-violet-300 hover:bg-violet-500/15 text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-violet-400" /> Apply {competitionType} Preset
-                  </button>
+                  {competitionEngine === 'simple_points' && (
+                    <button
+                      type="button"
+                      onClick={loadPresetRules}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-violet-500/20 bg-violet-500/10 text-violet-300 hover:bg-violet-500/15 text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-violet-400" /> Apply {competitionType} Preset
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {/* Scoring Event Form Panel */}
-              <div className="p-4 rounded-xl bg-neutral-900/40 border border-neutral-850 space-y-4">
-                <h4 className="text-xs font-bold text-neutral-300 uppercase tracking-wide">Add Custom Score Event</h4>
-                
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="col-span-2">
-                    <label className="block text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">
-                      Event Action Name
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Win Match"
-                      value={ruleName}
-                      onChange={(e) => setRuleName(e.target.value)}
-                      className="block w-full px-3 py-1.5 bg-neutral-950/60 border border-neutral-850 rounded-lg text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-violet-500 text-xs transition-all"
-                    />
+              {competitionEngine === 'league_table' ? (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="rounded-xl border border-neutral-850 bg-neutral-900/40 p-4">
+                      <label className="block text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-2">Points For Win</label>
+                      <input type="number" value={pointsForWin} onChange={(e) => setPointsForWin(Number(e.target.value) || 0)} className="block w-full rounded-lg border border-neutral-850 bg-neutral-950/60 px-3 py-2 text-white text-sm" />
+                    </div>
+                    <div className="rounded-xl border border-neutral-850 bg-neutral-900/40 p-4">
+                      <label className="block text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-2">Points For Draw</label>
+                      <input type="number" value={pointsForDraw} onChange={(e) => setPointsForDraw(Number(e.target.value) || 0)} className="block w-full rounded-lg border border-neutral-850 bg-neutral-950/60 px-3 py-2 text-white text-sm" />
+                    </div>
+                    <div className="rounded-xl border border-neutral-850 bg-neutral-900/40 p-4">
+                      <label className="block text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-2">Points For Loss</label>
+                      <input type="number" value={pointsForLoss} onChange={(e) => setPointsForLoss(Number(e.target.value) || 0)} className="block w-full rounded-lg border border-neutral-850 bg-neutral-950/60 px-3 py-2 text-white text-sm" />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">
-                      Points Weight
-                    </label>
-                    <input
-                      type="number"
-                      value={rulePoints}
-                      onChange={(e) => setRulePoints(parseInt(e.target.value) || 0)}
-                      className="block w-full px-3 py-1.5 bg-neutral-950/60 border border-neutral-850 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-violet-500 text-xs transition-all"
-                    />
+
+                  <div className="rounded-xl border border-neutral-850 bg-neutral-900/40 p-4">
+                    <h4 className="text-xs font-bold text-neutral-300 uppercase tracking-wide">Standings Columns</h4>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {LeagueService.getTemplate(templateKey).standings_column_keys.map((columnKey) => (
+                        <span key={columnKey} className="rounded-lg border border-violet-500/20 bg-violet-500/10 px-2 py-1 text-[11px] text-violet-200">
+                          {columnKey.replace(/_/g, ' ')}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-                
-                <div>
-                  <label className="block text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">
-                    Event Description (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Briefly state when this points trigger fires..."
-                    value={ruleDesc}
-                    onChange={(e) => setRuleDesc(e.target.value)}
-                    className="block w-full px-3 py-1.5 bg-neutral-950/60 border border-neutral-850 rounded-lg text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-violet-500 text-xs transition-all"
-                  />
-                </div>
 
-                <button
-                  type="button"
-                  onClick={handleAddRule}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-950 border border-neutral-800 hover:border-neutral-700 hover:bg-neutral-900 rounded-lg text-xs font-bold text-white transition-all cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5 text-violet-400" /> Save Score Rule
-                </button>
-              </div>
-
-              {/* Rules List Preview */}
-              <div>
-                <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">
-                  Configured Score Rules ({scoringRules.length})
-                </h4>
-
-                {scoringRules.length === 0 ? (
-                  <div className="p-6 text-center border border-dashed border-neutral-850 rounded-xl text-neutral-500 text-xs flex flex-col items-center gap-2">
-                    <Info className="w-4 h-4" />
-                    <span>No scoring rules added yet. Standard custom rules can be configured, or click the preset button above.</span>
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                    {scoringRules.map((rule, idx) => (
-                      <div 
-                        key={idx}
-                        className="flex justify-between items-center p-3 rounded-xl bg-neutral-950/60 border border-neutral-850 text-xs"
-                      >
-                        <div>
-                          <span className="font-bold text-white">{rule.event_name}</span>
-                          {rule.description && (
-                            <span className="block text-[10px] text-neutral-500 mt-0.5">{rule.description}</span>
-                          )}
+                  <div className="rounded-xl border border-neutral-850 bg-neutral-900/40 p-4">
+                    <h4 className="text-xs font-bold text-neutral-300 uppercase tracking-wide">Ranking Priority</h4>
+                    <div className="mt-3 space-y-2">
+                      {LeagueService.getTemplate(templateKey).ranking_rules.map((rule, index) => (
+                        <div key={`${rule.label}-${index}`} className="rounded-lg border border-white/5 bg-black/20 px-3 py-2 text-xs text-neutral-300">
+                          <span className="font-bold text-white">{index + 1}. {rule.label}</span>
+                          <span className="ml-2 text-neutral-500">{rule.direction === 'desc' ? 'highest first' : 'lowest first'}</span>
                         </div>
-                        
-                        <div className="flex items-center gap-3">
-                          <span className={`font-bold px-2 py-0.5 rounded-lg ${
-                            rule.points >= 0 
-                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
-                              : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                          }`}>
-                            {rule.points >= 0 ? `+${rule.points}` : rule.points}
-                          </span>
-                          
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteRule(idx)}
-                            className="p-1 text-neutral-500 hover:text-red-400 transition-colors cursor-pointer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="p-4 rounded-xl bg-neutral-900/40 border border-neutral-850 space-y-4">
+                    <h4 className="text-xs font-bold text-neutral-300 uppercase tracking-wide">Add Custom Score Event</h4>
+                    
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="col-span-2">
+                        <label className="block text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">
+                          Event Action Name
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Win Match"
+                          value={ruleName}
+                          onChange={(e) => setRuleName(e.target.value)}
+                          className="block w-full px-3 py-1.5 bg-neutral-950/60 border border-neutral-850 rounded-lg text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-violet-500 text-xs transition-all"
+                        />
                       </div>
-                    ))}
+                      <div>
+                        <label className="block text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">
+                          Points Weight
+                        </label>
+                        <input
+                          type="number"
+                          value={rulePoints}
+                          onChange={(e) => setRulePoints(parseInt(e.target.value) || 0)}
+                          className="block w-full px-3 py-1.5 bg-neutral-950/60 border border-neutral-850 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-violet-500 text-xs transition-all"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">
+                        Event Description (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Briefly state when this points trigger fires..."
+                        value={ruleDesc}
+                        onChange={(e) => setRuleDesc(e.target.value)}
+                        className="block w-full px-3 py-1.5 bg-neutral-950/60 border border-neutral-850 rounded-lg text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-violet-500 text-xs transition-all"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleAddRule}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-950 border border-neutral-800 hover:border-neutral-700 hover:bg-neutral-900 rounded-lg text-xs font-bold text-white transition-all cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5 text-violet-400" /> Save Score Rule
+                    </button>
                   </div>
-                )}
-              </div>
+
+                  <div>
+                    <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">
+                      Configured Score Rules ({scoringRules.length})
+                    </h4>
+
+                    {scoringRules.length === 0 ? (
+                      <div className="p-6 text-center border border-dashed border-neutral-850 rounded-xl text-neutral-500 text-xs flex flex-col items-center gap-2">
+                        <Info className="w-4 h-4" />
+                        <span>No scoring rules added yet. Standard custom rules can be configured, or click the preset button above.</span>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                        {scoringRules.map((rule, idx) => (
+                          <div 
+                            key={idx}
+                            className="flex justify-between items-center p-3 rounded-xl bg-neutral-950/60 border border-neutral-850 text-xs"
+                          >
+                            <div>
+                              <span className="font-bold text-white">{rule.event_name}</span>
+                              {rule.description && (
+                                <span className="block text-[10px] text-neutral-500 mt-0.5">{rule.description}</span>
+                              )}
+                            </div>
+                            
+                            <div className="flex items-center gap-3">
+                              <span className={`font-bold px-2 py-0.5 rounded-lg ${
+                                rule.points >= 0 
+                                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                                  : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                              }`}>
+                                {rule.points >= 0 ? `+${rule.points}` : rule.points}
+                              </span>
+                              
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteRule(idx)}
+                                className="p-1 text-neutral-500 hover:text-red-400 transition-colors cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
 
               <div className="pt-4 border-t border-white/5 flex justify-between">
                 <button
