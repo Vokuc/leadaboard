@@ -5,7 +5,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { DatabaseService } from '@/lib/db';
 import { LeagueService } from '@/lib/league/service';
-import { CompetitionEngine, CompetitionTemplateKey, CompetitionType, VisibilityType, ScoringRule, Season } from '@/types';
+import { TournamentService } from '@/lib/tournament/service';
+import { CompetitionEngine, CompetitionTemplateKey, CompetitionType, VisibilityType, ScoringRule, Season, TournamentSeedingMode } from '@/types';
 import { 
   Trophy, 
   ArrowLeft, 
@@ -83,6 +84,21 @@ function getErrorMessage(error: unknown): string {
 
 const DEFAULT_ENGINE: CompetitionEngine = 'simple_points';
 const DEFAULT_TEMPLATE_KEY: CompetitionTemplateKey = 'football';
+const TOURNAMENT_TEMPLATE_KEYS: CompetitionTemplateKey[] = [
+  'football',
+  'basketball',
+  'volleyball',
+  'cricket',
+  'baseball',
+  'rugby',
+  'hockey',
+  'chess',
+  'esports',
+  'racing',
+  'swimming',
+  'athletics',
+  'custom',
+];
 
 export default function CreateLeaderboardPage() {
   const { profile, loading: authLoading } = useAuth();
@@ -113,6 +129,8 @@ export default function CreateLeaderboardPage() {
   const [pointsForWin, setPointsForWin] = useState(3);
   const [pointsForDraw, setPointsForDraw] = useState(1);
   const [pointsForLoss, setPointsForLoss] = useState(0);
+  const [tournamentBracketSize, setTournamentBracketSize] = useState(8);
+  const [tournamentSeedingMode, setTournamentSeedingMode] = useState<TournamentSeedingMode>('random');
   
   // Scoring rules list
   const [scoringRules, setScoringRules] = useState<ScoringRuleInput[]>([]);
@@ -135,6 +153,8 @@ export default function CreateLeaderboardPage() {
     coverImageUrl !== coverArtTemplates.gaming ||
     competitionEngine !== DEFAULT_ENGINE ||
     templateKey !== DEFAULT_TEMPLATE_KEY ||
+    tournamentBracketSize !== 8 ||
+    tournamentSeedingMode !== 'random' ||
     pointsForWin !== 3 ||
     pointsForDraw !== 1 ||
     pointsForLoss !== 0 ||
@@ -163,7 +183,7 @@ export default function CreateLeaderboardPage() {
     setCoverImageUrl(coverArtTemplates[nextType]);
   };
 
-  const applyLeagueTemplate = (nextTemplateKey: CompetitionTemplateKey) => {
+  const applyCompetitionTemplate = (nextTemplateKey: CompetitionTemplateKey) => {
     const template = LeagueService.getTemplate(nextTemplateKey);
     setTemplateKey(nextTemplateKey);
     setCompetitionType(template.competition_type);
@@ -265,7 +285,22 @@ export default function CreateLeaderboardPage() {
             standingsColumnKeys: LeagueService.getTemplate(templateKey).standings_column_keys,
             rankingRules: LeagueService.getTemplate(templateKey).ranking_rules,
           })
-        : await DatabaseService.createLeaderboard(
+        : competitionEngine === 'tournament'
+          ? await TournamentService.createTournamentCompetition({
+              name,
+              description: description || null,
+              slug,
+              visibility,
+              competitionType,
+              coverImageUrl: coverImageUrl || null,
+              templateKey,
+              seasonName: seasonName || 'Season 1',
+              startDate,
+              endDate: endDate || null,
+              bracketSize: tournamentBracketSize,
+              seedingMode: tournamentSeedingMode,
+            })
+          : await DatabaseService.createLeaderboard(
             {
               name,
               description: description || null,
@@ -396,11 +431,21 @@ export default function CreateLeaderboardPage() {
                       type="button"
                       onClick={() => {
                         setCompetitionEngine('league_table');
-                        applyLeagueTemplate(templateKey);
+                        applyCompetitionTemplate(templateKey);
                       }}
                       className={`flex-1 rounded-lg px-3 py-2 text-xs font-bold transition-all ${competitionEngine === 'league_table' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white'}`}
                     >
                       League Table
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCompetitionEngine('tournament');
+                        applyCompetitionTemplate(templateKey);
+                      }}
+                      className={`flex-1 rounded-lg px-3 py-2 text-xs font-bold transition-all ${competitionEngine === 'tournament' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white'}`}
+                    >
+                      Tournament
                     </button>
                   </div>
                 </div>
@@ -424,21 +469,27 @@ export default function CreateLeaderboardPage() {
                   </select>
                 </div>
 
-                {competitionEngine === 'league_table' && (
+                {(competitionEngine === 'league_table' || competitionEngine === 'tournament') && (
                   <div className="sm:col-span-2">
                     <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">
-                      League Template
+                      Sport Template
                     </label>
                     <select
                       value={templateKey}
-                      onChange={(e) => applyLeagueTemplate(e.target.value as CompetitionTemplateKey)}
+                      onChange={(e) => applyCompetitionTemplate(e.target.value as CompetitionTemplateKey)}
                       className="block w-full px-3.5 py-2.5 bg-neutral-900/60 border border-neutral-850 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-violet-500 focus:border-violet-500 text-sm transition-all cursor-pointer"
                     >
-                      {LeagueService.getTemplates().map((template) => (
+                      {LeagueService.getTemplates()
+                        .filter((template) => competitionEngine !== 'tournament' || TOURNAMENT_TEMPLATE_KEYS.includes(template.key))
+                        .map((template) => (
                         <option key={template.key} value={template.key}>{template.label}</option>
                       ))}
                     </select>
-                    <p className="mt-2 text-xs text-neutral-500">League mode keeps the existing points engine untouched and creates a separate standings workflow with fixtures and results.</p>
+                    <p className="mt-2 text-xs text-neutral-500">
+                      {competitionEngine === 'league_table'
+                        ? 'League mode keeps the existing points engine untouched and creates a separate standings workflow with fixtures and results.'
+                        : 'Tournament mode creates a single-elimination bracket engine while preserving existing leaderboard and league behavior.'}
+                    </p>
                   </div>
                 )}
 
@@ -515,7 +566,7 @@ export default function CreateLeaderboardPage() {
                   onClick={handleNextStep}
                   className="flex items-center gap-1.5 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-sm font-semibold rounded-xl text-white transition-all cursor-pointer"
                 >
-                  {competitionEngine === 'league_table' ? 'Configure League Rules' : 'Configure Scoring'} <ArrowRight className="w-4 h-4" />
+                  {competitionEngine === 'league_table' ? 'Configure League Rules' : competitionEngine === 'tournament' ? 'Configure Tournament' : 'Configure Scoring'} <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -527,8 +578,8 @@ export default function CreateLeaderboardPage() {
               <div>
                 <div className="flex justify-between items-start">
                   <div>
-                    <h2 className="text-xl font-bold text-white tracking-tight">Step 2: {competitionEngine === 'league_table' ? 'League Rules & Table Columns' : 'Scoring Rules Engine'}</h2>
-                    <p className="text-xs text-neutral-400 mt-1">{competitionEngine === 'league_table' ? 'Set table points and confirm the standings structure for fixtures and results.' : 'Specify how users earn points. Add points for wins or deduct for penatlies.'}</p>
+                    <h2 className="text-xl font-bold text-white tracking-tight">Step 2: {competitionEngine === 'league_table' ? 'League Rules & Table Columns' : competitionEngine === 'tournament' ? 'Tournament Format' : 'Scoring Rules Engine'}</h2>
+                    <p className="text-xs text-neutral-400 mt-1">{competitionEngine === 'league_table' ? 'Set table points and confirm the standings structure for fixtures and results.' : competitionEngine === 'tournament' ? 'Choose bracket size and seeding. Participants can be added and managed in the tournament dashboard panel.' : 'Specify how users earn points. Add points for wins or deduct for penatlies.'}</p>
                   </div>
                   
                   {competitionEngine === 'simple_points' && (
@@ -581,6 +632,48 @@ export default function CreateLeaderboardPage() {
                         </div>
                       ))}
                     </div>
+                  </div>
+                </>
+              ) : competitionEngine === 'tournament' ? (
+                <>
+                  <div className="rounded-xl border border-neutral-850 bg-neutral-900/40 p-4">
+                    <h4 className="text-xs font-bold text-neutral-300 uppercase tracking-wide">Format</h4>
+                    <div className="mt-3 rounded-lg border border-violet-500/20 bg-violet-500/10 px-3 py-2 text-sm font-semibold text-violet-200">
+                      Single Elimination
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="rounded-xl border border-neutral-850 bg-neutral-900/40 p-4">
+                      <label className="block text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-2">Bracket Size</label>
+                      <select
+                        value={tournamentBracketSize}
+                        onChange={(e) => setTournamentBracketSize(Number(e.target.value) || 8)}
+                        className="block w-full rounded-lg border border-neutral-850 bg-neutral-950/60 px-3 py-2 text-white text-sm"
+                      >
+                        {[2, 4, 8, 16, 32, 64, 128].map((size) => (
+                          <option key={size} value={size}>{size}</option>
+                        ))}
+                      </select>
+                      <p className="mt-2 text-[11px] text-neutral-500">BYEs are auto-generated for empty slots.</p>
+                    </div>
+
+                    <div className="rounded-xl border border-neutral-850 bg-neutral-900/40 p-4">
+                      <label className="block text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-2">Seeding Mode</label>
+                      <select
+                        value={tournamentSeedingMode}
+                        onChange={(e) => setTournamentSeedingMode(e.target.value as TournamentSeedingMode)}
+                        className="block w-full rounded-lg border border-neutral-850 bg-neutral-950/60 px-3 py-2 text-white text-sm"
+                      >
+                        <option value="random">Random</option>
+                        <option value="manual">Manual</option>
+                        <option value="league_standings">Seed from Existing League Standings (placeholder)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-neutral-850 bg-neutral-900/40 p-4 text-xs text-neutral-300">
+                    Tournament states are managed in the dashboard: Draft, Registration Open, In Progress, Completed, and Cancelled.
                   </div>
                 </>
               ) : (
@@ -778,7 +871,7 @@ export default function CreateLeaderboardPage() {
                   onClick={handlePrevStep}
                   className="flex items-center gap-1.5 px-4.5 py-2.5 border border-neutral-800 hover:border-neutral-700 bg-neutral-900/60 hover:bg-neutral-900 text-sm font-semibold rounded-xl text-white transition-all cursor-pointer"
                 >
-                  <ArrowLeft className="w-4 h-4" /> Configure Scoring
+                  <ArrowLeft className="w-4 h-4" /> {competitionEngine === 'league_table' ? 'Configure League Rules' : competitionEngine === 'tournament' ? 'Configure Tournament' : 'Configure Scoring'}
                 </button>
                 <button
                   type="button"
