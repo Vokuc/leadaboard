@@ -118,12 +118,17 @@ CREATE TABLE IF NOT EXISTS public.activity_logs (
 -- 8. Competition engine configuration
 CREATE TABLE IF NOT EXISTS public.competition_configs (
   leaderboard_id UUID PRIMARY KEY REFERENCES public.leaderboards(id) ON DELETE CASCADE,
-  engine_type TEXT NOT NULL CHECK (engine_type IN ('simple_points', 'league_table')) DEFAULT 'simple_points',
+  engine_type TEXT NOT NULL CHECK (engine_type IN ('simple_points', 'league_table', 'tournament')) DEFAULT 'simple_points',
   template_key TEXT NOT NULL,
   entity_type TEXT NOT NULL CHECK (entity_type IN ('individual', 'team')) DEFAULT 'team',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.competition_configs DROP CONSTRAINT IF EXISTS competition_configs_engine_type_check;
+ALTER TABLE public.competition_configs
+  ADD CONSTRAINT competition_configs_engine_type_check
+  CHECK (engine_type IN ('simple_points', 'league_table', 'tournament'));
 
 -- 9. Central statistics registry
 CREATE TABLE IF NOT EXISTS public.statistics_registry (
@@ -215,6 +220,78 @@ CREATE TABLE IF NOT EXISTS public.fixture_results (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- 17. Tournament settings and state
+CREATE TABLE IF NOT EXISTS public.tournaments (
+  leaderboard_id UUID PRIMARY KEY REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  format TEXT NOT NULL CHECK (format IN ('single_elimination')) DEFAULT 'single_elimination',
+  bracket_size INTEGER NOT NULL CHECK (bracket_size IN (2, 4, 8, 16, 32, 64, 128)),
+  seeding_mode TEXT NOT NULL CHECK (seeding_mode IN ('random', 'manual', 'league_standings')) DEFAULT 'random',
+  state TEXT NOT NULL CHECK (state IN ('draft', 'registration_open', 'in_progress', 'completed', 'cancelled')) DEFAULT 'draft',
+  season_name TEXT NOT NULL,
+  template_key TEXT NOT NULL REFERENCES public.competition_templates(key),
+  champion_member_id UUID REFERENCES public.leaderboard_members(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 18. Tournament rounds
+CREATE TABLE IF NOT EXISTS public.tournament_rounds (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  round_index INTEGER NOT NULL CHECK (round_index >= 1),
+  round_name TEXT NOT NULL,
+  match_count INTEGER NOT NULL CHECK (match_count >= 1),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (leaderboard_id, round_index)
+);
+
+-- 19. Tournament matches
+CREATE TABLE IF NOT EXISTS public.tournament_matches (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  round_id UUID NOT NULL REFERENCES public.tournament_rounds(id) ON DELETE CASCADE,
+  round_index INTEGER NOT NULL CHECK (round_index >= 1),
+  match_index INTEGER NOT NULL CHECK (match_index >= 1),
+  home_member_id UUID REFERENCES public.leaderboard_members(id) ON DELETE SET NULL,
+  away_member_id UUID REFERENCES public.leaderboard_members(id) ON DELETE SET NULL,
+  winner_member_id UUID REFERENCES public.leaderboard_members(id) ON DELETE SET NULL,
+  loser_member_id UUID REFERENCES public.leaderboard_members(id) ON DELETE SET NULL,
+  scheduled_at TIMESTAMPTZ,
+  state TEXT NOT NULL CHECK (state IN ('scheduled', 'live', 'completed', 'cancelled', 'walkover', 'bye')) DEFAULT 'scheduled',
+  next_match_id UUID REFERENCES public.tournament_matches(id) ON DELETE SET NULL,
+  next_match_slot TEXT CHECK (next_match_slot IN ('home', 'away')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (leaderboard_id, round_index, match_index)
+);
+
+-- 20. Tournament match results
+CREATE TABLE IF NOT EXISTS public.tournament_match_results (
+  match_id UUID PRIMARY KEY REFERENCES public.tournament_matches(id) ON DELETE CASCADE,
+  home_score DOUBLE PRECISION NOT NULL DEFAULT 0,
+  away_score DOUBLE PRECISION NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 21. Tournament advancement audit log
+CREATE TABLE IF NOT EXISTS public.tournament_advancements (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  from_match_id UUID NOT NULL REFERENCES public.tournament_matches(id) ON DELETE CASCADE,
+  to_match_id UUID NOT NULL REFERENCES public.tournament_matches(id) ON DELETE CASCADE,
+  to_slot TEXT NOT NULL CHECK (to_slot IN ('home', 'away')),
+  advanced_member_id UUID NOT NULL REFERENCES public.leaderboard_members(id) ON DELETE CASCADE,
+  reason TEXT NOT NULL CHECK (reason IN ('win', 'bye', 'walkover')),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_tournaments_state ON public.tournaments(state);
+CREATE INDEX IF NOT EXISTS idx_tournament_rounds_leaderboard ON public.tournament_rounds(leaderboard_id, round_index);
+CREATE INDEX IF NOT EXISTS idx_tournament_matches_leaderboard_round ON public.tournament_matches(leaderboard_id, round_index, match_index);
+CREATE INDEX IF NOT EXISTS idx_tournament_matches_next_match ON public.tournament_matches(next_match_id);
+CREATE INDEX IF NOT EXISTS idx_tournament_advancements_leaderboard ON public.tournament_advancements(leaderboard_id, created_at DESC);
 
 INSERT INTO public.statistics_registry (key, label, category, calculation_type)
 VALUES
@@ -628,3 +705,107 @@ CREATE POLICY "Owners can manage activity logs" ON public.activity_logs
       WHERE l.id = leaderboard_id AND auth.uid() = l.owner_id
     )
   );
+
+-- 11. Tournament policies
+ALTER TABLE public.tournaments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tournament_rounds ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tournament_matches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tournament_match_results ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tournament_advancements ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can read tournaments" ON public.tournaments;
+CREATE POLICY "Anyone can read tournaments" ON public.tournaments
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.leaderboards l
+      WHERE l.id = leaderboard_id AND (l.visibility = 'public' OR auth.uid() = l.owner_id)
+    )
+  );
+
+DROP POLICY IF EXISTS "Owners can manage tournaments" ON public.tournaments;
+CREATE POLICY "Owners can manage tournaments" ON public.tournaments
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.leaderboards l
+      WHERE l.id = leaderboard_id AND auth.uid() = l.owner_id
+    )
+  );
+
+DROP POLICY IF EXISTS "Anyone can read tournament rounds" ON public.tournament_rounds;
+CREATE POLICY "Anyone can read tournament rounds" ON public.tournament_rounds
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.leaderboards l
+      WHERE l.id = leaderboard_id AND (l.visibility = 'public' OR auth.uid() = l.owner_id)
+    )
+  );
+
+DROP POLICY IF EXISTS "Owners can manage tournament rounds" ON public.tournament_rounds;
+CREATE POLICY "Owners can manage tournament rounds" ON public.tournament_rounds
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.leaderboards l
+      WHERE l.id = leaderboard_id AND auth.uid() = l.owner_id
+    )
+  );
+
+DROP POLICY IF EXISTS "Anyone can read tournament matches" ON public.tournament_matches;
+CREATE POLICY "Anyone can read tournament matches" ON public.tournament_matches
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.leaderboards l
+      WHERE l.id = leaderboard_id AND (l.visibility = 'public' OR auth.uid() = l.owner_id)
+    )
+  );
+
+DROP POLICY IF EXISTS "Owners can manage tournament matches" ON public.tournament_matches;
+CREATE POLICY "Owners can manage tournament matches" ON public.tournament_matches
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.leaderboards l
+      WHERE l.id = leaderboard_id AND auth.uid() = l.owner_id
+    )
+  );
+
+DROP POLICY IF EXISTS "Anyone can read tournament match results" ON public.tournament_match_results;
+CREATE POLICY "Anyone can read tournament match results" ON public.tournament_match_results
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1
+      FROM public.tournament_matches tm
+      JOIN public.leaderboards l ON l.id = tm.leaderboard_id
+      WHERE tm.id = match_id AND (l.visibility = 'public' OR auth.uid() = l.owner_id)
+    )
+  );
+
+DROP POLICY IF EXISTS "Owners can manage tournament match results" ON public.tournament_match_results;
+CREATE POLICY "Owners can manage tournament match results" ON public.tournament_match_results
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1
+      FROM public.tournament_matches tm
+      JOIN public.leaderboards l ON l.id = tm.leaderboard_id
+      WHERE tm.id = match_id AND auth.uid() = l.owner_id
+    )
+  );
+
+DROP POLICY IF EXISTS "Anyone can read tournament advancements" ON public.tournament_advancements;
+CREATE POLICY "Anyone can read tournament advancements" ON public.tournament_advancements
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.leaderboards l
+      WHERE l.id = leaderboard_id AND (l.visibility = 'public' OR auth.uid() = l.owner_id)
+    )
+  );
+
+DROP POLICY IF EXISTS "Owners can manage tournament advancements" ON public.tournament_advancements;
+CREATE POLICY "Owners can manage tournament advancements" ON public.tournament_advancements
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.leaderboards l
+      WHERE l.id = leaderboard_id AND auth.uid() = l.owner_id
+    )
+  );
+
+ALTER PUBLICATION supabase_realtime ADD TABLE public.tournament_matches;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.tournament_match_results;

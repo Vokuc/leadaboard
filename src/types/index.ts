@@ -10,7 +10,7 @@ export interface Profile {
 export type CompetitionType = 'custom' | 'sports' | 'gaming' | 'reading' | 'fitness' | 'workplace' | 'education';
 export type VisibilityType = 'public' | 'private';
 export type LeaderboardStatus = 'active' | 'archived';
-export type CompetitionEngine = 'simple_points' | 'league_table';
+export type CompetitionEngine = 'simple_points' | 'league_table' | 'tournament';
 export type CompetitionEntityType = 'individual' | 'team';
 export type StatisticCategory = 'input' | 'derived';
 export type StatisticCalculationType =
@@ -24,6 +24,10 @@ export type StatisticCalculationType =
 export type RankingCriterionType = 'statistic' | 'alphabetical';
 export type RankingDirection = 'asc' | 'desc';
 export type FixtureStatus = 'scheduled' | 'live' | 'completed';
+export type TournamentState = 'draft' | 'registration_open' | 'in_progress' | 'completed' | 'cancelled';
+export type TournamentMatchState = 'scheduled' | 'live' | 'completed' | 'cancelled' | 'walkover' | 'bye';
+export type TournamentFormat = 'single_elimination';
+export type TournamentSeedingMode = 'random' | 'manual' | 'league_standings';
 export type CompetitionTemplateKey =
   | 'football'
   | 'basketball'
@@ -228,4 +232,88 @@ export interface CompetitionTemplate {
     label: string;
     direction: RankingDirection;
   }>;
+}
+
+export interface CompetitionContext {
+  leaderboard: Leaderboard;
+  config: CompetitionConfig | null;
+  members: LeaderboardMember[];
+  season: Season | null;
+}
+
+export interface Tournament {
+  leaderboard_id: string;
+  format: TournamentFormat;
+  bracket_size: number;
+  seeding_mode: TournamentSeedingMode;
+  state: TournamentState;
+  season_name: string;
+  template_key: CompetitionTemplateKey;
+  champion_member_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TournamentRound {
+  id: string;
+  leaderboard_id: string;
+  round_index: number;
+  round_name: string;
+  match_count: number;
+  created_at: string;
+}
+
+export interface TournamentMatch {
+  id: string;
+  leaderboard_id: string;
+  round_id: string;
+  round_index: number;
+  match_index: number;
+  home_member_id: string | null;
+  away_member_id: string | null;
+  winner_member_id: string | null;
+  loser_member_id: string | null;
+  scheduled_at: string | null;
+  state: TournamentMatchState;
+  next_match_id: string | null;
+  next_match_slot: 'home' | 'away' | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TournamentMatchResult {
+  match_id: string;
+  home_score: number;
+  away_score: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TournamentAdvancement {
+  id: string;
+  leaderboard_id: string;
+  from_match_id: string;
+  to_match_id: string;
+  to_slot: 'home' | 'away';
+  advanced_member_id: string;
+  reason: 'win' | 'bye' | 'walkover';
+  created_at: string;
+}
+
+export interface TournamentBracketNode {
+  match: TournamentMatch;
+  result: TournamentMatchResult | null;
+  homeMember: LeaderboardMember | null;
+  awayMember: LeaderboardMember | null;
+}
+
+export interface TournamentRoundView {
+  round: TournamentRound;
+  matches: TournamentBracketNode[];
+}
+
+export interface TournamentBracketView {
+  tournament: Tournament;
+  rounds: TournamentRoundView[];
+  champion: LeaderboardMember | null;
 }
