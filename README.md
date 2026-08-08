@@ -1,4 +1,4 @@
-# LeagueBoard 🏆 | Leaderboard-as-a-Service MVP
+# LeagueBoard (Leaderboardos)🏆 | Leaderboard-as-a-Service MVP
 
 **LeagueBoard** is a modern, developer-first Leaderboard-as-a-Service (LaaS) platform built with Next.js, Tailwind CSS, and Supabase. It allows gamers, sports leagues, fitness coaches, and corporate managers to create, customize, and manage real-time leaderboards in under 60 seconds without writing code.
 
