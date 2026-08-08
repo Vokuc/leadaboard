@@ -1,4 +1,5 @@
 import { createSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/supabase/server';
+import { createSupabaseAdminClient, isSupabaseAdminConfigured } from '@/lib/supabase/admin';
 import {
   BillingCycle,
   CheckoutRequest,
@@ -42,6 +43,10 @@ function assertServerConfigured(): void {
   if (!isSupabaseServerConfigured) {
     throw new Error('Supabase server environment is not configured.');
   }
+
+  if (!isSupabaseAdminConfigured) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is missing. Billing writes require the service role key.');
+  }
 }
 
 function coerceStatus(status: string | null | undefined): SubscriptionStatus {
@@ -65,7 +70,7 @@ function validateProviderCurrency(provider: PaymentProviderKey, currency: string
 
 async function computeUsage(userId: string): Promise<UsageSnapshot> {
   assertServerConfigured();
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseAdminClient();
 
   const { data: leaderboards, error: leaderboardError } = await supabase
     .from('leaderboards')
@@ -118,7 +123,7 @@ async function applyDiscountCode(code: string | undefined, amount: number, curre
   }
 
   assertServerConfigured();
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseAdminClient();
 
   const { data, error } = await supabase
     .from('discount_codes')
@@ -172,7 +177,7 @@ async function upsertSubscription(input: {
   metadata?: Record<string, unknown>;
 }) {
   assertServerConfigured();
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseAdminClient();
 
   const { data: existing, error: existingError } = await supabase
     .from('subscriptions')
@@ -253,7 +258,7 @@ async function createPayment(input: {
   metadata?: Record<string, unknown>;
 }) {
   assertServerConfigured();
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseAdminClient();
 
   const { data, error } = await supabase
     .from('payments')
@@ -289,7 +294,7 @@ async function createInvoice(input: {
   metadata?: Record<string, unknown>;
 }) {
   assertServerConfigured();
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseAdminClient();
 
   const invoiceNumber = `INV-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 

@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/supabase/server';
+import { createSupabaseAdminClient, isSupabaseAdminConfigured } from '@/lib/supabase/admin';
 
 export async function GET() {
   try {
     if (!isSupabaseServerConfigured) {
       return NextResponse.json({ error: 'Server is not configured for payments.' }, { status: 500 });
+    }
+
+    if (!isSupabaseAdminConfigured) {
+      return NextResponse.json({ error: 'SUPABASE_SERVICE_ROLE_KEY is missing.' }, { status: 500 });
     }
 
     const supabase = await createSupabaseServerClient();
@@ -17,10 +22,12 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const billingAdmin = createSupabaseAdminClient();
+
     const [subscriptionsRes, paymentsRes, webhooksRes] = await Promise.all([
-      supabase.from('subscriptions').select('status, created_at'),
-      supabase.from('payments').select('status, amount, created_at').eq('status', 'succeeded'),
-      supabase.from('webhook_events').select('provider, processed, retry_count, created_at').order('created_at', { ascending: false }).limit(100),
+      billingAdmin.from('subscriptions').select('status, created_at'),
+      billingAdmin.from('payments').select('status, amount, created_at').eq('status', 'succeeded'),
+      billingAdmin.from('webhook_events').select('provider, processed, retry_count, created_at').order('created_at', { ascending: false }).limit(100),
     ]);
 
     if (subscriptionsRes.error) {

@@ -79,13 +79,21 @@ export async function getUserSubscription(userId: string) {
     .from('subscriptions')
     .select('*, plans(*)')
     .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .order('created_at', { ascending: false });
 
   if (error) {
     throw error;
   }
 
-  return data;
+  const rows = (data || []) as Array<Record<string, unknown>>;
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const prioritized = rows.find((row) => {
+    const status = String(row.status || '');
+    return status === 'trialing' || status === 'active' || status === 'past_due' || status === 'unpaid';
+  });
+
+  return (prioritized || rows[0]) as typeof data extends Array<infer T> ? T | null : null;
 }

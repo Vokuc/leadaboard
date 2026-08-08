@@ -85,6 +85,11 @@ export class PaystackProvider extends BaseProvider {
     const reference = `paystack_${randomUUID().replace(/-/g, '').slice(0, 24)}`;
     const planCode = input.kind === 'subscription' ? resolvePlanCode(input.planSlug, input.billingCycle) : undefined;
 
+    if (input.kind === 'subscription' && !planCode) {
+      const planKey = `${String(input.planSlug || '').toUpperCase().replace(/-/g, '_')}_${String(input.billingCycle || 'monthly').toUpperCase()}`;
+      throw new Error(`Missing Paystack plan code configuration for ${planKey}. Set PAYSTACK_PLAN_CODE_${planKey} in the server environment.`);
+    }
+
     const body: Record<string, unknown> = {
       email: payerEmail,
       amount: input.amount,

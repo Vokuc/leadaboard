@@ -1,10 +1,15 @@
-import { createSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/supabase/server';
+import { isSupabaseServerConfigured } from '@/lib/supabase/server';
+import { createSupabaseAdminClient, isSupabaseAdminConfigured } from '@/lib/supabase/admin';
 import { PaymentProviderKey } from '@/lib/payments/core/types';
 import { getPaymentProvider } from '@/lib/payments/providers';
 
 function assertServerConfigured(): void {
   if (!isSupabaseServerConfigured) {
     throw new Error('Supabase server environment is not configured.');
+  }
+
+  if (!isSupabaseAdminConfigured) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is missing. Billing webhook processing requires the service role key.');
   }
 }
 
@@ -27,7 +32,7 @@ function mapProviderSubscriptionStatus(eventType: string): string {
 export const PaymentWebhookService = {
   async process(providerKey: PaymentProviderKey, payload: string, headers: Headers) {
     assertServerConfigured();
-    const supabase = await createSupabaseServerClient();
+    const supabase = createSupabaseAdminClient();
     const provider = getPaymentProvider(providerKey);
 
     const signature =

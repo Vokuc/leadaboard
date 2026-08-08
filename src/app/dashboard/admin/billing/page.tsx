@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { createSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/supabase/server';
+import { createSupabaseAdminClient, isSupabaseAdminConfigured } from '@/lib/supabase/admin';
 
 interface StatRow {
   total_subscriptions: number;
@@ -19,6 +20,15 @@ export default async function AdminBillingPage() {
     );
   }
 
+  if (!isSupabaseAdminConfigured) {
+    return (
+      <div className="min-h-screen bg-black text-white p-8">
+        <h1 className="text-2xl font-bold">Admin Billing</h1>
+        <p className="mt-2 text-neutral-400">SUPABASE_SERVICE_ROLE_KEY is missing.</p>
+      </div>
+    );
+  }
+
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -33,10 +43,12 @@ export default async function AdminBillingPage() {
     );
   }
 
+  const billingAdmin = createSupabaseAdminClient();
+
   const [subscriptionsRes, paymentsRes, webhookRes] = await Promise.all([
-    supabase.from('subscriptions').select('status, created_at'),
-    supabase.from('payments').select('status, amount, created_at').eq('status', 'succeeded'),
-    supabase.from('webhook_events').select('provider, processed, retry_count, created_at').order('created_at', { ascending: false }).limit(50),
+    billingAdmin.from('subscriptions').select('status, created_at'),
+    billingAdmin.from('payments').select('status, amount, created_at').eq('status', 'succeeded'),
+    billingAdmin.from('webhook_events').select('provider, processed, retry_count, created_at').order('created_at', { ascending: false }).limit(50),
   ]);
 
   const subscriptions = subscriptionsRes.data || [];
