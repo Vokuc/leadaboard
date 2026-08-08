@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
 
     const checkout = await PaymentService.startCheckout({
       userId: user.id,
+      userEmail: user.email,
       provider: body.provider,
       kind: body.kind,
       currency: body.currency,

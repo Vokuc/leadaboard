@@ -12,6 +12,7 @@ import { getActivePlans, getPlanBySlug, getUserSubscription } from '@/lib/paymen
 
 interface StartCheckoutInput {
   userId: string;
+  userEmail?: string;
   provider: PaymentProviderKey;
   kind: CheckoutRequest['kind'];
   currency: string;
@@ -362,6 +363,7 @@ export const PaymentService = {
 
     const checkout = await provider.createCheckoutSession({
       userId: input.userId,
+      userEmail: input.userEmail,
       provider: input.provider,
       kind: input.kind,
       amount: finalAmount,

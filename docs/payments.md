@@ -25,14 +25,39 @@ This repository now includes an additive, provider-agnostic billing foundation t
 
 ## Provider Adapters
 
-Current provider adapters are deterministic stubs with consistent interfaces:
+Provider adapters use a shared interface with provider-specific implementations:
 
 - Stripe
 - Paystack
 - Flutterwave
 - Pi
 
-They are intentionally safe defaults. Replace methods in each provider class with real SDK/API calls while keeping return shapes the same.
+Current status:
+
+- Paystack has live transaction initialization + webhook signature verification implemented in [src/lib/payments/providers/paystack.ts](src/lib/payments/providers/paystack.ts).
+- Stripe, Flutterwave, and Pi remain contract stubs and should be implemented similarly before production use.
+
+## Paystack Go-Live
+
+1. Set environment variables in production:
+  - `PAYSTACK_SECRET_KEY`
+  - `PAYSTACK_WEBHOOK_SECRET` (optional, defaults to secret key)
+  - Optional plan envs for subscriptions: `PAYSTACK_PLAN_CODE_*`
+2. Configure Paystack Dashboard Webhook URL:
+  - `https://<your-domain>/api/payments/webhooks/paystack`
+3. Ensure your app URL in checkout is HTTPS and publicly reachable.
+4. Start in test mode and run a full payment lifecycle:
+  - start checkout
+  - pay with test card/bank
+  - confirm `payments.status` updates from `pending` to `succeeded`
+  - confirm `invoices.status` updates to `paid`
+5. Switch to live key only after test verification.
+
+### Expected Paystack Event Handling
+
+- Incoming signatures are verified with HMAC SHA512.
+- Idempotency is enforced by `webhook_events(provider,event_id)`.
+- Payment and invoice statuses are synced in webhook processing.
 
 ## Webhooks
 
@@ -56,8 +81,8 @@ Policies for leaderboards, members, and tournaments were updated to enforce limi
 
 ## Production Hardening Checklist
 
-- Add real signature verification per provider (HMAC/public-key as required)
-- Replace stub checkout URLs with provider-hosted sessions
+- Add real signature verification per remaining providers (Stripe/Flutterwave/Pi)
+- Implement provider-side subscription cancellation APIs where needed
 - Add explicit admin RBAC checks for admin billing routes
 - Add integration tests for webhook retries and duplicate delivery
 - Add provider-specific reconciliation jobs for failed events
