@@ -31,6 +31,13 @@ interface UsageSnapshot {
   participants: number;
 }
 
+const PROVIDER_ALLOWED_CURRENCIES: Record<PaymentProviderKey, string[]> = {
+  stripe: ['USD'],
+  paystack: ['NGN'],
+  flutterwave: ['USD', 'NGN'],
+  pi: ['USD'],
+};
+
 function assertServerConfigured(): void {
   if (!isSupabaseServerConfigured) {
     throw new Error('Supabase server environment is not configured.');
@@ -43,6 +50,17 @@ function coerceStatus(status: string | null | undefined): SubscriptionStatus {
     return status as SubscriptionStatus;
   }
   return 'incomplete';
+}
+
+function validateProviderCurrency(provider: PaymentProviderKey, currency: string): string {
+  const normalized = currency.trim().toUpperCase();
+  const allowed = PROVIDER_ALLOWED_CURRENCIES[provider] || [];
+
+  if (!allowed.includes(normalized)) {
+    throw new Error(`${provider} does not support ${normalized} in the current app configuration.`);
+  }
+
+  return normalized;
 }
 
 async function computeUsage(userId: string): Promise<UsageSnapshot> {
@@ -346,6 +364,8 @@ export const PaymentService = {
   async startCheckout(input: StartCheckoutInput): Promise<CheckoutResponse> {
     assertServerConfigured();
 
+    const currency = validateProviderCurrency(input.provider, input.currency);
+
     if (input.kind === 'subscription' && !input.planSlug) {
       throw new Error('Plan is required for subscription checkout.');
     }
@@ -359,7 +379,7 @@ export const PaymentService = {
 
     const cycle = input.billingCycle || 'monthly';
     const baseAmount = input.amount ?? (plan ? (cycle === 'yearly' ? (plan.yearly_price || plan.price) : plan.price) : 0);
-    const finalAmount = await applyDiscountCode(input.discountCode, baseAmount, input.currency);
+    const finalAmount = await applyDiscountCode(input.discountCode, baseAmount, currency);
 
     const checkout = await provider.createCheckoutSession({
       userId: input.userId,
@@ -367,7 +387,7 @@ export const PaymentService = {
       provider: input.provider,
       kind: input.kind,
       amount: finalAmount,
-      currency: input.currency,
+      currency,
       planSlug: input.planSlug,
       billingCycle: cycle,
       discountCode: input.discountCode,
@@ -413,7 +433,7 @@ export const PaymentService = {
       provider: input.provider,
       paymentReference: checkout.paymentReference,
       amount: finalAmount,
-      currency: input.currency,
+      currency,
       status: 'pending',
       kind: input.kind,
       metadata: input.metadata,
@@ -423,7 +443,7 @@ export const PaymentService = {
       userId: input.userId,
       paymentId: payment.id,
       amount: finalAmount,
-      currency: input.currency,
+      currency,
       status: 'open',
       metadata: {
         provider: input.provider,
@@ -435,7 +455,7 @@ export const PaymentService = {
       provider: input.provider,
       kind: input.kind,
       amount: finalAmount,
-      currency: input.currency,
+      currency,
       payment_reference: checkout.paymentReference,
     });
 

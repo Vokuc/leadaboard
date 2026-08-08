@@ -48,6 +48,19 @@ const providerOptions: Array<{
   { key: 'pi', label: 'Pi', comingSoon: true },
 ];
 
+function getProviderCurrency(provider: ProviderKey): 'USD' | 'NGN' {
+  return provider === 'paystack' ? 'NGN' : 'USD';
+}
+
+function formatPlanAmount(amountInMinorUnits: number, currency: 'USD' | 'NGN'): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amountInMinorUnits / 100);
+}
+
 export default function BillingPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -88,6 +101,7 @@ export default function BillingPage() {
   }, []);
 
   const currentPlanSlug = overview?.effectivePlan?.slug || 'free';
+  const providerCurrency = getProviderCurrency(provider);
 
   const sortedPlans = useMemo(() => {
     return [...(overview?.plans || [])].sort((a, b) => a.price - b.price);
@@ -104,7 +118,7 @@ export default function BillingPage() {
         body: JSON.stringify({
           provider,
           kind: 'subscription',
-          currency: 'USD',
+          currency: providerCurrency,
           planSlug,
           billingCycle: cycle,
           successUrl: `${window.location.origin}/dashboard/billing?checkout=success`,
@@ -247,6 +261,12 @@ export default function BillingPage() {
               ))}
             </div>
 
+            {provider === 'paystack' && (
+              <p className="mt-4 text-xs text-amber-300">
+                Paystack test checkout currently runs in NGN. The existing seeded plan amounts are reused as NGN test amounts.
+              </p>
+            )}
+
             <h2 className="text-sm uppercase tracking-wider text-neutral-400 mt-6">Billing Cycle</h2>
             <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
               {(['monthly', 'yearly'] as const).map((item) => (
@@ -288,8 +308,8 @@ export default function BillingPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {sortedPlans.map((plan) => {
             const isCurrent = plan.slug === currentPlanSlug;
-            const monthly = (plan.price / 100).toFixed(2);
-            const yearly = ((plan.yearly_price || plan.price) / 100).toFixed(2);
+            const monthly = formatPlanAmount(plan.price, providerCurrency);
+            const yearly = formatPlanAmount(plan.yearly_price || plan.price, providerCurrency);
 
             return (
               <div
@@ -306,7 +326,7 @@ export default function BillingPage() {
                 </div>
 
                 <div className="mt-3 flex items-end gap-2">
-                  <span className="text-3xl font-bold">${cycle === 'yearly' ? yearly : monthly}</span>
+                  <span className="text-3xl font-bold">{cycle === 'yearly' ? yearly : monthly}</span>
                   <span className="text-sm text-neutral-400">/{cycle === 'yearly' ? 'year' : 'month'}</span>
                 </div>
 
