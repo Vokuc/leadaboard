@@ -39,6 +39,16 @@ const PROVIDER_ALLOWED_CURRENCIES: Record<PaymentProviderKey, string[]> = {
   pi: ['USD'],
 };
 
+const PAYSTACK_API_BASE = process.env.PAYSTACK_API_BASE_URL || 'https://api.paystack.co';
+
+function requirePaystackSecret(): string {
+  const key = process.env.PAYSTACK_SECRET_KEY;
+  if (!key) {
+    throw new Error('PAYSTACK_SECRET_KEY is missing.');
+  }
+  return key;
+}
+
 function assertServerConfigured(): void {
   if (!isSupabaseServerConfigured) {
     throw new Error('Supabase server environment is not configured.');
@@ -341,6 +351,148 @@ async function enqueueNotification(userId: string, type: string, payload: Record
 
 export const PaymentService = {
   getSupportedProviders,
+
+  async verifyPaystackTransaction(userId: string, reference: string) {
+    assertServerConfigured();
+
+    if (!reference?.trim()) {
+      throw new Error('Payment reference is required for verification.');
+    }
+
+    const secretKey = requirePaystackSecret();
+    const supabase = createSupabaseAdminClient();
+
+    const verifyResponse = await fetch(`${PAYSTACK_API_BASE}/transaction/verify/${encodeURIComponent(reference)}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${secretKey}`,
+      },
+    });
+
+    const verifyPayload = (await verifyResponse.json()) as {
+      status?: boolean;
+      message?: string;
+      data?: {
+        status?: string;
+        amount?: number;
+        currency?: string;
+        reference?: string;
+        paid_at?: string;
+      };
+    };
+
+    if (!verifyResponse.ok || !verifyPayload.status || !verifyPayload.data) {
+      throw new Error(verifyPayload.message || 'Unable to verify Paystack transaction.');
+    }
+
+    const { data: payment, error: paymentError } = await supabase
+      .from('payments')
+      .select('id,user_id,subscription_id,amount,currency,status,metadata')
+      .eq('provider', 'paystack')
+      .eq('payment_reference', reference)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (paymentError) {
+      throw paymentError;
+    }
+
+    if (!payment) {
+      throw new Error('Payment record not found for this user/reference.');
+    }
+
+    const verifiedAmount = Number(verifyPayload.data.amount || 0);
+    const verifiedCurrency = String(verifyPayload.data.currency || '').toUpperCase();
+
+    if (verifiedAmount !== Number(payment.amount)) {
+      throw new Error('Verified amount does not match expected amount.');
+    }
+
+    if (verifiedCurrency !== String(payment.currency || '').toUpperCase()) {
+      throw new Error('Verified currency does not match expected currency.');
+    }
+
+    const succeeded = String(verifyPayload.data.status || '').toLowerCase() === 'success';
+
+    const { error: paymentUpdateError } = await supabase
+      .from('payments')
+      .update({
+        status: succeeded ? 'succeeded' : 'failed',
+        metadata: {
+          ...(payment.metadata || {}),
+          paystack_verify_status: verifyPayload.data.status || null,
+          paystack_verified_at: new Date().toISOString(),
+          paystack_paid_at: verifyPayload.data.paid_at || null,
+        },
+      })
+      .eq('id', payment.id);
+
+    if (paymentUpdateError) {
+      throw paymentUpdateError;
+    }
+
+    const { error: invoiceUpdateError } = await supabase
+      .from('invoices')
+      .update({
+        status: succeeded ? 'paid' : 'open',
+      })
+      .eq('payment_id', payment.id);
+
+    if (invoiceUpdateError) {
+      throw invoiceUpdateError;
+    }
+
+    if (payment.subscription_id && succeeded) {
+      const { data: subscription, error: subscriptionReadError } = await supabase
+        .from('subscriptions')
+        .select('id,status,metadata,current_period_start,current_period_end')
+        .eq('id', payment.subscription_id)
+        .maybeSingle();
+
+      if (subscriptionReadError) {
+        throw subscriptionReadError;
+      }
+
+      if (subscription) {
+        const now = new Date();
+        const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+        const { error: subscriptionUpdateError } = await supabase
+          .from('subscriptions')
+          .update({
+            status: 'active',
+            current_period_start: subscription.current_period_start || now.toISOString(),
+            current_period_end: subscription.current_period_end || periodEnd.toISOString(),
+            metadata: {
+              ...(subscription.metadata || {}),
+              activated_via: 'paystack_verify',
+              paystack_verified_at: new Date().toISOString(),
+            },
+          })
+          .eq('id', subscription.id);
+
+        if (subscriptionUpdateError) {
+          throw subscriptionUpdateError;
+        }
+      }
+    }
+
+    await enqueueNotification(userId, succeeded ? 'payment_verified' : 'payment_failed_verify', {
+      provider: 'paystack',
+      payment_reference: reference,
+      status: verifyPayload.data.status || null,
+      amount: verifiedAmount,
+      currency: verifiedCurrency,
+    });
+
+    return {
+      ok: succeeded,
+      status: verifyPayload.data.status || 'unknown',
+      reference,
+      amount: verifiedAmount,
+      currency: verifiedCurrency,
+    };
+  },
 
   async getBillingOverview(userId: string) {
     assertServerConfigured();

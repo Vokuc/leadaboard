@@ -62,6 +62,7 @@ export default function BillingPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [verificationMessage, setVerificationMessage] = useState<string | null>(null);
   const [overview, setOverview] = useState<BillingOverview | null>(null);
   const provider: ProviderKey = 'paystack';
   const [cycle, setCycle] = useState<'monthly' | 'yearly'>('monthly');
@@ -103,6 +104,63 @@ export default function BillingPage() {
   const sortedPlans = useMemo(() => {
     return [...(overview?.plans || [])].sort((a, b) => a.price - b.price);
   }, [overview]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    const verifyTransaction = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const checkoutState = params.get('checkout');
+      const reference = params.get('reference') || params.get('trxref');
+
+      if (checkoutState === 'cancelled') {
+        if (!ignore) {
+          setError('Payment was cancelled before completion.');
+        }
+        return;
+      }
+
+      if (checkoutState !== 'success' || !reference) {
+        return;
+      }
+
+      try {
+        setBusy(true);
+        setError(null);
+
+        const response = await fetch('/api/payments/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reference }),
+        });
+
+        const payload = (await response.json()) as { ok?: boolean; status?: string; error?: string };
+        if (!response.ok || payload.ok === false) {
+          throw new Error(payload.error || 'Payment verification failed.');
+        }
+
+        if (!ignore) {
+          setVerificationMessage('Payment verified successfully. Subscription status updated.');
+          await loadOverview();
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Payment verification failed.';
+        if (!ignore) {
+          setError(message);
+        }
+      } finally {
+        if (!ignore) {
+          setBusy(false);
+        }
+      }
+    };
+
+    void verifyTransaction();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   async function startCheckout(planSlug: string) {
     setBusy(true);
@@ -197,6 +255,12 @@ export default function BillingPage() {
         {error && (
           <div className="mb-6 p-3 rounded-xl border border-red-500/20 bg-red-500/10 text-red-300 text-sm flex items-center gap-2">
             <ShieldAlert className="w-4 h-4" /> {error}
+          </div>
+        )}
+
+        {verificationMessage && (
+          <div className="mb-6 p-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-300 text-sm">
+            {verificationMessage}
           </div>
         )}
 
