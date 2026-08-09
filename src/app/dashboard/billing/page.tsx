@@ -42,10 +42,7 @@ const providerOptions: Array<{
   label: string;
   comingSoon?: boolean;
 }> = [
-  { key: 'stripe', label: 'Stripe', comingSoon: true },
   { key: 'paystack', label: 'Paystack' },
-  { key: 'flutterwave', label: 'Flutterwave' },
-  { key: 'pi', label: 'Pi', comingSoon: true },
 ];
 
 function getProviderCurrency(provider: ProviderKey): 'USD' | 'NGN' {
@@ -66,7 +63,7 @@ export default function BillingPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [overview, setOverview] = useState<BillingOverview | null>(null);
-  const [provider, setProvider] = useState<ProviderKey>('paystack');
+  const provider: ProviderKey = 'paystack';
   const [cycle, setCycle] = useState<'monthly' | 'yearly'>('monthly');
 
   async function loadOverview() {
@@ -238,24 +235,20 @@ export default function BillingPage() {
 
           <div className="rounded-2xl border border-white/10 bg-neutral-950 p-5">
             <h2 className="text-sm uppercase tracking-wider text-neutral-400">Provider</h2>
-            <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+            <div className="mt-4 grid grid-cols-1 gap-2 text-sm">
               {providerOptions.map((item) => (
                 <button
                   key={item.key}
                   type="button"
-                  disabled={item.comingSoon}
-                  onClick={() => setProvider(item.key)}
+                  disabled
                   className={`rounded-lg border px-3 py-2 capitalize transition-colors ${
-                    item.comingSoon
-                      ? 'border-dashed border-white/10 bg-neutral-900 text-neutral-500 cursor-not-allowed opacity-80'
-                      : provider === item.key
-                        ? 'border-violet-400 bg-violet-500/20 text-violet-200'
-                        : 'border-white/10 bg-neutral-900 text-neutral-300 hover:border-white/20 hover:text-white'
+                    provider === item.key
+                      ? 'border-violet-400 bg-violet-500/20 text-violet-200'
+                      : 'border-white/10 bg-neutral-900 text-neutral-300'
                   }`}
                 >
                   <span className="flex items-center justify-center gap-2">
                     <span>{item.label}</span>
-                    {item.comingSoon && <span className="text-[10px] uppercase tracking-wider text-amber-300">Coming soon</span>}
                   </span>
                 </button>
               ))}

@@ -36,6 +36,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
     }
 
+    if (body.provider !== 'paystack') {
+      return NextResponse.json({ error: 'Only Paystack is enabled right now.' }, { status: 400 });
+    }
+
     const checkout = await PaymentService.startCheckout({
       userId: user.id,
       userEmail: user.email,
