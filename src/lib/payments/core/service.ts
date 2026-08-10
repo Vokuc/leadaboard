@@ -403,8 +403,18 @@ export const PaymentService = {
 
     const verifiedAmount = Number(verifyPayload.data.amount || 0);
     const verifiedCurrency = String(verifyPayload.data.currency || '').toUpperCase();
+    const expectedAmount = Number(payment.amount || 0);
 
-    if (verifiedAmount !== Number(payment.amount)) {
+    let amountScale: 'exact' | 'x100' | 'div100' | null = null;
+    if (verifiedAmount === expectedAmount) {
+      amountScale = 'exact';
+    } else if (verifiedAmount === expectedAmount * 100) {
+      amountScale = 'x100';
+    } else if (verifiedAmount * 100 === expectedAmount) {
+      amountScale = 'div100';
+    }
+
+    if (!amountScale) {
       throw new Error('Verified amount does not match expected amount.');
     }
 
@@ -423,7 +433,11 @@ export const PaymentService = {
           paystack_verify_status: verifyPayload.data.status || null,
           paystack_verified_at: new Date().toISOString(),
           paystack_paid_at: verifyPayload.data.paid_at || null,
+          paystack_amount_expected: expectedAmount,
+          paystack_amount_verified: verifiedAmount,
+          paystack_amount_scale: amountScale,
         },
+        amount: amountScale === 'exact' ? expectedAmount : verifiedAmount,
       })
       .eq('id', payment.id);
 
@@ -435,6 +449,7 @@ export const PaymentService = {
       .from('invoices')
       .update({
         status: succeeded ? 'paid' : 'open',
+        amount: amountScale === 'exact' ? expectedAmount : verifiedAmount,
       })
       .eq('payment_id', payment.id);
 
