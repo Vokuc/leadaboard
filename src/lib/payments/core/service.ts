@@ -333,7 +333,7 @@ async function createInvoice(input: {
 
 async function enqueueNotification(userId: string, type: string, payload: Record<string, unknown>) {
   assertServerConfigured();
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseAdminClient();
 
   const { error } = await supabase
     .from('billing_notifications')
