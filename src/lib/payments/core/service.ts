@@ -405,13 +405,18 @@ export const PaymentService = {
     const verifiedCurrency = String(verifyPayload.data.currency || '').toUpperCase();
     const expectedAmount = Number(payment.amount || 0);
 
-    let amountScale: 'exact' | 'x100' | 'div100' | null = null;
+    const isSubscriptionPayment = Boolean(payment.subscription_id);
+
+    let amountScale: 'exact' | 'x100' | 'div100' | 'provider_authoritative' | null = null;
     if (verifiedAmount === expectedAmount) {
       amountScale = 'exact';
     } else if (verifiedAmount === expectedAmount * 100) {
       amountScale = 'x100';
     } else if (verifiedAmount * 100 === expectedAmount) {
       amountScale = 'div100';
+    } else if (isSubscriptionPayment) {
+      // Paystack plan-code subscriptions are charged by provider-side plan configuration.
+      amountScale = 'provider_authoritative';
     }
 
     if (!amountScale) {
