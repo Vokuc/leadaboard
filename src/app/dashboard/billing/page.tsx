@@ -378,6 +378,7 @@ export default function BillingPage() {
           {sortedPlans.map((plan) => {
             const isCurrent = plan.slug === currentPlanSlug;
             const isFreePlan = plan.slug === 'free' || plan.price === 0;
+            const canRetryCheckout = !isFreePlan;
             const monthly = formatPlanAmount(plan.price, providerCurrency);
             const yearly = formatPlanAmount(plan.yearly_price || plan.price, providerCurrency);
 
@@ -412,12 +413,16 @@ export default function BillingPage() {
                 </ul>
 
                 <button
-                  disabled={busy || isCurrent || isFreePlan}
+                  disabled={busy || !canRetryCheckout}
                   onClick={() => startCheckout(plan.slug)}
                   className="mt-6 w-full rounded-xl py-2.5 text-sm font-semibold bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isCurrent ? 'Current Plan' : isFreePlan ? 'Included Plan' : 'Upgrade'}
+                  {isFreePlan ? 'Included Plan' : isCurrent ? 'Retry Checkout' : 'Upgrade'}
                 </button>
+
+                {!isFreePlan && isCurrent && (
+                  <p className="mt-2 text-[11px] text-neutral-400">Current plan is selectable for test retries.</p>
+                )}
               </div>
             );
           })}
