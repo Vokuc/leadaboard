@@ -534,6 +534,10 @@ export const PaymentService = {
       throw new Error('Selected plan does not exist.');
     }
 
+    if (input.kind === 'subscription' && plan && (plan.slug === 'free' || Number(plan.price) === 0)) {
+      throw new Error('The free plan does not require Paystack checkout. Select a paid plan to continue.');
+    }
+
     const cycle = input.billingCycle || 'monthly';
     const baseAmount = input.amount ?? (plan ? (cycle === 'yearly' ? (plan.yearly_price || plan.price) : plan.price) : 0);
     const finalAmount = await applyDiscountCode(input.discountCode, baseAmount, currency);

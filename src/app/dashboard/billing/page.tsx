@@ -365,6 +365,7 @@ export default function BillingPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {sortedPlans.map((plan) => {
             const isCurrent = plan.slug === currentPlanSlug;
+            const isFreePlan = plan.slug === 'free' || plan.price === 0;
             const monthly = formatPlanAmount(plan.price, providerCurrency);
             const yearly = formatPlanAmount(plan.yearly_price || plan.price, providerCurrency);
 
@@ -399,11 +400,11 @@ export default function BillingPage() {
                 </ul>
 
                 <button
-                  disabled={busy || isCurrent}
+                  disabled={busy || isCurrent || isFreePlan}
                   onClick={() => startCheckout(plan.slug)}
                   className="mt-6 w-full rounded-xl py-2.5 text-sm font-semibold bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isCurrent ? 'Current Plan' : 'Upgrade'}
+                  {isCurrent ? 'Current Plan' : isFreePlan ? 'Included Plan' : 'Upgrade'}
                 </button>
               </div>
             );
