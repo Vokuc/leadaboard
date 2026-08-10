@@ -184,9 +184,21 @@ export default function BillingPage() {
         }),
       });
 
-      const payload = (await response.json()) as { checkoutUrl?: string; error?: string };
+      const rawBody = await response.text();
+      let payload: { checkoutUrl?: string; error?: string; message?: string } = {};
+
+      if (rawBody) {
+        try {
+          payload = JSON.parse(rawBody) as { checkoutUrl?: string; error?: string; message?: string };
+        } catch {
+          payload = {
+            error: `Checkout failed with HTTP ${response.status}.`,
+          };
+        }
+      }
+
       if (!response.ok || !payload.checkoutUrl) {
-        throw new Error(payload.error || 'Unable to start checkout.');
+        throw new Error(payload.error || payload.message || `Unable to start checkout (HTTP ${response.status}).`);
       }
 
       window.location.assign(payload.checkoutUrl);

@@ -3,6 +3,29 @@ import { createSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/su
 import { PaymentService } from '@/lib/payments/core/service';
 import { PaymentProviderKey } from '@/lib/payments/core/types';
 
+function extractErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (typeof error === 'string' && error.trim()) {
+    return error;
+  }
+
+  if (error && typeof error === 'object') {
+    const maybe = error as Record<string, unknown>;
+    const parts = [maybe.message, maybe.error, maybe.details, maybe.hint]
+      .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      .map((item) => item.trim());
+
+    if (parts.length > 0) {
+      return parts.join(' | ');
+    }
+  }
+
+  return 'Failed to start checkout.';
+}
+
 export async function POST(request: NextRequest) {
   try {
     if (!isSupabaseServerConfigured) {
@@ -57,7 +80,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(checkout);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to start checkout.';
+    const message = extractErrorMessage(error);
+    console.error('Payments checkout failed:', error);
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
