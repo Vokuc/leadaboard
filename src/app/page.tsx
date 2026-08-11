@@ -395,7 +395,7 @@ export default function LandingPage() {
 
       <section id="pricing" className="relative z-10 py-20 px-6 md:px-12 max-w-5xl mx-auto w-full">
         <div className="text-center mb-16">
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Flexible SaaS Pricing</h2>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Flexible Pricing</h2>
           <p className="mt-2 text-neutral-400">Launch a leaderboard for free, and unlock premium features as your user base expands.</p>
         </div>
 
