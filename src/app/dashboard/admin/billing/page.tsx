@@ -10,6 +10,15 @@ interface StatRow {
   total_revenue_cents: number;
 }
 
+function formatNaira(amountInMinorUnits: number): string {
+  return new Intl.NumberFormat('en-NG', {
+    style: 'currency',
+    currency: 'NGN',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amountInMinorUnits / 100);
+}
+
 export default async function AdminBillingPage() {
   if (!isSupabaseServerConfigured) {
     return (
@@ -102,13 +111,13 @@ export default async function AdminBillingPage() {
           </div>
           <div className="rounded-2xl border border-white/10 bg-neutral-950 p-4">
             <div className="text-xs uppercase tracking-wider text-neutral-400">MRR (This Month)</div>
-            <div className="text-2xl font-bold mt-2">${(stats.month_revenue_cents / 100).toFixed(2)}</div>
+            <div className="text-2xl font-bold mt-2">{formatNaira(stats.month_revenue_cents)}</div>
           </div>
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-neutral-950 p-5 mb-8">
           <h2 className="text-lg font-semibold">Total Revenue</h2>
-          <p className="mt-2 text-3xl font-bold">${(stats.total_revenue_cents / 100).toFixed(2)}</p>
+          <p className="mt-2 text-3xl font-bold">{formatNaira(stats.total_revenue_cents)}</p>
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-neutral-950 p-5">

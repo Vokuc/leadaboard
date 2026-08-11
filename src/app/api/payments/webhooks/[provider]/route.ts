@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PaymentWebhookService } from '@/lib/payments/core/webhooks';
 import { PaymentProviderKey } from '@/lib/payments/core/types';
+import { ENABLED_PAYMENT_PROVIDERS } from '@/lib/payments/config';
 
-const supportedProviders: PaymentProviderKey[] = ['stripe', 'paystack', 'flutterwave', 'pi'];
+const supportedProviders: PaymentProviderKey[] = ENABLED_PAYMENT_PROVIDERS;
 
 export async function POST(request: NextRequest, context: { params: Promise<{ provider: string }> }) {
   try {

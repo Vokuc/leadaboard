@@ -10,6 +10,7 @@ import {
 } from '@/lib/payments/core/types';
 import { getPaymentProvider, getSupportedProviders } from '@/lib/payments/providers';
 import { getActivePlans, getPlanBySlug, getUserSubscription } from '@/lib/payments/core/queries';
+import { PROVIDER_ALLOWED_CURRENCIES } from '@/lib/payments/config';
 
 interface StartCheckoutInput {
   userId: string;
@@ -31,13 +32,6 @@ interface UsageSnapshot {
   tournaments: number;
   participants: number;
 }
-
-const PROVIDER_ALLOWED_CURRENCIES: Record<PaymentProviderKey, string[]> = {
-  stripe: ['USD'],
-  paystack: ['NGN'],
-  flutterwave: ['USD', 'NGN'],
-  pi: ['USD'],
-};
 
 const PAYSTACK_API_BASE = process.env.PAYSTACK_API_BASE_URL || 'https://api.paystack.co';
 

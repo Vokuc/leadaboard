@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, BadgeDollarSign, Check, Loader2, ShieldAlert, Wallet } from 'lucide-react';
+import { ArrowLeft, BadgeDollarSign, Check, Loader2, ShieldAlert } from 'lucide-react';
+import { ACTIVE_PAYMENT_PROVIDER, getProviderDefaultCurrency } from '@/lib/payments/config';
 
 type Plan = {
   id: string;
@@ -37,19 +38,7 @@ type BillingOverview = {
 
 type ProviderKey = 'stripe' | 'paystack' | 'flutterwave' | 'pi';
 
-const providerOptions: Array<{
-  key: ProviderKey;
-  label: string;
-  comingSoon?: boolean;
-}> = [
-  { key: 'paystack', label: 'Paystack' },
-];
-
-function getProviderCurrency(provider: ProviderKey): 'USD' | 'NGN' {
-  return provider === 'paystack' ? 'NGN' : 'USD';
-}
-
-function formatPlanAmount(amountInMinorUnits: number, currency: 'USD' | 'NGN'): string {
+function formatPlanAmount(amountInMinorUnits: number, currency: string): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency,
@@ -64,8 +53,9 @@ export default function BillingPage() {
   const [error, setError] = useState<string | null>(null);
   const [verificationMessage, setVerificationMessage] = useState<string | null>(null);
   const [overview, setOverview] = useState<BillingOverview | null>(null);
-  const provider: ProviderKey = 'paystack';
+  const provider: ProviderKey = ACTIVE_PAYMENT_PROVIDER;
   const [cycle, setCycle] = useState<'monthly' | 'yearly'>('monthly');
+  const hasAutoStartedRef = useRef(false);
 
   async function loadOverview() {
     setLoading(true);
@@ -99,7 +89,7 @@ export default function BillingPage() {
   }, []);
 
   const currentPlanSlug = overview?.effectivePlan?.slug || 'free';
-  const providerCurrency = getProviderCurrency(provider);
+  const providerCurrency = getProviderDefaultCurrency(provider).toUpperCase();
 
   const sortedPlans = useMemo(() => {
     return [...(overview?.plans || [])].sort((a, b) => a.price - b.price);
@@ -162,11 +152,12 @@ export default function BillingPage() {
     };
   }, []);
 
-  async function startCheckout(planSlug: string) {
+  const startCheckout = useCallback(async (planSlug: string, cycleOverride?: 'monthly' | 'yearly') => {
     setBusy(true);
     setError(null);
 
     try {
+      const targetCycle = cycleOverride || cycle;
       const response = await fetch('/api/payments/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -175,7 +166,7 @@ export default function BillingPage() {
           kind: 'subscription',
           currency: providerCurrency,
           planSlug,
-          billingCycle: cycle,
+          billingCycle: targetCycle,
           successUrl: `${window.location.origin}/dashboard/billing?checkout=success`,
           cancelUrl: `${window.location.origin}/dashboard/billing?checkout=cancelled`,
           metadata: {
@@ -207,7 +198,40 @@ export default function BillingPage() {
       setError(message);
       setBusy(false);
     }
-  }
+  }, [cycle, provider, providerCurrency]);
+
+  useEffect(() => {
+    if (!overview || loading || busy || hasAutoStartedRef.current) {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const shouldAutoStart = params.get('autostart') === '1';
+
+    if (!shouldAutoStart) {
+      return;
+    }
+
+    const planSlug = (params.get('plan') || '').trim().toLowerCase();
+    const cycleParam = params.get('cycle');
+    const targetCycle = cycleParam === 'yearly' ? 'yearly' : 'monthly';
+
+    const targetPlan = overview.plans.find((plan) => plan.slug === planSlug);
+    if (!targetPlan) {
+      hasAutoStartedRef.current = true;
+      return;
+    }
+
+    if (targetPlan.slug === 'free' || Number(targetPlan.price) === 0) {
+      hasAutoStartedRef.current = true;
+      return;
+    }
+
+    hasAutoStartedRef.current = true;
+    queueMicrotask(() => {
+      void startCheckout(targetPlan.slug, targetCycle);
+    });
+  }, [busy, loading, overview, startCheckout]);
 
   async function cancelSubscription() {
     if (!overview?.subscription) {
@@ -310,31 +334,14 @@ export default function BillingPage() {
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-neutral-950 p-5">
-            <h2 className="text-sm uppercase tracking-wider text-neutral-400">Provider</h2>
-            <div className="mt-4 grid grid-cols-1 gap-2 text-sm">
-              {providerOptions.map((item) => (
-                <button
-                  key={item.key}
-                  type="button"
-                  disabled
-                  className={`rounded-lg border px-3 py-2 capitalize transition-colors ${
-                    provider === item.key
-                      ? 'border-violet-400 bg-violet-500/20 text-violet-200'
-                      : 'border-white/10 bg-neutral-900 text-neutral-300'
-                  }`}
-                >
-                  <span className="flex items-center justify-center gap-2">
-                    <span>{item.label}</span>
-                  </span>
-                </button>
-              ))}
+            <h2 className="text-sm uppercase tracking-wider text-neutral-400">Checkout Provider</h2>
+            <div className="mt-4 rounded-xl border border-violet-400/30 bg-violet-500/10 px-3 py-2 text-sm text-violet-200">
+              Paystack (NGN)
             </div>
 
-            {provider === 'paystack' && (
-              <p className="mt-4 text-xs text-amber-300">
-                Paystack test checkout currently runs in NGN. The existing seeded plan amounts are reused as NGN test amounts.
-              </p>
-            )}
+            <p className="mt-4 text-xs text-amber-300">
+              Billing is currently routed through Paystack only. Stripe and Pi can be enabled later without changing this flow.
+            </p>
 
             <h2 className="text-sm uppercase tracking-wider text-neutral-400 mt-6">Billing Cycle</h2>
             <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
@@ -417,7 +424,7 @@ export default function BillingPage() {
                   onClick={() => startCheckout(plan.slug)}
                   className="mt-6 w-full rounded-xl py-2.5 text-sm font-semibold bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isFreePlan ? 'Included Plan' : isCurrent ? 'Retry Checkout' : 'Upgrade'}
+                  {isFreePlan ? 'Included Plan' : isCurrent ? 'Retry Paystack Checkout' : 'Upgrade with Paystack'}
                 </button>
 
                 {!isFreePlan && isCurrent && (
@@ -431,14 +438,7 @@ export default function BillingPage() {
         <div className="mt-8 p-4 rounded-2xl border border-white/10 bg-neutral-950 text-sm text-neutral-300 flex items-start gap-3">
           <BadgeDollarSign className="w-5 h-5 text-cyan-300 mt-0.5" />
           <div>
-            In production, each provider checkout URL should be provider-hosted. Current fallback provider adapters are deterministic stubs for integration safety.
-          </div>
-        </div>
-
-        <div className="mt-4 p-4 rounded-2xl border border-white/10 bg-neutral-950 text-sm text-neutral-300 flex items-start gap-3">
-          <Wallet className="w-5 h-5 text-violet-300 mt-0.5" />
-          <div>
-            Cancellation keeps grace access for 7 days, then downgrade behavior should be enforced by the active plan check and RLS policies.
+            Paystack checkout uses NGN pricing. If checkout fails, fix the reported blocker (env key, plan code, or callback verification) and retry on the same plan card.
           </div>
         </div>
       </div>
