@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/supabase/server';
+import { isSupabaseServerConfigured } from '@/lib/supabase/server';
 import { PaymentService } from '@/lib/payments/core/service';
+import { requireAuthenticatedUser, toBillingErrorResponse } from '@/lib/billing/guards';
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,15 +9,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Server is not configured for payments.' }, { status: 500 });
     }
 
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const user = await requireAuthenticatedUser();
 
     const body = (await request.json()) as { reference?: string };
     if (!body.reference) {
@@ -26,7 +19,6 @@ export async function POST(request: NextRequest) {
     const result = await PaymentService.verifyPaystackTransaction(user.id, body.reference);
     return NextResponse.json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to verify payment.';
-    return NextResponse.json({ error: message }, { status: 400 });
+    return toBillingErrorResponse(error, 'Failed to verify payment.');
   }
 }

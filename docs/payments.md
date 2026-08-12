@@ -19,9 +19,11 @@ This repository now includes an additive, provider-agnostic billing foundation t
   - [src/app/api/payments/me/route.ts](src/app/api/payments/me/route.ts)
   - [src/app/api/payments/cancel/route.ts](src/app/api/payments/cancel/route.ts)
   - [src/app/api/payments/admin/metrics/route.ts](src/app/api/payments/admin/metrics/route.ts)
+  - [src/app/api/payments/admin/users/route.ts](src/app/api/payments/admin/users/route.ts)
 - UI:
   - [src/app/dashboard/billing/page.tsx](src/app/dashboard/billing/page.tsx)
   - [src/app/dashboard/admin/billing/page.tsx](src/app/dashboard/admin/billing/page.tsx)
+  - [src/app/dashboard/admin/users/page.tsx](src/app/dashboard/admin/users/page.tsx)
 
 ## Provider Adapters
 

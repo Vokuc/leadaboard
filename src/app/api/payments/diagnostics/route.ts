@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { createSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/supabase/server';
+import { isSupabaseServerConfigured } from '@/lib/supabase/server';
 import { getSupabaseAdminConfigStatus } from '@/lib/supabase/admin';
+import { requireBillingAdminUser, toBillingErrorResponse } from '@/lib/billing/guards';
 
 export async function GET() {
   try {
@@ -19,15 +20,7 @@ export async function GET() {
       );
     }
 
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireBillingAdminUser();
 
     return NextResponse.json({
       ok: adminStatus.errors.length === 0,
@@ -37,7 +30,6 @@ export async function GET() {
       adminConfig: adminStatus,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to inspect payments diagnostics.';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return toBillingErrorResponse(error, 'Failed to inspect payments diagnostics.');
   }
 }

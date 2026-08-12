@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { createSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/supabase/server';
+import { isSupabaseServerConfigured } from '@/lib/supabase/server';
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from '@/lib/supabase/admin';
+import { requireBillingAdminUser, toBillingErrorResponse } from '@/lib/billing/guards';
 
 export async function GET() {
   try {
@@ -12,15 +13,7 @@ export async function GET() {
       return NextResponse.json({ error: 'SUPABASE_SERVICE_ROLE_KEY is missing.' }, { status: 500 });
     }
 
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireBillingAdminUser();
 
     const billingAdmin = createSupabaseAdminClient();
 
@@ -63,7 +56,6 @@ export async function GET() {
       now: now.toISOString(),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to load admin billing metrics.';
-    return NextResponse.json({ error: message }, { status: 400 });
+    return toBillingErrorResponse(error, 'Failed to load admin billing metrics.');
   }
 }

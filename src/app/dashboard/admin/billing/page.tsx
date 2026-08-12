@@ -1,6 +1,7 @@
 import Link from 'next/link';
-import { createSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/supabase/server';
+import { isSupabaseServerConfigured } from '@/lib/supabase/server';
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from '@/lib/supabase/admin';
+import { BillingAccessError, requireBillingAdminUser } from '@/lib/billing/guards';
 
 interface StatRow {
   total_subscriptions: number;
@@ -38,16 +39,18 @@ export default async function AdminBillingPage() {
     );
   }
 
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  try {
+    await requireBillingAdminUser();
+  } catch (error) {
+    const message =
+      error instanceof BillingAccessError
+        ? error.message
+        : 'You do not have permission to view this page.';
 
-  if (!user) {
     return (
       <div className="min-h-screen bg-black text-white p-8">
         <h1 className="text-2xl font-bold">Admin Billing</h1>
-        <p className="mt-2 text-neutral-400">Please log in.</p>
+        <p className="mt-2 text-neutral-400">{message}</p>
       </div>
     );
   }
@@ -91,7 +94,11 @@ export default async function AdminBillingPage() {
     <div className="min-h-screen bg-black text-white pb-16">
       <div className="max-w-6xl mx-auto px-6 py-8">
         <div className="mb-8">
-          <Link href="/dashboard" className="text-sm text-neutral-400 hover:text-white">Back to Dashboard</Link>
+          <div className="flex items-center gap-3 text-sm">
+            <Link href="/dashboard" className="text-neutral-400 hover:text-white">Back to Dashboard</Link>
+            <span className="text-neutral-600">|</span>
+            <Link href="/dashboard/admin/users" className="text-cyan-300 hover:text-cyan-200">Manage Admin Users</Link>
+          </div>
           <h1 className="text-3xl font-bold mt-2">Admin Billing Console</h1>
           <p className="text-sm text-neutral-400 mt-1">Operational metrics for subscriptions, revenue, and webhook processing.</p>
         </div>

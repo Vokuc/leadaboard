@@ -29,6 +29,27 @@ function mapProviderSubscriptionStatus(eventType: string): string {
   return 'active';
 }
 
+function mapPaymentStatus(eventType: string): 'pending' | 'succeeded' | 'failed' | 'cancelled' | 'refunded' | 'partially_refunded' {
+  const normalized = eventType.toLowerCase();
+
+  if (normalized.includes('partial_refund') || normalized.includes('partially_refunded')) {
+    return 'partially_refunded';
+  }
+  if (normalized.includes('refund')) {
+    return 'refunded';
+  }
+  if (normalized.includes('cancel')) {
+    return 'cancelled';
+  }
+  if (normalized.includes('fail') || normalized.includes('declin') || normalized.includes('chargeback')) {
+    return 'failed';
+  }
+  if (normalized.includes('pending') || normalized.includes('processing')) {
+    return 'pending';
+  }
+  return 'succeeded';
+}
+
 export const PaymentWebhookService = {
   async process(providerKey: PaymentProviderKey, payload: string, headers: Headers) {
     assertServerConfigured();
@@ -87,10 +108,12 @@ export const PaymentWebhookService = {
     const providerSubscriptionId = String(data.provider_subscription_id || data.subscription_id || data.subscriptionId || '');
 
     if (paymentReference) {
+      const paymentStatus = mapPaymentStatus(normalized.eventType);
+
       const { error: paymentUpdateError } = await supabase
         .from('payments')
         .update({
-          status: normalized.eventType.includes('failed') ? 'failed' : 'succeeded',
+          status: paymentStatus,
         })
         .eq('provider', providerKey)
         .eq('payment_reference', paymentReference);
@@ -108,7 +131,7 @@ export const PaymentWebhookService = {
 
       const payment = paymentRows?.[0];
       if (payment) {
-        const invoiceStatus = normalized.eventType.includes('failed') ? 'open' : 'paid';
+        const invoiceStatus = paymentStatus === 'failed' || paymentStatus === 'cancelled' ? 'open' : 'paid';
 
         const { error: invoiceError } = await supabase
           .from('invoices')
@@ -125,7 +148,7 @@ export const PaymentWebhookService = {
           throw invoiceError;
         }
 
-        const notificationType = normalized.eventType.includes('failed') ? 'payment_failed' : 'payment_succeeded';
+        const notificationType = paymentStatus === 'failed' || paymentStatus === 'cancelled' ? 'payment_failed' : 'payment_succeeded';
         const { error: notifyError } = await supabase
           .from('billing_notifications')
           .insert({
@@ -141,6 +164,67 @@ export const PaymentWebhookService = {
 
         if (notifyError) {
           throw notifyError;
+        }
+
+        if (payment.subscription_id) {
+          const { data: subs, error: subError } = await supabase
+            .from('subscriptions')
+            .select('id,status,metadata,current_period_start,current_period_end')
+            .eq('id', payment.subscription_id)
+            .limit(1);
+
+          if (subError) {
+            throw subError;
+          }
+
+          const sub = subs?.[0];
+          if (sub) {
+            if (paymentStatus === 'succeeded') {
+              const now = new Date();
+              const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+              const { error: subUpdateError } = await supabase
+                .from('subscriptions')
+                .update({
+                  status: 'active',
+                  grace_period_end: null,
+                  current_period_start: sub.current_period_start || now.toISOString(),
+                  current_period_end: sub.current_period_end || periodEnd.toISOString(),
+                  metadata: {
+                    ...(sub.metadata || {}),
+                    activated_via: 'webhook_payment',
+                    last_successful_payment_event: normalized.eventType,
+                    last_successful_payment_at: new Date().toISOString(),
+                  },
+                })
+                .eq('id', sub.id);
+
+              if (subUpdateError) {
+                throw subUpdateError;
+              }
+            }
+
+            if (paymentStatus === 'failed' || paymentStatus === 'cancelled') {
+              const gracePeriodEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+              const { error: subUpdateError } = await supabase
+                .from('subscriptions')
+                .update({
+                  status: 'past_due',
+                  grace_period_end: gracePeriodEnd,
+                  metadata: {
+                    ...(sub.metadata || {}),
+                    payment_issue_via: 'webhook_payment',
+                    payment_issue_event: normalized.eventType,
+                    payment_issue_at: new Date().toISOString(),
+                  },
+                })
+                .eq('id', sub.id);
+
+              if (subUpdateError) {
+                throw subUpdateError;
+              }
+            }
+          }
         }
       }
     }

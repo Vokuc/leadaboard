@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/supabase/server';
+import { isSupabaseServerConfigured } from '@/lib/supabase/server';
 import { PaymentService } from '@/lib/payments/core/service';
 import { PaymentProviderKey } from '@/lib/payments/core/types';
 import { isPaymentProviderEnabled } from '@/lib/payments/config';
+import { requireAuthenticatedUser, toBillingErrorResponse } from '@/lib/billing/guards';
 
 function extractErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message) {
@@ -33,15 +34,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Server is not configured for payments.' }, { status: 500 });
     }
 
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const user = await requireAuthenticatedUser();
 
     const body = (await request.json()) as {
       provider?: PaymentProviderKey;
@@ -81,8 +74,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(checkout);
   } catch (error) {
-    const message = extractErrorMessage(error);
     console.error('Payments checkout failed:', error);
-    return NextResponse.json({ error: message }, { status: 400 });
+    if (error instanceof Error) {
+      return toBillingErrorResponse(error, 'Failed to start checkout.');
+    }
+    return toBillingErrorResponse(new Error(extractErrorMessage(error)), 'Failed to start checkout.');
   }
 }

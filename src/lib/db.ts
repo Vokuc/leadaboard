@@ -29,6 +29,7 @@ const DEFAULT_PROFILE: Profile = {
   id: SEED_CREATOR_ID,
   email: 'creator@leagueboard.com',
   full_name: 'Alex Mercer',
+  role: 'super_admin',
   avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
@@ -276,7 +277,9 @@ const mockDb = new LocalDb();
 
 export const DatabaseService = {
   initialize() {
-    mockDb.init();
+    if (!isSupabaseConfigured) {
+      mockDb.init();
+    }
   },
 
   // Auth/Profiles
@@ -299,6 +302,7 @@ export const DatabaseService = {
       id: SEED_CREATOR_ID,
       email,
       full_name: fullName,
+      role: 'super_admin',
       avatar_url: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(fullName)}`,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -363,9 +367,13 @@ export const DatabaseService = {
 
   async createLeaderboard(lb: Omit<Leaderboard, 'id' | 'owner_id' | 'created_at' | 'updated_at' | 'status'>, rules: Omit<ScoringRule, 'id' | 'leaderboard_id' | 'created_at'>[], season: Omit<Season, 'id' | 'leaderboard_id' | 'created_at'> | null): Promise<Leaderboard> {
     const profile = await this.getCurrentProfile();
-    const owner_id = profile?.id || SEED_CREATOR_ID;
+    const owner_id = profile?.id;
     
     if (isSupabaseConfigured && supabase) {
+      if (!owner_id) {
+        throw new Error('You must be logged in to create a leaderboard.');
+      }
+
       const { data: newLb, error: lbErr } = await supabase
         .from('leaderboards')
         .insert([{ ...lb, owner_id, status: 'active' }])
@@ -391,11 +399,12 @@ export const DatabaseService = {
     }
 
     // Local Storage Flow
+    const safeOwnerId = owner_id || SEED_CREATOR_ID;
     const newId = `lb-${Math.random().toString(36).substr(2, 9)}`;
     const createdLb: Leaderboard = {
       ...lb,
       id: newId,
-      owner_id,
+      owner_id: safeOwnerId,
       status: 'active',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()

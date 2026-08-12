@@ -489,6 +489,37 @@ export const PaymentService = {
           throw subscriptionUpdateError;
         }
       }
+    } else if (payment.subscription_id && !succeeded) {
+      const { data: subscription, error: subscriptionReadError } = await supabase
+        .from('subscriptions')
+        .select('id,status,metadata')
+        .eq('id', payment.subscription_id)
+        .maybeSingle();
+
+      if (subscriptionReadError) {
+        throw subscriptionReadError;
+      }
+
+      if (subscription) {
+        const gracePeriodEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+        const { error: subscriptionUpdateError } = await supabase
+          .from('subscriptions')
+          .update({
+            status: 'past_due',
+            grace_period_end: gracePeriodEnd,
+            metadata: {
+              ...(subscription.metadata || {}),
+              payment_failed_via: 'paystack_verify',
+              paystack_failed_at: new Date().toISOString(),
+            },
+          })
+          .eq('id', subscription.id);
+
+        if (subscriptionUpdateError) {
+          throw subscriptionUpdateError;
+        }
+      }
     }
 
     await enqueueNotification(userId, succeeded ? 'payment_verified' : 'payment_failed_verify', {
@@ -591,12 +622,17 @@ export const PaymentService = {
         billingCycle: cycle,
         providerCustomerId: providerSubscription.providerCustomerId,
         providerSubscriptionId: providerSubscription.providerSubscriptionId,
-        status: providerSubscription.status,
+        // Entitlements are activated only after payment verification/webhook confirmation.
+        status: 'incomplete',
         currentPeriodStart: providerSubscription.currentPeriodStart,
         currentPeriodEnd: providerSubscription.currentPeriodEnd,
         gracePeriodEnd: providerSubscription.gracePeriodEnd,
         cancelledAt: providerSubscription.cancelledAt,
-        metadata: providerSubscription.metadata,
+        metadata: {
+          ...(providerSubscription.metadata || {}),
+          requested_provider_status: providerSubscription.status,
+          awaiting_payment_confirmation: true,
+        },
       });
 
       subscriptionId = sub.id;

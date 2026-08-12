@@ -2,6 +2,7 @@ export interface Profile {
   id: string;
   email: string;
   full_name: string | null;
+  role: 'member' | 'admin' | 'billing_admin' | 'super_admin';
   avatar_url: string | null;
   created_at: string;
   updated_at: string;
