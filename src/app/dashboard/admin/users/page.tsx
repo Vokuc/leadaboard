@@ -12,11 +12,14 @@ type AdminProfile = {
   role: ProfileRole;
   created_at: string;
   updated_at: string;
+  accessSource?: 'profile_role' | 'billing_admin_email' | 'both';
 };
 
 type AdminUsersPayload = {
   admins: AdminProfile[];
   requesterRole: ProfileRole;
+  requesterProfileExists: boolean;
+  requesterEmailIsAllowlisted: boolean;
   canAssignSuperAdmin: boolean;
 };
 
@@ -30,6 +33,8 @@ export default function AdminUsersPage() {
 
   const [admins, setAdmins] = useState<AdminProfile[]>([]);
   const [requesterRole, setRequesterRole] = useState<ProfileRole>('member');
+  const [requesterProfileExists, setRequesterProfileExists] = useState(true);
+  const [requesterEmailIsAllowlisted, setRequesterEmailIsAllowlisted] = useState(false);
   const [canAssignSuperAdmin, setCanAssignSuperAdmin] = useState(false);
 
   const [identifierMode, setIdentifierMode] = useState<'email' | 'userId'>('email');
@@ -58,6 +63,8 @@ export default function AdminUsersPage() {
       const data = payload as AdminUsersPayload;
       setAdmins(data.admins || []);
       setRequesterRole(data.requesterRole || 'member');
+      setRequesterProfileExists(Boolean(data.requesterProfileExists));
+      setRequesterEmailIsAllowlisted(Boolean(data.requesterEmailIsAllowlisted));
       setCanAssignSuperAdmin(Boolean(data.canAssignSuperAdmin));
 
       if (!data.canAssignSuperAdmin && targetRole === 'super_admin') {
@@ -153,6 +160,18 @@ export default function AdminUsersPage() {
             <span>{canAssignSuperAdmin ? 'You can assign super_admin.' : 'You cannot assign super_admin.'}</span>
           </div>
 
+          {!requesterProfileExists && (
+            <div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+              Your authenticated Supabase user does not have a matching profiles row yet. The admin roster reads from public.profiles, so create/backfill that row if you want a profile-backed record.
+            </div>
+          )}
+
+          {requesterEmailIsAllowlisted && requesterRole !== 'super_admin' && (
+            <div className="mt-3 rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-3 py-2 text-sm text-cyan-200">
+              Your admin access is coming from BILLING_ADMIN_EMAILS, not from a profiles role.
+            </div>
+          )}
+
           <form onSubmit={updateRole} className="mt-5 grid grid-cols-1 md:grid-cols-4 gap-3">
             <div className="rounded-xl border border-white/10 bg-black/30 p-2">
               <label className="block text-xs text-neutral-400 mb-2">Identifier Type</label>
@@ -230,6 +249,7 @@ export default function AdminUsersPage() {
                     <th className="py-2 pr-4">Name</th>
                     <th className="py-2 pr-4">Email</th>
                     <th className="py-2 pr-4">Role</th>
+                    <th className="py-2 pr-4">Source</th>
                     <th className="py-2 pr-4">Updated</th>
                   </tr>
                 </thead>
@@ -239,6 +259,7 @@ export default function AdminUsersPage() {
                       <td className="py-2 pr-4">{admin.full_name || '-'}</td>
                       <td className="py-2 pr-4">{admin.email}</td>
                       <td className="py-2 pr-4 capitalize">{admin.role.replace('_', ' ')}</td>
+                      <td className="py-2 pr-4 capitalize">{admin.accessSource?.replace('_', ' ') || 'profile role'}</td>
                       <td className="py-2 pr-4">{new Date(admin.updated_at).toLocaleString()}</td>
                     </tr>
                   ))}

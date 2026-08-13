@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isSupabaseServerConfigured } from '@/lib/supabase/server';
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from '@/lib/supabase/admin';
-import { normalizeProfileRole, ProfileRole } from '@/lib/billing/admin';
+import { getBillingAdminEmailsFromEnv, isProfileRoleBillingAdmin, normalizeProfileRole, ProfileRole } from '@/lib/billing/admin';
 import { requireBillingAdminUser, toBillingErrorResponse } from '@/lib/billing/guards';
 
 interface RoleUpdatePayload {
@@ -11,21 +11,6 @@ interface RoleUpdatePayload {
 }
 
 const ADMIN_VIEW_ROLES: ProfileRole[] = ['admin', 'billing_admin', 'super_admin'];
-
-async function getRequesterRole(userId: string): Promise<ProfileRole> {
-  const admin = createSupabaseAdminClient();
-  const { data, error } = await admin
-    .from('profiles')
-    .select('role')
-    .eq('id', userId)
-    .maybeSingle();
-
-  if (error) {
-    throw error;
-  }
-
-  return normalizeProfileRole(data?.role);
-}
 
 async function getProfileRoleById(userId: string): Promise<ProfileRole | null> {
   const admin = createSupabaseAdminClient();
@@ -44,6 +29,26 @@ async function getProfileRoleById(userId: string): Promise<ProfileRole | null> {
   }
 
   return normalizeProfileRole(data.role);
+}
+
+async function getRequesterRole(userId: string): Promise<ProfileRole> {
+  const role = await getProfileRoleById(userId);
+  return role || 'member';
+}
+
+async function getRequesterProfileExists(userId: string): Promise<boolean> {
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin
+    .from('profiles')
+    .select('id')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return Boolean(data?.id);
 }
 
 async function resolveTargetUserId(payload: RoleUpdatePayload): Promise<string> {
@@ -74,6 +79,35 @@ async function resolveTargetUserId(payload: RoleUpdatePayload): Promise<string> 
   return data.id;
 }
 
+type AdminUserRow = {
+  id: string;
+  email: string;
+  full_name: string | null;
+  role: ProfileRole;
+  created_at: string;
+  updated_at: string;
+  accessSource: 'profile_role' | 'billing_admin_email' | 'both';
+};
+
+function toAdminRow(row: Record<string, unknown>, source: AdminUserRow['accessSource']): AdminUserRow | null {
+  const id = String(row.id || '').trim();
+  const email = String(row.email || '').trim().toLowerCase();
+
+  if (!id || !email) {
+    return null;
+  }
+
+  return {
+    id,
+    email,
+    full_name: typeof row.full_name === 'string' ? row.full_name : null,
+    role: source === 'billing_admin_email' && !isProfileRoleBillingAdmin(row.role) ? 'billing_admin' : normalizeProfileRole(row.role),
+    created_at: String(row.created_at || new Date().toISOString()),
+    updated_at: String(row.updated_at || new Date().toISOString()),
+    accessSource: source,
+  };
+}
+
 export async function GET() {
   try {
     if (!isSupabaseServerConfigured) {
@@ -86,21 +120,66 @@ export async function GET() {
 
     const requester = await requireBillingAdminUser();
     const requesterRole = await getRequesterRole(requester.id);
+    const requesterProfileExists = await getRequesterProfileExists(requester.id);
+    const billingAdminEmails = getBillingAdminEmailsFromEnv();
 
     const admin = createSupabaseAdminClient();
-    const { data, error } = await admin
-      .from('profiles')
-      .select('id,email,full_name,role,created_at,updated_at')
-      .in('role', ADMIN_VIEW_ROLES)
-      .order('updated_at', { ascending: false });
+    const [profileRoleAdminsRes, emailAllowlistedAdminsRes] = await Promise.all([
+      admin
+        .from('profiles')
+        .select('id,email,full_name,role,created_at,updated_at')
+        .in('role', ADMIN_VIEW_ROLES)
+        .order('updated_at', { ascending: false }),
+      billingAdminEmails.size > 0
+        ? admin
+            .from('profiles')
+            .select('id,email,full_name,role,created_at,updated_at')
+            .in('email', Array.from(billingAdminEmails.values()))
+        : Promise.resolve({ data: [], error: null as Error | null }),
+    ]);
 
-    if (error) {
-      throw error;
+    if (profileRoleAdminsRes.error) {
+      throw profileRoleAdminsRes.error;
+    }
+    if (emailAllowlistedAdminsRes.error) {
+      throw emailAllowlistedAdminsRes.error;
     }
 
+    const adminsById = new Map<string, AdminUserRow>();
+
+    for (const row of (profileRoleAdminsRes.data || []) as Array<Record<string, unknown>>) {
+      const adminRow = toAdminRow(row, 'profile_role');
+      if (adminRow) {
+        adminsById.set(adminRow.id, adminRow);
+      }
+    }
+
+    for (const row of (emailAllowlistedAdminsRes.data || []) as Array<Record<string, unknown>>) {
+      const adminRow = toAdminRow(row, 'billing_admin_email');
+      if (!adminRow) {
+        continue;
+      }
+
+      const existing = adminsById.get(adminRow.id);
+      if (existing) {
+        existing.accessSource = 'both';
+        if (existing.role === 'member') {
+          existing.role = 'billing_admin';
+        }
+      } else {
+        adminsById.set(adminRow.id, adminRow);
+      }
+    }
+
+    const admins = Array.from(adminsById.values()).sort((left, right) => {
+      return new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime();
+    });
+
     return NextResponse.json({
-      admins: data || [],
+      admins,
       requesterRole,
+      requesterProfileExists,
+      requesterEmailIsAllowlisted: billingAdminEmails.has((requester.email || '').trim().toLowerCase()),
       canAssignSuperAdmin: requesterRole === 'super_admin',
     });
   } catch (error) {
