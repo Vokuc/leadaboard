@@ -122,6 +122,7 @@ export async function GET() {
     const requesterRole = await getRequesterRole(requester.id);
     const requesterProfileExists = await getRequesterProfileExists(requester.id);
     const billingAdminEmails = getBillingAdminEmailsFromEnv();
+    const requesterEmailIsAllowlisted = billingAdminEmails.has((requester.email || '').trim().toLowerCase());
 
     const admin = createSupabaseAdminClient();
     const [profileRoleAdminsRes, emailAllowlistedAdminsRes] = await Promise.all([
@@ -179,8 +180,8 @@ export async function GET() {
       admins,
       requesterRole,
       requesterProfileExists,
-      requesterEmailIsAllowlisted: billingAdminEmails.has((requester.email || '').trim().toLowerCase()),
-      canAssignSuperAdmin: requesterRole === 'super_admin',
+      requesterEmailIsAllowlisted,
+      canAssignSuperAdmin: requesterRole === 'super_admin' || requesterEmailIsAllowlisted,
     });
   } catch (error) {
     return toBillingErrorResponse(error, 'Failed to load admin users.');
@@ -199,6 +200,8 @@ export async function PATCH(request: NextRequest) {
 
     const requester = await requireBillingAdminUser();
     const requesterRole = await getRequesterRole(requester.id);
+    const billingAdminEmails = getBillingAdminEmailsFromEnv();
+    const requesterEmailIsAllowlisted = billingAdminEmails.has((requester.email || '').trim().toLowerCase());
 
     const payload = (await request.json()) as RoleUpdatePayload;
     const normalizedRole = normalizeProfileRole(payload.role);
@@ -207,7 +210,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'role is required.' }, { status: 400 });
     }
 
-    if (normalizedRole === 'super_admin' && requesterRole !== 'super_admin') {
+    if (normalizedRole === 'super_admin' && requesterRole !== 'super_admin' && !requesterEmailIsAllowlisted) {
       return NextResponse.json({ error: 'Only super_admin can assign super_admin.' }, { status: 403 });
     }
 
@@ -218,7 +221,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Target user profile not found.' }, { status: 404 });
     }
 
-    if (requesterRole !== 'super_admin' && targetCurrentRole === 'super_admin') {
+    if (requesterRole !== 'super_admin' && !requesterEmailIsAllowlisted && targetCurrentRole === 'super_admin') {
       return NextResponse.json({ error: 'Only super_admin can modify another super_admin.' }, { status: 403 });
     }
 

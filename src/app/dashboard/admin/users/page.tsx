@@ -41,9 +41,7 @@ export default function AdminUsersPage() {
   const [identifier, setIdentifier] = useState('');
   const [targetRole, setTargetRole] = useState<ProfileRole>('billing_admin');
 
-  const allowedRoleOptions = useMemo(() => {
-    return canAssignSuperAdmin ? ROLE_OPTIONS : ROLE_OPTIONS.filter((role) => role !== 'super_admin');
-  }, [canAssignSuperAdmin]);
+  const roleOptions = useMemo(() => ROLE_OPTIONS, []);
 
   const loadAdmins = useCallback(async () => {
     setLoading(true);
@@ -212,8 +210,8 @@ export default function AdminUsersPage() {
                 onChange={(event) => setTargetRole(event.target.value as ProfileRole)}
                 className="w-full rounded-lg border border-white/10 bg-neutral-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-400"
               >
-                {allowedRoleOptions.map((role) => (
-                  <option key={role} value={role}>
+                {roleOptions.map((role) => (
+                  <option key={role} value={role} disabled={role === 'super_admin' && !canAssignSuperAdmin}>
                     {role}
                   </option>
                 ))}
