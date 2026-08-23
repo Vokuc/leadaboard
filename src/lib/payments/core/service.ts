@@ -1,4 +1,5 @@
 import { createSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/supabase/server';
+import { createSupabaseAdminClient, isSupabaseAdminConfigured } from '@/lib/supabase/admin';
 import {
   BillingCycle,
   CheckoutRequest,
@@ -9,9 +10,11 @@ import {
 } from '@/lib/payments/core/types';
 import { getPaymentProvider, getSupportedProviders } from '@/lib/payments/providers';
 import { getActivePlans, getPlanBySlug, getUserSubscription } from '@/lib/payments/core/queries';
+import { PROVIDER_ALLOWED_CURRENCIES } from '@/lib/payments/config';
 
 interface StartCheckoutInput {
   userId: string;
+  userEmail?: string;
   provider: PaymentProviderKey;
   kind: CheckoutRequest['kind'];
   currency: string;
@@ -30,9 +33,23 @@ interface UsageSnapshot {
   participants: number;
 }
 
+const PAYSTACK_API_BASE = process.env.PAYSTACK_API_BASE_URL || 'https://api.paystack.co';
+
+function requirePaystackSecret(): string {
+  const key = process.env.PAYSTACK_SECRET_KEY;
+  if (!key) {
+    throw new Error('PAYSTACK_SECRET_KEY is missing.');
+  }
+  return key;
+}
+
 function assertServerConfigured(): void {
   if (!isSupabaseServerConfigured) {
     throw new Error('Supabase server environment is not configured.');
+  }
+
+  if (!isSupabaseAdminConfigured) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is missing. Billing writes require the service role key.');
   }
 }
 
@@ -44,9 +61,20 @@ function coerceStatus(status: string | null | undefined): SubscriptionStatus {
   return 'incomplete';
 }
 
+function validateProviderCurrency(provider: PaymentProviderKey, currency: string): string {
+  const normalized = currency.trim().toUpperCase();
+  const allowed = PROVIDER_ALLOWED_CURRENCIES[provider] || [];
+
+  if (!allowed.includes(normalized)) {
+    throw new Error(`${provider} does not support ${normalized} in the current app configuration.`);
+  }
+
+  return normalized;
+}
+
 async function computeUsage(userId: string): Promise<UsageSnapshot> {
   assertServerConfigured();
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseAdminClient();
 
   const { data: leaderboards, error: leaderboardError } = await supabase
     .from('leaderboards')
@@ -99,7 +127,7 @@ async function applyDiscountCode(code: string | undefined, amount: number, curre
   }
 
   assertServerConfigured();
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseAdminClient();
 
   const { data, error } = await supabase
     .from('discount_codes')
@@ -153,7 +181,7 @@ async function upsertSubscription(input: {
   metadata?: Record<string, unknown>;
 }) {
   assertServerConfigured();
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseAdminClient();
 
   const { data: existing, error: existingError } = await supabase
     .from('subscriptions')
@@ -234,7 +262,7 @@ async function createPayment(input: {
   metadata?: Record<string, unknown>;
 }) {
   assertServerConfigured();
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseAdminClient();
 
   const { data, error } = await supabase
     .from('payments')
@@ -270,7 +298,7 @@ async function createInvoice(input: {
   metadata?: Record<string, unknown>;
 }) {
   assertServerConfigured();
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseAdminClient();
 
   const invoiceNumber = `INV-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
@@ -299,7 +327,7 @@ async function createInvoice(input: {
 
 async function enqueueNotification(userId: string, type: string, payload: Record<string, unknown>) {
   assertServerConfigured();
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseAdminClient();
 
   const { error } = await supabase
     .from('billing_notifications')
@@ -317,6 +345,199 @@ async function enqueueNotification(userId: string, type: string, payload: Record
 
 export const PaymentService = {
   getSupportedProviders,
+
+  async verifyPaystackTransaction(userId: string, reference: string) {
+    assertServerConfigured();
+
+    if (!reference?.trim()) {
+      throw new Error('Payment reference is required for verification.');
+    }
+
+    const secretKey = requirePaystackSecret();
+    const supabase = createSupabaseAdminClient();
+
+    const verifyResponse = await fetch(`${PAYSTACK_API_BASE}/transaction/verify/${encodeURIComponent(reference)}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${secretKey}`,
+      },
+    });
+
+    const verifyPayload = (await verifyResponse.json()) as {
+      status?: boolean;
+      message?: string;
+      data?: {
+        status?: string;
+        amount?: number;
+        currency?: string;
+        reference?: string;
+        paid_at?: string;
+      };
+    };
+
+    if (!verifyResponse.ok || !verifyPayload.status || !verifyPayload.data) {
+      throw new Error(verifyPayload.message || 'Unable to verify Paystack transaction.');
+    }
+
+    const { data: payment, error: paymentError } = await supabase
+      .from('payments')
+      .select('id,user_id,subscription_id,amount,currency,status,metadata')
+      .eq('provider', 'paystack')
+      .eq('payment_reference', reference)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (paymentError) {
+      throw paymentError;
+    }
+
+    if (!payment) {
+      throw new Error('Payment record not found for this user/reference.');
+    }
+
+    const verifiedAmount = Number(verifyPayload.data.amount || 0);
+    const verifiedCurrency = String(verifyPayload.data.currency || '').toUpperCase();
+    const expectedAmount = Number(payment.amount || 0);
+
+    const isSubscriptionPayment = Boolean(payment.subscription_id);
+
+    let amountScale: 'exact' | 'x100' | 'div100' | 'provider_authoritative' | null = null;
+    if (verifiedAmount === expectedAmount) {
+      amountScale = 'exact';
+    } else if (verifiedAmount === expectedAmount * 100) {
+      amountScale = 'x100';
+    } else if (verifiedAmount * 100 === expectedAmount) {
+      amountScale = 'div100';
+    } else if (isSubscriptionPayment) {
+      // Paystack plan-code subscriptions are charged by provider-side plan configuration.
+      amountScale = 'provider_authoritative';
+    }
+
+    if (!amountScale) {
+      throw new Error('Verified amount does not match expected amount.');
+    }
+
+    if (verifiedCurrency !== String(payment.currency || '').toUpperCase()) {
+      throw new Error('Verified currency does not match expected currency.');
+    }
+
+    const succeeded = String(verifyPayload.data.status || '').toLowerCase() === 'success';
+
+    const { error: paymentUpdateError } = await supabase
+      .from('payments')
+      .update({
+        status: succeeded ? 'succeeded' : 'failed',
+        metadata: {
+          ...(payment.metadata || {}),
+          paystack_verify_status: verifyPayload.data.status || null,
+          paystack_verified_at: new Date().toISOString(),
+          paystack_paid_at: verifyPayload.data.paid_at || null,
+          paystack_amount_expected: expectedAmount,
+          paystack_amount_verified: verifiedAmount,
+          paystack_amount_scale: amountScale,
+        },
+        amount: amountScale === 'exact' ? expectedAmount : verifiedAmount,
+      })
+      .eq('id', payment.id);
+
+    if (paymentUpdateError) {
+      throw paymentUpdateError;
+    }
+
+    const { error: invoiceUpdateError } = await supabase
+      .from('invoices')
+      .update({
+        status: succeeded ? 'paid' : 'open',
+        amount: amountScale === 'exact' ? expectedAmount : verifiedAmount,
+      })
+      .eq('payment_id', payment.id);
+
+    if (invoiceUpdateError) {
+      throw invoiceUpdateError;
+    }
+
+    if (payment.subscription_id && succeeded) {
+      const { data: subscription, error: subscriptionReadError } = await supabase
+        .from('subscriptions')
+        .select('id,status,metadata,current_period_start,current_period_end')
+        .eq('id', payment.subscription_id)
+        .maybeSingle();
+
+      if (subscriptionReadError) {
+        throw subscriptionReadError;
+      }
+
+      if (subscription) {
+        const now = new Date();
+        const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+        const { error: subscriptionUpdateError } = await supabase
+          .from('subscriptions')
+          .update({
+            status: 'active',
+            current_period_start: subscription.current_period_start || now.toISOString(),
+            current_period_end: subscription.current_period_end || periodEnd.toISOString(),
+            metadata: {
+              ...(subscription.metadata || {}),
+              activated_via: 'paystack_verify',
+              paystack_verified_at: new Date().toISOString(),
+            },
+          })
+          .eq('id', subscription.id);
+
+        if (subscriptionUpdateError) {
+          throw subscriptionUpdateError;
+        }
+      }
+    } else if (payment.subscription_id && !succeeded) {
+      const { data: subscription, error: subscriptionReadError } = await supabase
+        .from('subscriptions')
+        .select('id,status,metadata')
+        .eq('id', payment.subscription_id)
+        .maybeSingle();
+
+      if (subscriptionReadError) {
+        throw subscriptionReadError;
+      }
+
+      if (subscription) {
+        const gracePeriodEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+        const { error: subscriptionUpdateError } = await supabase
+          .from('subscriptions')
+          .update({
+            status: 'past_due',
+            grace_period_end: gracePeriodEnd,
+            metadata: {
+              ...(subscription.metadata || {}),
+              payment_failed_via: 'paystack_verify',
+              paystack_failed_at: new Date().toISOString(),
+            },
+          })
+          .eq('id', subscription.id);
+
+        if (subscriptionUpdateError) {
+          throw subscriptionUpdateError;
+        }
+      }
+    }
+
+    await enqueueNotification(userId, succeeded ? 'payment_verified' : 'payment_failed_verify', {
+      provider: 'paystack',
+      payment_reference: reference,
+      status: verifyPayload.data.status || null,
+      amount: verifiedAmount,
+      currency: verifiedCurrency,
+    });
+
+    return {
+      ok: succeeded,
+      status: verifyPayload.data.status || 'unknown',
+      reference,
+      amount: verifiedAmount,
+      currency: verifiedCurrency,
+    };
+  },
 
   async getBillingOverview(userId: string) {
     assertServerConfigured();
@@ -345,6 +566,8 @@ export const PaymentService = {
   async startCheckout(input: StartCheckoutInput): Promise<CheckoutResponse> {
     assertServerConfigured();
 
+    const currency = validateProviderCurrency(input.provider, input.currency);
+
     if (input.kind === 'subscription' && !input.planSlug) {
       throw new Error('Plan is required for subscription checkout.');
     }
@@ -356,16 +579,21 @@ export const PaymentService = {
       throw new Error('Selected plan does not exist.');
     }
 
+    if (input.kind === 'subscription' && plan && (plan.slug === 'free' || Number(plan.price) === 0)) {
+      throw new Error('The free plan does not require Paystack checkout. Select a paid plan to continue.');
+    }
+
     const cycle = input.billingCycle || 'monthly';
     const baseAmount = input.amount ?? (plan ? (cycle === 'yearly' ? (plan.yearly_price || plan.price) : plan.price) : 0);
-    const finalAmount = await applyDiscountCode(input.discountCode, baseAmount, input.currency);
+    const finalAmount = await applyDiscountCode(input.discountCode, baseAmount, currency);
 
     const checkout = await provider.createCheckoutSession({
       userId: input.userId,
+      userEmail: input.userEmail,
       provider: input.provider,
       kind: input.kind,
       amount: finalAmount,
-      currency: input.currency,
+      currency,
       planSlug: input.planSlug,
       billingCycle: cycle,
       discountCode: input.discountCode,
@@ -394,12 +622,17 @@ export const PaymentService = {
         billingCycle: cycle,
         providerCustomerId: providerSubscription.providerCustomerId,
         providerSubscriptionId: providerSubscription.providerSubscriptionId,
-        status: providerSubscription.status,
+        // Entitlements are activated only after payment verification/webhook confirmation.
+        status: 'incomplete',
         currentPeriodStart: providerSubscription.currentPeriodStart,
         currentPeriodEnd: providerSubscription.currentPeriodEnd,
         gracePeriodEnd: providerSubscription.gracePeriodEnd,
         cancelledAt: providerSubscription.cancelledAt,
-        metadata: providerSubscription.metadata,
+        metadata: {
+          ...(providerSubscription.metadata || {}),
+          requested_provider_status: providerSubscription.status,
+          awaiting_payment_confirmation: true,
+        },
       });
 
       subscriptionId = sub.id;
@@ -411,7 +644,7 @@ export const PaymentService = {
       provider: input.provider,
       paymentReference: checkout.paymentReference,
       amount: finalAmount,
-      currency: input.currency,
+      currency,
       status: 'pending',
       kind: input.kind,
       metadata: input.metadata,
@@ -421,7 +654,7 @@ export const PaymentService = {
       userId: input.userId,
       paymentId: payment.id,
       amount: finalAmount,
-      currency: input.currency,
+      currency,
       status: 'open',
       metadata: {
         provider: input.provider,
@@ -433,7 +666,7 @@ export const PaymentService = {
       provider: input.provider,
       kind: input.kind,
       amount: finalAmount,
-      currency: input.currency,
+      currency,
       payment_reference: checkout.paymentReference,
     });
 

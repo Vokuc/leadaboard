@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
-import { createSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/supabase/server';
+import { isSupabaseServerConfigured } from '@/lib/supabase/server';
+import { createSupabaseAdminClient, isSupabaseAdminConfigured } from '@/lib/supabase/admin';
+import { requireBillingAdminUser, toBillingErrorResponse } from '@/lib/billing/guards';
 
 export async function GET() {
   try {
@@ -7,20 +9,18 @@ export async function GET() {
       return NextResponse.json({ error: 'Server is not configured for payments.' }, { status: 500 });
     }
 
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!isSupabaseAdminConfigured) {
+      return NextResponse.json({ error: 'SUPABASE_SERVICE_ROLE_KEY is missing.' }, { status: 500 });
     }
 
+    await requireBillingAdminUser();
+
+    const billingAdmin = createSupabaseAdminClient();
+
     const [subscriptionsRes, paymentsRes, webhooksRes] = await Promise.all([
-      supabase.from('subscriptions').select('status, created_at'),
-      supabase.from('payments').select('status, amount, created_at').eq('status', 'succeeded'),
-      supabase.from('webhook_events').select('provider, processed, retry_count, created_at').order('created_at', { ascending: false }).limit(100),
+      billingAdmin.from('subscriptions').select('status, created_at'),
+      billingAdmin.from('payments').select('status, amount, created_at').eq('status', 'succeeded'),
+      billingAdmin.from('webhook_events').select('provider, processed, retry_count, created_at').order('created_at', { ascending: false }).limit(100),
     ]);
 
     if (subscriptionsRes.error) {
@@ -56,7 +56,6 @@ export async function GET() {
       now: now.toISOString(),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to load admin billing metrics.';
-    return NextResponse.json({ error: message }, { status: 400 });
+    return toBillingErrorResponse(error, 'Failed to load admin billing metrics.');
   }
 }

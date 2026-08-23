@@ -10,25 +10,16 @@ async function readFlag(userId: string, featureKey: string): Promise<boolean> {
   assertConfigured();
   const supabase = await createSupabaseServerClient();
 
-  const { data, error } = await supabase
-    .from('plans')
-    .select('features')
-    .eq(
-      'id',
-      (
-        await supabase.rpc('get_effective_plan_id', {
-          auth_user: userId,
-        })
-      ).data
-    )
-    .maybeSingle();
+  const { data, error } = await supabase.rpc('has_plan_feature', {
+    auth_user: userId,
+    feature_key: featureKey,
+  });
 
   if (error) {
     throw error;
   }
 
-  const features = Array.isArray(data?.features) ? (data?.features as string[]) : [];
-  return features.includes(featureKey);
+  return Boolean(data);
 }
 
 async function canCreate(userId: string, resourceKey: string, leaderboardId: string | null = null): Promise<boolean> {

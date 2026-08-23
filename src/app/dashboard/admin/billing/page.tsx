@@ -1,5 +1,7 @@
 import Link from 'next/link';
-import { createSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/supabase/server';
+import { isSupabaseServerConfigured } from '@/lib/supabase/server';
+import { createSupabaseAdminClient, isSupabaseAdminConfigured } from '@/lib/supabase/admin';
+import { BillingAccessError, requireBillingAdminUser } from '@/lib/billing/guards';
 
 interface StatRow {
   total_subscriptions: number;
@@ -7,6 +9,15 @@ interface StatRow {
   past_due_subscriptions: number;
   month_revenue_cents: number;
   total_revenue_cents: number;
+}
+
+function formatNaira(amountInMinorUnits: number): string {
+  return new Intl.NumberFormat('en-NG', {
+    style: 'currency',
+    currency: 'NGN',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amountInMinorUnits / 100);
 }
 
 export default async function AdminBillingPage() {
@@ -19,24 +30,37 @@ export default async function AdminBillingPage() {
     );
   }
 
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  if (!isSupabaseAdminConfigured) {
     return (
       <div className="min-h-screen bg-black text-white p-8">
         <h1 className="text-2xl font-bold">Admin Billing</h1>
-        <p className="mt-2 text-neutral-400">Please log in.</p>
+        <p className="mt-2 text-neutral-400">SUPABASE_SERVICE_ROLE_KEY is missing.</p>
       </div>
     );
   }
 
+  try {
+    await requireBillingAdminUser();
+  } catch (error) {
+    const message =
+      error instanceof BillingAccessError
+        ? error.message
+        : 'You do not have permission to view this page.';
+
+    return (
+      <div className="min-h-screen bg-black text-white p-8">
+        <h1 className="text-2xl font-bold">Admin Billing</h1>
+        <p className="mt-2 text-neutral-400">{message}</p>
+      </div>
+    );
+  }
+
+  const billingAdmin = createSupabaseAdminClient();
+
   const [subscriptionsRes, paymentsRes, webhookRes] = await Promise.all([
-    supabase.from('subscriptions').select('status, created_at'),
-    supabase.from('payments').select('status, amount, created_at').eq('status', 'succeeded'),
-    supabase.from('webhook_events').select('provider, processed, retry_count, created_at').order('created_at', { ascending: false }).limit(50),
+    billingAdmin.from('subscriptions').select('status, created_at'),
+    billingAdmin.from('payments').select('status, amount, created_at').eq('status', 'succeeded'),
+    billingAdmin.from('webhook_events').select('provider, processed, retry_count, created_at').order('created_at', { ascending: false }).limit(50),
   ]);
 
   const subscriptions = subscriptionsRes.data || [];
@@ -70,7 +94,11 @@ export default async function AdminBillingPage() {
     <div className="min-h-screen bg-black text-white pb-16">
       <div className="max-w-6xl mx-auto px-6 py-8">
         <div className="mb-8">
-          <Link href="/dashboard" className="text-sm text-neutral-400 hover:text-white">Back to Dashboard</Link>
+          <div className="flex items-center gap-3 text-sm">
+            <Link href="/dashboard" className="text-neutral-400 hover:text-white">Back to Dashboard</Link>
+            <span className="text-neutral-600">|</span>
+            <Link href="/dashboard/admin/users" className="text-cyan-300 hover:text-cyan-200">Manage Admin Users</Link>
+          </div>
           <h1 className="text-3xl font-bold mt-2">Admin Billing Console</h1>
           <p className="text-sm text-neutral-400 mt-1">Operational metrics for subscriptions, revenue, and webhook processing.</p>
         </div>
@@ -90,13 +118,13 @@ export default async function AdminBillingPage() {
           </div>
           <div className="rounded-2xl border border-white/10 bg-neutral-950 p-4">
             <div className="text-xs uppercase tracking-wider text-neutral-400">MRR (This Month)</div>
-            <div className="text-2xl font-bold mt-2">${(stats.month_revenue_cents / 100).toFixed(2)}</div>
+            <div className="text-2xl font-bold mt-2">{formatNaira(stats.month_revenue_cents)}</div>
           </div>
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-neutral-950 p-5 mb-8">
           <h2 className="text-lg font-semibold">Total Revenue</h2>
-          <p className="mt-2 text-3xl font-bold">${(stats.total_revenue_cents / 100).toFixed(2)}</p>
+          <p className="mt-2 text-3xl font-bold">{formatNaira(stats.total_revenue_cents)}</p>
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-neutral-950 p-5">

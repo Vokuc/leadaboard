@@ -17,6 +17,7 @@ export type CheckoutKind = 'subscription' | 'one_time' | 'entry_fee' | 'template
 
 export interface CheckoutRequest {
   userId: string;
+  userEmail?: string;
   provider: PaymentProviderKey;
   kind: CheckoutKind;
   amount: number;

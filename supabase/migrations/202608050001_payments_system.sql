@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS public.plans (
   slug TEXT UNIQUE NOT NULL,
   price BIGINT NOT NULL DEFAULT 0,
   yearly_price BIGINT,
-  currency TEXT NOT NULL DEFAULT 'USD',
+  currency TEXT NOT NULL DEFAULT 'NGN',
   limits JSONB NOT NULL DEFAULT '{}'::jsonb,
   features JSONB NOT NULL DEFAULT '[]'::jsonb,
   active BOOLEAN NOT NULL DEFAULT true,
@@ -199,7 +199,7 @@ VALUES
     'free',
     0,
     0,
-    'USD',
+    'NGN',
     jsonb_build_object(
       'leaderboards', 3,
       'tournaments', 1,
@@ -215,9 +215,9 @@ VALUES
   (
     'Pro',
     'pro',
-    2900,
-    29000,
-    'USD',
+    3000000,
+    30000000,
+    'NGN',
     jsonb_build_object(
       'leaderboards', 25,
       'tournaments', 15,
@@ -233,9 +233,9 @@ VALUES
   (
     'Business',
     'business',
-    9900,
-    99000,
-    'USD',
+    10000000,
+    100000000,
+    'NGN',
     jsonb_build_object(
       'leaderboards', 200,
       'tournaments', 100,

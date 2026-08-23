@@ -44,6 +44,7 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<'active' | 'archived'>('active');
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const canOpenAdminPages = profile?.role === 'admin' || profile?.role === 'billing_admin' || profile?.role === 'super_admin';
 
   function showToast(message: string, type: 'success' | 'error') {
     setToast({ message, type });
@@ -220,6 +221,14 @@ export default function DashboardPage() {
           >
             <CreditCard className="w-3.5 h-3.5" /> Billing
           </Link>
+          {canOpenAdminPages && (
+            <Link
+              href="/dashboard/admin/users"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-200 text-xs font-semibold hover:bg-cyan-500/20"
+            >
+              <Users className="w-3.5 h-3.5" /> Admin Users
+            </Link>
+          )}
           <div className="flex items-center gap-3">
             {profile?.avatar_url && (
               <SafeImage src={profile.avatar_url} alt="Profile" width={32} height={32} className="h-8 w-8 rounded-lg border border-white/10 object-cover" />
