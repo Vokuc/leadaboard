@@ -108,6 +108,15 @@ export function toBillingErrorResponse(error: unknown, fallbackMessage: string):
     return NextResponse.json({ error: error.message }, { status: error.status });
   }
 
-  const message = error instanceof Error ? error.message : fallbackMessage;
+  // Supabase PostgrestError objects carry a `message` but aren't `instanceof Error`.
+  const message =
+    error instanceof Error
+      ? error.message
+      : error && typeof error === 'object' && 'message' in error && typeof (error as { message?: unknown }).message === 'string'
+        ? (error as { message: string }).message
+        : fallbackMessage;
+
+  console.error('[billing]', fallbackMessage, error);
+
   return NextResponse.json({ error: message }, { status: 400 });
 }
