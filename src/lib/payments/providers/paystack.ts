@@ -228,3 +228,75 @@ export class PaystackProvider extends BaseProvider {
     };
   }
 }
+
+export interface PaystackDiagnostics {
+  hasSecretKey: boolean;
+  hasWebhookSecret: boolean;
+  planCodeEnvKeys: string[];
+  keyCheck: 'ok' | 'invalid' | 'skipped' | 'error';
+  keyCheckMessage: string | null;
+}
+
+// Read-only Paystack call used purely to confirm the configured secret key is accepted.
+export async function getPaystackDiagnostics(): Promise<PaystackDiagnostics> {
+  const hasSecretKey = !!process.env.PAYSTACK_SECRET_KEY;
+  const hasWebhookSecret = !!process.env.PAYSTACK_WEBHOOK_SECRET;
+  const planCodeEnvKeys = Object.keys(process.env).filter((key) => key.startsWith('PAYSTACK_PLAN_CODE_'));
+
+  if (!hasSecretKey) {
+    return {
+      hasSecretKey,
+      hasWebhookSecret,
+      planCodeEnvKeys,
+      keyCheck: 'skipped',
+      keyCheckMessage: 'PAYSTACK_SECRET_KEY is missing.',
+    };
+  }
+
+  try {
+    const response = await fetch(`${PAYSTACK_API_BASE}/transaction/totals`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+      },
+    });
+
+    const payload = (await response.json()) as { status?: boolean; message?: string };
+
+    if (response.status === 401 || payload.status === false) {
+      return {
+        hasSecretKey,
+        hasWebhookSecret,
+        planCodeEnvKeys,
+        keyCheck: 'invalid',
+        keyCheckMessage: payload.message || 'Paystack rejected the configured secret key.',
+      };
+    }
+
+    if (!response.ok) {
+      return {
+        hasSecretKey,
+        hasWebhookSecret,
+        planCodeEnvKeys,
+        keyCheck: 'error',
+        keyCheckMessage: payload.message || `Paystack responded with HTTP ${response.status}.`,
+      };
+    }
+
+    return {
+      hasSecretKey,
+      hasWebhookSecret,
+      planCodeEnvKeys,
+      keyCheck: 'ok',
+      keyCheckMessage: null,
+    };
+  } catch (error) {
+    return {
+      hasSecretKey,
+      hasWebhookSecret,
+      planCodeEnvKeys,
+      keyCheck: 'error',
+      keyCheckMessage: error instanceof Error ? error.message : 'Failed to reach Paystack.',
+    };
+  }
+}
