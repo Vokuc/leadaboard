@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useParams, useRouter } from 'next/navigation';
 import { DatabaseService } from '@/lib/db';
 import { LeagueService } from '@/lib/league/service';
-import { CompetitionConfig, Leaderboard, Season, ScoringRule, LeaderboardMember, ActivityLog, Ranking } from '@/types';
+import { CompetitionConfig, Leaderboard, Season, ScoringRule, LeaderboardMember, ActivityLog, Ranking, LeaderboardAdmin } from '@/types';
 import { 
   Trophy, 
   ArrowLeft, 
@@ -19,7 +19,10 @@ import {
   AlertCircle,
   ExternalLink,
   UserPlus,
-  Search
+  Search,
+  ShieldAlert,
+  Crown,
+  UserMinus
 } from 'lucide-react';
 import Link from 'next/link';
 import QRCode from 'qrcode';
@@ -82,6 +85,13 @@ export default function LeaderboardManagementPage() {
   const [pointsAdjustment, setPointsAdjustment] = useState<number>(10);
   const [adjustmentReason, setAdjustmentReason] = useState('');
 
+  // Permissions & Admins States
+  const [permissionDenied, setPermissionDenied] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
+  const [admins, setAdmins] = useState<LeaderboardAdmin[]>([]);
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [addingAdmin, setAddingAdmin] = useState(false);
+
   // Settings Form States
   const [settingsName, setSettingsName] = useState('');
   const [settingsDesc, setSettingsDesc] = useState('');
@@ -134,6 +144,18 @@ export default function LeaderboardManagementPage() {
         router.push('/dashboard');
         return;
       }
+
+      const ownerCheck = lb.owner_id === profile.id;
+      const adminCheck = await DatabaseService.canManageLeaderboard(profile.id, lb.id);
+      const hasPermission = ownerCheck || adminCheck;
+
+      if (!hasPermission) {
+        setPermissionDenied(true);
+        setLoading(false);
+        return;
+      }
+
+      setIsOwner(ownerCheck);
       setLeaderboard(lb);
       setSettingsName(lb.name);
       setSettingsDesc(lb.description || '');
@@ -162,6 +184,11 @@ export default function LeaderboardManagementPage() {
 
       const logs = await DatabaseService.getActivityLogs(boardId);
       setActivityLogs(logs);
+
+      if (ownerCheck) {
+        const adminList = await DatabaseService.getAdmins(boardId);
+        setAdmins(adminList);
+      }
 
     } catch (err) {
       console.error(err);
@@ -414,6 +441,45 @@ export default function LeaderboardManagementPage() {
     }
   };
 
+  // Admin Management
+  const handleAddAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAdminEmail.trim() || !leaderboard) return;
+    setAddingAdmin(true);
+    try {
+      const targetProfile = await DatabaseService.getProfileByEmail(newAdminEmail.trim());
+      if (!targetProfile) {
+        showToast('No registered profile matches this email address.', 'error');
+        return;
+      }
+
+      await DatabaseService.addAdmin(leaderboard.id, targetProfile.id);
+      const adminList = await DatabaseService.getAdmins(leaderboard.id);
+      setAdmins(adminList);
+      setNewAdminEmail('');
+      showToast('Leaderboard admin added successfully.', 'success');
+    } catch (err) {
+      console.error(err);
+      showToast(getErrorMessage(err, 'Failed to add leaderboard admin.'), 'error');
+    } finally {
+      setAddingAdmin(false);
+    }
+  };
+
+  const handleRemoveAdmin = async (userId: string) => {
+    if (!leaderboard) return;
+    if (!confirm('Are you sure you want to remove this admin?')) return;
+    try {
+      await DatabaseService.removeAdmin(leaderboard.id, userId);
+      const adminList = await DatabaseService.getAdmins(leaderboard.id);
+      setAdmins(adminList);
+      showToast('Leaderboard admin removed successfully.', 'success');
+    } catch (err) {
+      console.error(err);
+      showToast(getErrorMessage(err, 'Failed to remove leaderboard admin.'), 'error');
+    }
+  };
+
   // Save Settings
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -467,6 +533,28 @@ export default function LeaderboardManagementPage() {
     if (seasons.length === 0) return 'Indefinite';
     return seasons[0].name;
   };
+
+  if (permissionDenied) {
+    return (
+      <div className="min-h-screen bg-neutral-950 text-white flex flex-col items-center justify-center p-6">
+        <div className="glass max-w-md p-8 rounded-3xl text-center border-white/5 shadow-2xl flex flex-col items-center">
+          <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center text-red-500 mb-6">
+            <ShieldAlert className="w-8 h-8" />
+          </div>
+          <h2 className="text-xl font-bold mb-3">Access Denied</h2>
+          <p className="text-sm text-neutral-400 leading-relaxed mb-6">
+            You don't have permission to manage this leaderboard. If you believe this is an error, contact the leaderboard owner.
+          </p>
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="px-6 py-2.5 bg-violet-600 hover:bg-violet-500 font-semibold rounded-xl text-white text-xs transition-all cursor-pointer"
+          >
+            Return to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (authLoading || (!leaderboard && loading)) {
     return (
@@ -1223,23 +1311,81 @@ export default function LeaderboardManagementPage() {
             </div>
 
             {/* Danger Zones */}
-            <div className="glass p-6 rounded-2xl border-red-500/10 shadow-xl flex flex-col justify-between h-[250px]">
-              <div>
-                <h3 className="font-bold text-sm text-red-400 flex items-center gap-1.5 mb-2 uppercase tracking-wider">
-                  <AlertCircle className="w-4 h-4" /> Danger Zone
-                </h3>
-                <p className="text-xs text-neutral-400 leading-relaxed">
-                  Removing this leaderboard wipes out all database records, custom configurations, player profiles, scoring events, and log feeds. This action is irreversible.
-                </p>
-              </div>
+            {isOwner && (
+              <div className="glass p-6 rounded-2xl border-red-500/10 shadow-xl flex flex-col justify-between h-[250px]">
+                <div>
+                  <h3 className="font-bold text-sm text-red-400 flex items-center gap-1.5 mb-2 uppercase tracking-wider">
+                    <AlertCircle className="w-4 h-4" /> Danger Zone
+                  </h3>
+                  <p className="text-xs text-neutral-400 leading-relaxed">
+                    Removing this leaderboard wipes out all database records, custom configurations, player profiles, scoring events, and log feeds. This action is irreversible.
+                  </p>
+                </div>
 
-              <button
-                onClick={handleDeleteBoard}
-                className="w-full flex items-center justify-center gap-1.5 py-2.5 px-4 bg-red-600/10 hover:bg-red-600 border border-red-500/20 hover:border-red-500 rounded-xl text-xs font-semibold text-red-300 hover:text-white transition-all cursor-pointer"
-              >
-                <Trash2 className="w-4 h-4" /> Delete Leaderboard
-              </button>
-            </div>
+                <button
+                  onClick={handleDeleteBoard}
+                  className="w-full flex items-center justify-center gap-1.5 py-2.5 px-4 bg-red-600/10 hover:bg-red-600 border border-red-500/20 hover:border-red-500 rounded-xl text-xs font-semibold text-red-300 hover:text-white transition-all cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" /> Delete Leaderboard
+                </button>
+              </div>
+            )}
+
+            {/* Admins Management */}
+            {isOwner && (
+              <div className="md:col-span-2 glass p-6 rounded-2xl shadow-xl">
+                <h3 className="font-bold text-sm mb-2 text-white uppercase tracking-wider flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 text-violet-400" /> Authorized Leaderboard Admins
+                </h3>
+                <p className="text-[11px] text-neutral-400 mb-4 leading-relaxed">
+                  Explicitly grant administrative access to this leaderboard. Admins can adjust scores, edit player lists, and organize matches, but they cannot manage other admins, delete the leaderboard, or modify ownership.
+                </p>
+
+                <form onSubmit={handleAddAdmin} className="flex gap-2">
+                  <input
+                    type="email"
+                    required
+                    placeholder="Enter user email (e.g. john@example.com)"
+                    value={newAdminEmail}
+                    onChange={(e) => setNewAdminEmail(e.target.value)}
+                    className="flex-1 px-3.5 py-2.5 bg-neutral-900 border border-neutral-850 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-violet-500 text-xs transition-all"
+                  />
+                  <button
+                    type="submit"
+                    disabled={addingAdmin}
+                    className="flex items-center gap-1.5 px-4.5 py-2 bg-violet-600 hover:bg-violet-500 font-semibold rounded-xl text-white text-xs transition-all cursor-pointer shadow-lg disabled:opacity-50"
+                  >
+                    <UserPlus className="w-4 h-4" /> Add Admin
+                  </button>
+                </form>
+
+                <div className="mt-6 space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                  {admins.length === 0 ? (
+                    <p className="text-neutral-500 text-[11px] italic">No extra admins configured for this leaderboard.</p>
+                  ) : (
+                    admins.map((admin) => (
+                      <div key={admin.user_id} className="flex justify-between items-center bg-black/35 border border-neutral-850/50 p-3 rounded-xl">
+                        <div className="flex items-center gap-2.5">
+                          <Crown className="w-4 h-4 text-amber-500/80" />
+                          <div className="text-xs">
+                            <span className="font-bold text-white block">{admin.profile?.full_name || 'Admin User'}</span>
+                            <span className="text-neutral-400 text-[10px]">{admin.profile?.email}</span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAdmin(admin.user_id)}
+                          className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 hover:border-red-500/30 rounded-lg transition-all cursor-pointer"
+                          title="Remove Admin"
+                        >
+                          <UserMinus className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>

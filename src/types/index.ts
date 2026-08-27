@@ -60,6 +60,14 @@ export interface Leaderboard {
   updated_at: string;
 }
 
+export interface LeaderboardAdmin {
+  leaderboard_id: string;
+  user_id: string;
+  created_at: string;
+  profile?: Profile;
+}
+
+
 export interface Season {
   id: string;
   leaderboard_id: string;
