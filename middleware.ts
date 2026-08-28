@@ -56,6 +56,8 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   try {
+    // getUser() validates the token server-side (network call). It's the
+    // authoritative check — use it when Supabase is reachable.
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -67,18 +69,35 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
+    // Only bounce authenticated users away from /login when we can verify
+    // them via getUser(). This avoids a redirect loop if the token is stale.
     if (user && pathname === '/login') {
+      const next = request.nextUrl.searchParams.get('next');
       const dashboardUrl = request.nextUrl.clone();
-      dashboardUrl.pathname = '/dashboard';
+      dashboardUrl.pathname = next && next.startsWith('/') ? next : '/dashboard';
       dashboardUrl.search = '';
       return NextResponse.redirect(dashboardUrl);
     }
   } catch (err) {
-    // If the auth call times out or Supabase is unreachable, degrade
-    // gracefully: let the request through rather than returning a 504.
-    // The page-level auth guards (Server Components / API routes) will
-    // still enforce access control.
-    console.error('[middleware] Supabase auth check failed:', err);
+    // getUser() timed out or Supabase is unreachable.
+    // Fall back to getSession() which reads the cookie locally (no network)
+    // so we can still protect /dashboard without a 504.
+    console.error('[middleware] getUser() failed, falling back to getSession():', err);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session && pathname.startsWith('/dashboard')) {
+        const loginUrl = request.nextUrl.clone();
+        loginUrl.pathname = '/login';
+        loginUrl.searchParams.set('next', pathname);
+        return NextResponse.redirect(loginUrl);
+      }
+      // Don't redirect /login → /dashboard in the fallback path.
+      // getSession() isn't server-verified, so we let the client handle it.
+    } catch {
+      // Both checks failed — let the request through, client-side auth will handle it.
+      console.error('[middleware] getSession() also failed; passing request through.');
+    }
   }
 
   return response;
