@@ -79,7 +79,16 @@ const rulePresets: Record<CompetitionType, ScoringRuleInput[]> = {
 };
 
 function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Failed to create leaderboard. Please try again.';
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === 'object') {
+    const e = error as Record<string, unknown>;
+    const parts: string[] = [];
+    if (e.message) parts.push(String(e.message));
+    if (e.code) parts.push(`(code: ${e.code})`);
+    if (e.hint) parts.push(`Hint: ${e.hint}`);
+    if (parts.length > 0) return parts.join(' ');
+  }
+  return 'Failed to create leaderboard. Please try again.';
 }
 
 const DEFAULT_ENGINE: CompetitionEngine = 'simple_points';
@@ -317,7 +326,7 @@ export default function CreateLeaderboardPage() {
       router.replace(`/dashboard/leaderboards/${created.id}`);
     } catch (err: unknown) {
       setIsLeavingPage(false);
-      console.error(err);
+      console.error('[CREATE LEADERBOARD ERROR]', err);
       setError(getErrorMessage(err));
     } finally {
       setLoading(false);
