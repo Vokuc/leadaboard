@@ -9,6 +9,11 @@ const isSupabaseConfigured = !!(
   !supabaseUrl.includes('your-project-id')
 );
 
+// 5-second timeout for Supabase auth in middleware.
+// Edge middleware has a 25s hard limit — without this, a slow/unavailable
+// Supabase will cause MIDDLEWARE_INVOCATION_TIMEOUT (504) for every request.
+const AUTH_TIMEOUT_MS = 5000;
+
 export async function middleware(request: NextRequest) {
   if (!isSupabaseConfigured) {
     return NextResponse.next();
@@ -37,26 +42,43 @@ export async function middleware(request: NextRequest) {
         });
       },
     },
+    // Attach an AbortSignal timeout so the auth network call never blocks
+    // the middleware beyond AUTH_TIMEOUT_MS.
+    global: {
+      fetch: (url, options = {}) =>
+        fetch(url, {
+          ...options,
+          signal: AbortSignal.timeout(AUTH_TIMEOUT_MS),
+        }),
+    },
   });
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
 
-  if (!user && pathname.startsWith('/dashboard')) {
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = '/login';
-    loginUrl.searchParams.set('next', pathname);
-    return NextResponse.redirect(loginUrl);
-  }
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  if (user && pathname === '/login') {
-    const dashboardUrl = request.nextUrl.clone();
-    dashboardUrl.pathname = '/dashboard';
-    dashboardUrl.search = '';
-    return NextResponse.redirect(dashboardUrl);
+    if (!user && pathname.startsWith('/dashboard')) {
+      const loginUrl = request.nextUrl.clone();
+      loginUrl.pathname = '/login';
+      loginUrl.searchParams.set('next', pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    if (user && pathname === '/login') {
+      const dashboardUrl = request.nextUrl.clone();
+      dashboardUrl.pathname = '/dashboard';
+      dashboardUrl.search = '';
+      return NextResponse.redirect(dashboardUrl);
+    }
+  } catch (err) {
+    // If the auth call times out or Supabase is unreachable, degrade
+    // gracefully: let the request through rather than returning a 504.
+    // The page-level auth guards (Server Components / API routes) will
+    // still enforce access control.
+    console.error('[middleware] Supabase auth check failed:', err);
   }
 
   return response;
