@@ -180,7 +180,7 @@ const DEFAULT_ACTIVITY_LOGS: ActivityLog[] = [
 
 // LocalStorage Helper
 class LocalDb {
-  private get<T>(key: string, defaults: T): T {
+  public get<T>(key: string, defaults: T): T {
     if (typeof window === 'undefined') return defaults;
     const val = localStorage.getItem(`leagueboard_${key}`);
     if (!val) {
@@ -194,7 +194,7 @@ class LocalDb {
     }
   }
 
-  private set(key: string, val: unknown): void {
+  public set(key: string, val: unknown): void {
     if (typeof window === 'undefined') return;
     localStorage.setItem(`leagueboard_${key}`, JSON.stringify(val));
   }
