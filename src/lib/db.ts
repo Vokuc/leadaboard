@@ -7,7 +7,8 @@ import {
   LeaderboardMember, 
   ScoreEvent, 
   ActivityLog, 
-  Ranking 
+  Ranking,
+  LeaderboardAdmin
 } from '../types';
 
 // Detect environment keys
@@ -179,7 +180,7 @@ const DEFAULT_ACTIVITY_LOGS: ActivityLog[] = [
 
 // LocalStorage Helper
 class LocalDb {
-  private get<T>(key: string, defaults: T): T {
+  public get<T>(key: string, defaults: T): T {
     if (typeof window === 'undefined') return defaults;
     const val = localStorage.getItem(`leagueboard_${key}`);
     if (!val) {
@@ -193,7 +194,7 @@ class LocalDb {
     }
   }
 
-  private set(key: string, val: unknown): void {
+  public set(key: string, val: unknown): void {
     if (typeof window === 'undefined') return;
     localStorage.setItem(`leagueboard_${key}`, JSON.stringify(val));
   }
@@ -311,6 +312,185 @@ export const DatabaseService = {
     return profile;
   },
 
+  async getProfileByEmail(email: string): Promise<Profile | null> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('email', email)
+        .maybeSingle();
+      if (error) return null;
+      return data;
+    }
+    const currentProfile = mockDb.getProfile();
+    if (currentProfile.email === email) return currentProfile;
+    if (email.includes('@')) {
+      return {
+        id: `user-${email.split('@')[0]}`,
+        email,
+        full_name: email.split('@')[0].toUpperCase(),
+        role: 'member',
+        avatar_url: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(email)}`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+    }
+    return null;
+  },
+
+  // Permission Guards & Helpers
+  async getAdmins(leaderboardId: string): Promise<LeaderboardAdmin[]> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('leaderboard_admins')
+        .select('*, profile:profiles(*)')
+        .eq('leaderboard_id', leaderboardId);
+      if (error) throw error;
+      return (data || []).map((la: any) => ({
+        leaderboard_id: la.leaderboard_id,
+        user_id: la.user_id,
+        created_at: la.created_at,
+        profile: la.profile
+      }));
+    }
+    const list = mockDb.get<LeaderboardAdmin[]>('leaderboard_admins', []);
+    const filtered = list.filter(la => la.leaderboard_id === leaderboardId);
+    return filtered.map(la => {
+      const profile = mockDb.getProfile().id === la.user_id ? mockDb.getProfile() : {
+        id: la.user_id,
+        email: `${la.user_id}@leagueboard.com`,
+        full_name: la.user_id.toUpperCase(),
+        role: 'member' as const,
+        avatar_url: null,
+        created_at: la.created_at,
+        updated_at: la.created_at
+      };
+      return { ...la, profile };
+    });
+  },
+
+  async addAdmin(leaderboardId: string, userId: string): Promise<LeaderboardAdmin> {
+    await this.requireOwnerPermission(leaderboardId);
+    
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('leaderboard_admins')
+        .insert([{ leaderboard_id: leaderboardId, user_id: userId }])
+        .select('*, profile:profiles(*)')
+        .single();
+      if (error) throw error;
+      return {
+        leaderboard_id: data.leaderboard_id,
+        user_id: data.user_id,
+        created_at: data.created_at,
+        profile: data.profile
+      };
+    }
+    const currentAdmins = mockDb.get<LeaderboardAdmin[]>('leaderboard_admins', []);
+    const alreadyExists = currentAdmins.some(la => la.leaderboard_id === leaderboardId && la.user_id === userId);
+    if (alreadyExists) throw new Error('User is already an admin of this leaderboard.');
+    
+    const newAdmin: LeaderboardAdmin = {
+      leaderboard_id: leaderboardId,
+      user_id: userId,
+      created_at: new Date().toISOString()
+    };
+    mockDb.set('leaderboard_admins', [...currentAdmins, newAdmin]);
+    
+    const profile = mockDb.getProfile().id === userId ? mockDb.getProfile() : {
+      id: userId,
+      email: `${userId}@leagueboard.com`,
+      full_name: userId.toUpperCase(),
+      role: 'member' as const,
+      avatar_url: null,
+      created_at: newAdmin.created_at,
+      updated_at: newAdmin.created_at
+    };
+    return { ...newAdmin, profile };
+  },
+
+  async removeAdmin(leaderboardId: string, userId: string): Promise<void> {
+    await this.requireOwnerPermission(leaderboardId);
+
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase
+        .from('leaderboard_admins')
+        .delete()
+        .eq('leaderboard_id', leaderboardId)
+        .eq('user_id', userId);
+      if (error) throw error;
+      return;
+    }
+    const currentAdmins = mockDb.get<LeaderboardAdmin[]>('leaderboard_admins', []);
+    mockDb.set('leaderboard_admins', currentAdmins.filter(la => !(la.leaderboard_id === leaderboardId && la.user_id === userId)));
+  },
+
+  async canManageLeaderboard(userId: string | undefined, leaderboardId: string): Promise<boolean> {
+    if (!userId) return false;
+    const leaderboard = await this.getLeaderboardById(leaderboardId);
+    if (!leaderboard) return false;
+    if (leaderboard.owner_id === userId) return true;
+    
+    const admins = await this.getAdmins(leaderboardId);
+    return admins.some(la => la.user_id === userId);
+  },
+
+  async requireAdminPermission(leaderboardId: string): Promise<string> {
+    const profile = await this.getCurrentProfile();
+    if (!profile) {
+      throw new Error('Unauthenticated: You must be logged in.');
+    }
+    const hasPermission = await this.canManageLeaderboard(profile.id, leaderboardId);
+    if (!hasPermission) {
+      throw new Error('Permission denied: You do not have permission to manage this leaderboard.');
+    }
+    return profile.id;
+  },
+
+  async requireOwnerPermission(leaderboardId: string): Promise<string> {
+    const profile = await this.getCurrentProfile();
+    if (!profile) {
+      throw new Error('Unauthenticated: You must be logged in.');
+    }
+    const leaderboard = await this.getLeaderboardById(leaderboardId);
+    if (!leaderboard) {
+      throw new Error('Leaderboard not found.');
+    }
+    if (leaderboard.owner_id !== profile.id) {
+      throw new Error('Permission denied: Only the leaderboard owner can perform this action.');
+    }
+    return profile.id;
+  },
+
+  async getLeaderboardIdFromScoringRule(ruleId: string): Promise<string | null> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('scoring_rules')
+        .select('leaderboard_id')
+        .eq('id', ruleId)
+        .maybeSingle();
+      if (error) return null;
+      return data?.leaderboard_id || null;
+    }
+    const rule = mockDb.getScoringRules().find(r => r.id === ruleId);
+    return rule?.leaderboard_id || null;
+  },
+
+  async getLeaderboardIdFromMember(memberId: string): Promise<string | null> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('leaderboard_members')
+        .select('leaderboard_id')
+        .eq('id', memberId)
+        .maybeSingle();
+      if (error) return null;
+      return data?.leaderboard_id || null;
+    }
+    const member = mockDb.getMembers().find(m => m.id === memberId);
+    return member?.leaderboard_id || null;
+  },
+
+
   // Leaderboards
   async getLeaderboards(): Promise<Leaderboard[]> {
     if (isSupabaseConfigured && supabase) {
@@ -374,28 +554,23 @@ export const DatabaseService = {
         throw new Error('You must be logged in to create a leaderboard.');
       }
 
-      const { data: newLb, error: lbErr } = await supabase
-        .from('leaderboards')
-        .insert([{ ...lb, owner_id, status: 'active' }])
-        .select()
-        .single();
-      
-      if (lbErr) throw lbErr;
+      const response = await fetch('/api/leaderboards/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leaderboard: { ...lb },
+          rules,
+          season,
+        }),
+      });
 
-      if (rules.length > 0) {
-        const rulesToInsert = rules.map(r => ({ ...r, leaderboard_id: newLb.id }));
-        const { error: rErr } = await supabase.from('scoring_rules').insert(rulesToInsert);
-        if (rErr) throw rErr;
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create leaderboard.');
       }
 
-      if (season) {
-        const { error: sErr } = await supabase
-          .from('seasons')
-          .insert([{ ...season, leaderboard_id: newLb.id }]);
-        if (sErr) throw sErr;
-      }
-
-      return newLb;
+      return result.data;
     }
 
     // Local Storage Flow
@@ -441,6 +616,8 @@ export const DatabaseService = {
   },
 
   async updateLeaderboard(id: string, updates: Partial<Leaderboard>): Promise<Leaderboard> {
+    await this.requireAdminPermission(id);
+    
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase
         .from('leaderboards')
@@ -467,6 +644,8 @@ export const DatabaseService = {
   },
 
   async duplicateLeaderboard(id: string): Promise<Leaderboard> {
+    await this.requireAdminPermission(id);
+
     const original = await this.getLeaderboardById(id);
     if (!original) throw new Error('Original leaderboard not found');
 
@@ -507,6 +686,8 @@ export const DatabaseService = {
   },
 
   async deleteLeaderboard(id: string): Promise<void> {
+    await this.requireOwnerPermission(id);
+
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.from('leaderboards').delete().eq('id', id);
       if (error) throw error;
@@ -545,6 +726,8 @@ export const DatabaseService = {
   },
 
   async addScoringRule(leaderboardId: string, rule: Omit<ScoringRule, 'id' | 'leaderboard_id' | 'created_at'>): Promise<ScoringRule> {
+    await this.requireAdminPermission(leaderboardId);
+
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase
         .from('scoring_rules')
@@ -567,6 +750,10 @@ export const DatabaseService = {
   },
 
   async deleteScoringRule(id: string): Promise<void> {
+    const leaderboardId = await this.getLeaderboardIdFromScoringRule(id);
+    if (!leaderboardId) throw new Error('Scoring rule not found.');
+    await this.requireAdminPermission(leaderboardId);
+
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.from('scoring_rules').delete().eq('id', id);
       if (error) throw error;
@@ -592,6 +779,7 @@ export const DatabaseService = {
   },
 
   async addMember(leaderboardId: string, member: Omit<LeaderboardMember, 'id' | 'leaderboard_id' | 'created_at' | 'updated_at' | 'is_active'>): Promise<LeaderboardMember> {
+    await this.requireAdminPermission(leaderboardId);
     const avatar = member.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(member.name)}`;
     
     if (isSupabaseConfigured && supabase) {
@@ -625,6 +813,10 @@ export const DatabaseService = {
   },
 
   async updateMember(id: string, updates: Partial<LeaderboardMember>): Promise<LeaderboardMember> {
+    const leaderboardId = await this.getLeaderboardIdFromMember(id);
+    if (!leaderboardId) throw new Error('Player not found.');
+    await this.requireAdminPermission(leaderboardId);
+
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase
         .from('leaderboard_members')
@@ -651,6 +843,10 @@ export const DatabaseService = {
   },
 
   async removeMember(id: string): Promise<void> {
+    const leaderboardId = await this.getLeaderboardIdFromMember(id);
+    if (!leaderboardId) throw new Error('Player not found.');
+    await this.requireAdminPermission(leaderboardId);
+
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.from('leaderboard_members').delete().eq('id', id);
       if (error) throw error;
@@ -667,6 +863,7 @@ export const DatabaseService = {
 
   // Score Events
   async addScoreEvent(leaderboardId: string, memberId: string, event: Omit<ScoreEvent, 'id' | 'leaderboard_id' | 'member_id' | 'created_at'>): Promise<ScoreEvent> {
+    await this.requireAdminPermission(leaderboardId);
     const timestamp = new Date().toISOString();
     
     if (isSupabaseConfigured && supabase) {

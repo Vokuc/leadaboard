@@ -326,6 +326,7 @@ export const TournamentService = {
   },
 
   async generateBracket(input: GenerateBracketInput): Promise<void> {
+    await DatabaseService.requireAdminPermission(input.leaderboardId);
     const members = await DatabaseService.getMembers(input.leaderboardId);
     const activeMembers = members.filter((member) => member.is_active);
 
@@ -418,6 +419,8 @@ export const TournamentService = {
     if (!leaderboardId || !currentMatch) {
       throw new Error('Match not found.');
     }
+
+    await DatabaseService.requireAdminPermission(leaderboardId);
 
     const matches = await this.getMatches(leaderboardId);
     const processed = processSingleEliminationMatchResult({
@@ -554,6 +557,7 @@ export const TournamentService = {
   },
 
   async updateTournamentState(leaderboardId: string, stateValue: TournamentState): Promise<void> {
+    await DatabaseService.requireAdminPermission(leaderboardId);
     const timestamp = nowIso();
 
     if (isSupabaseConfigured && supabase) {

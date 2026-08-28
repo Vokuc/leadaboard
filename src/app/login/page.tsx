@@ -32,11 +32,21 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!authLoading && profile) {
-      router.replace('/dashboard');
+      router.replace(getNextPath());
     }
   }, [authLoading, profile, router]);
 
-  const isBusy = loading || authLoading;
+  // Safety valve: if Supabase is slow/unreachable the auth check can hang
+  // indefinitely, leaving the page permanently in a "Processing..." spinner.
+  // After 6 seconds we force authLoading to be treated as done so the user
+  // can still interact with the form.
+  const [authTimedOut, setAuthTimedOut] = useState(false);
+  useEffect(() => {
+    const id = setTimeout(() => setAuthTimedOut(true), 6000);
+    return () => clearTimeout(id);
+  }, []);
+
+  const isBusy = (loading || authLoading) && !authTimedOut;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -397,7 +397,23 @@ export const LeagueService = {
     }
   },
 
+  async getLeaderboardIdFromFixture(fixtureId: string): Promise<string | null> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('fixtures')
+        .select('leaderboard_id')
+        .eq('id', fixtureId)
+        .maybeSingle();
+      if (error) return null;
+      return data?.leaderboard_id || null;
+    }
+    const state = getLocalLeagueState();
+    const fixture = state.fixtures.find((item) => item.id === fixtureId);
+    return fixture?.leaderboard_id || null;
+  },
+
   async saveFixture(input: SaveFixtureInput): Promise<Fixture> {
+    await DatabaseService.requireAdminPermission(input.leaderboardId);
     const timestamp = new Date().toISOString();
 
     if (isSupabaseConfigured && supabase) {
@@ -484,6 +500,11 @@ export const LeagueService = {
   },
 
   async saveFixtureResult(input: SaveFixtureResultInput): Promise<void> {
+    const leaderboardId = await this.getLeaderboardIdFromFixture(input.fixtureId);
+    if (!leaderboardId) {
+      throw new Error('Fixture not found.');
+    }
+    await DatabaseService.requireAdminPermission(leaderboardId);
     const timestamp = new Date().toISOString();
 
     if (isSupabaseConfigured && supabase) {
@@ -585,6 +606,7 @@ export const LeagueService = {
   },
 
   async updateLeagueSettings(leaderboardId: string, updates: Partial<LeagueSettings>): Promise<LeagueSettings> {
+    await DatabaseService.requireAdminPermission(leaderboardId);
     const timestamp = new Date().toISOString();
 
     if (isSupabaseConfigured && supabase) {
