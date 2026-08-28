@@ -554,28 +554,23 @@ export const DatabaseService = {
         throw new Error('You must be logged in to create a leaderboard.');
       }
 
-      const { data: newLb, error: lbErr } = await supabase
-        .from('leaderboards')
-        .insert([{ ...lb, owner_id, status: 'active' }])
-        .select()
-        .single();
-      
-      if (lbErr) throw lbErr;
+      const response = await fetch('/api/leaderboards/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leaderboard: { ...lb },
+          rules,
+          season,
+        }),
+      });
 
-      if (rules.length > 0) {
-        const rulesToInsert = rules.map(r => ({ ...r, leaderboard_id: newLb.id }));
-        const { error: rErr } = await supabase.from('scoring_rules').insert(rulesToInsert);
-        if (rErr) throw rErr;
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create leaderboard.');
       }
 
-      if (season) {
-        const { error: sErr } = await supabase
-          .from('seasons')
-          .insert([{ ...season, leaderboard_id: newLb.id }]);
-        if (sErr) throw sErr;
-      }
-
-      return newLb;
+      return result.data;
     }
 
     // Local Storage Flow
