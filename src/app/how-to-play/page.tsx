@@ -1,5 +1,19 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowLeft, CheckCircle2, Trophy } from 'lucide-react';
+
+export const metadata: Metadata = {
+  title: 'How to Play',
+  description:
+    'Learn how to set up and publish your first real-time leaderboard with LeagueBoard. Create competitions for gaming, sports, fitness, and the workplace in under a minute.',
+  openGraph: {
+    title: 'How to Play | LeagueBoard',
+    description:
+      'Step-by-step guide to creating live leaderboards for gaming, sports, fitness, and workplace competitions.',
+  },
+};
+
+
 
 const steps = [
   'Create a leaderboard from your dashboard and pick the competition type that matches your use case.',
