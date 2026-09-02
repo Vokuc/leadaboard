@@ -448,44 +448,48 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
       />
 
       {/* Public Header */}
-      <header className="glass border-b border-white/5 py-4 px-6 md:px-12 flex justify-between items-center sticky top-0 z-40">
-        <Link href="/" className="flex items-center gap-2">
-          <Trophy className="w-5 h-5 text-violet-500 animate-pulse-glow" />
-          <span className="font-bold text-base tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
-            LeagueBoard
+      <div className="relative z-10 p-6 sm:p-10 flex flex-col items-center text-center mt-6">
+        <div className="flex justify-center items-center gap-2 mb-3">
+          <span className="text-[10px] font-bold text-violet-400 uppercase tracking-widest bg-violet-500/10 px-2 py-0.5 rounded border border-violet-500/20">
+            {displayCategoryLabel(leaderboard.competition_type)}
           </span>
-        </Link>
-
-        <div className="flex items-center gap-2">
-          <HelpModal {...publicLeaderboardHelp} />
-          <button
-            onClick={() => setShowShareModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-neutral-850 hover:border-neutral-700 bg-neutral-900/60 hover:bg-neutral-900 text-xs font-semibold rounded-xl text-neutral-300 hover:text-white transition-colors cursor-pointer"
-          >
-            <Share2 className="w-3.5 h-3.5" /> Share Page
-          </button>
-        </div>
-      </header>
-
-      <main className="flex-1 max-w-5xl mx-auto w-full px-6 mt-8">
-        {/* Banner Details */}
-        <div className="text-center max-w-2xl mx-auto mb-10">
-          <div className="flex justify-center items-center gap-2 mb-3">
-            <span className="text-[10px] font-bold text-violet-400 uppercase tracking-widest bg-violet-500/10 px-2 py-0.5 rounded border border-violet-500/20">
-              {displayCategoryLabel(leaderboard.competition_type)} Challenge
+          {season && (
+            <span className="text-xs text-neutral-600 flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5" /> {season.name}
             </span>
-            {season && (
-              <span className="text-xs text-neutral-600 flex items-center gap-1">
-                • <Calendar className="w-3.5 h-3.5" /> {season.name}
-              </span>
-            )}
-          </div>
-
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
-            {leaderboard.name}
-          </h1>
-          <p className="text-sm text-neutral-400 mt-2 leading-relaxed">{leaderboard.description}</p>
+          )}
         </div>
+
+        <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white glow-text">
+          {leaderboard.name}
+        </h1>
+        {leaderboard.description && (
+          <section className="mt-4 max-w-2xl">
+            <h2 className="sr-only">About this competition</h2>
+            <p className="text-sm text-neutral-400 leading-relaxed">{leaderboard.description}</p>
+          </section>
+        )}
+      </div>
+
+      <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 relative z-10 space-y-8">
+        <header className="glass border-b border-white/5 py-4 px-6 md:px-12 flex justify-between items-center sticky top-0 z-40 rounded-2xl">
+          <Link href="/" className="flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-violet-500 animate-pulse-glow" />
+            <span className="font-bold text-base tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
+              LeagueBoard
+            </span>
+          </Link>
+
+          <div className="flex items-center gap-2">
+            <HelpModal {...publicLeaderboardHelp} />
+            <button
+              onClick={() => setShowShareModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-neutral-850 hover:border-neutral-700 bg-neutral-900/60 hover:bg-neutral-900 text-xs font-semibold rounded-xl text-neutral-300 hover:text-white transition-colors cursor-pointer"
+            >
+              <Share2 className="w-3.5 h-3.5" /> Share Page
+            </button>
+          </div>
+        </header>
 
         {/* VISUAL PODIUM SECTION (TOP 3) */}
         {rankings.length > 0 && (
@@ -573,8 +577,10 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
         )}
 
         {/* RANKINGS GRID / LIST SECTION */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-4">
+            <h2 className="sr-only">Current Standings</h2>
+            
             {/* SEARCH & FILTERS BAR */}
             <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 p-4 rounded-2xl bg-neutral-900/40 border border-neutral-850">
               {/* Search box */}
@@ -715,20 +721,20 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
           </div>
 
           {/* SIDEBAR: RECENT EVENT LOGS */}
-          <div className="glass p-6 rounded-2xl h-[450px] flex flex-col justify-between shadow-xl">
+          <aside className="glass p-6 rounded-2xl h-[450px] flex flex-col justify-between shadow-xl">
             <div>
-              <h4 className="font-bold text-sm flex items-center gap-1.5 text-white uppercase tracking-wider mb-4 border-b border-white/5 pb-2">
-                <Activity className="w-4 h-4 text-violet-400" /> Recent Live Logs
-              </h4>
+              <h2 className="font-bold text-sm flex items-center gap-1.5 text-white uppercase tracking-wider mb-4 border-b border-white/5 pb-2">
+                <Activity className="w-4 h-4 text-violet-400" /> Recent Results
+              </h2>
 
-              <div className="space-y-3 overflow-y-auto max-h-[350px] pr-1">
+              <ul className="space-y-3 overflow-y-auto max-h-[350px] pr-1">
                 {activityLogs.length === 0 ? (
-                  <div className="text-center text-neutral-600 text-xs py-10">
+                  <li className="text-center text-neutral-600 text-xs py-10">
                     No activity logs recorded.
-                  </div>
+                  </li>
                 ) : (
                   activityLogs.map((log) => (
-                    <div
+                    <li
                       key={log.id}
                       className="text-[11px] p-2.5 rounded-lg bg-black/40 border border-white/5 space-y-1"
                     >
@@ -743,13 +749,30 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
                           })}
                         </span>
                       </div>
-                    </div>
+                    </li>
                   ))
                 )}
-              </div>
+              </ul>
             </div>
+          </aside>
+        </section>
+
+        {/* SEO INTERNAL LINKS SECTION */}
+        <section className="mt-12 pt-8 border-t border-white/10 text-center">
+          <h2 className="sr-only">Explore LeaderboardOS</h2>
+          <div className="flex flex-wrap justify-center items-center gap-6 text-sm">
+            <Link href="/" className="text-neutral-400 hover:text-white transition-colors">
+              LeaderboardOS Home
+            </Link>
+            <span className="text-neutral-700">•</span>
+            <Link href="/how-to-play" className="text-neutral-400 hover:text-white transition-colors">
+              How to Play
+            </Link>
           </div>
-        </div>
+          <p className="mt-4 text-[10px] text-neutral-600">
+            Powered by LeaderboardOS — Create your own real-time leaderboard today.
+          </p>
+        </section>
       </main>
 
       {/* MODAL: PLAYER PROFILE CARD OVERLAY */}
