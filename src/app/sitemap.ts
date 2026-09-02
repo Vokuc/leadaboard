@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
-import { createSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/supabase/server';
+import { isSupabaseServerConfigured } from '@/lib/supabase/server';
 import { canIndexLeaderboard } from '@/lib/seo/indexing';
+import { createClient } from '@supabase/supabase-js';
 
 // Cache sitemap requests for 24 hours to prevent database overload
 export const revalidate = 86400;
@@ -8,10 +9,18 @@ export const revalidate = 86400;
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://leagueboard.com';
 const SITEMAP_CHUNK_SIZE = 25000;
 
+// Create a stateless client for build-time generation
+const getSitemapClient = () => {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  );
+};
+
 export async function generateSitemaps() {
   if (!isSupabaseServerConfigured) return [{ id: 0 }];
 
-  const supabase = await createSupabaseServerClient();
+  const supabase = getSitemapClient();
   // Fetch just the count to determine how many chunks we need
   const { count } = await supabase
     .from('leaderboards')
@@ -46,7 +55,7 @@ export default async function sitemap({ id }: { id: number }): Promise<MetadataR
   }
 
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = getSitemapClient();
 
     // Fetch this chunk of leaderboards, including their ranking counts in a single query
     const { data } = await supabase
