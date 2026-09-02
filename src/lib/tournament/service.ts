@@ -75,7 +75,7 @@ function localGet<T>(key: string, defaults: T): T {
     return defaults;
   }
 
-  const value = localStorage.getItem(`leagueboard_${key}`);
+  const value = localStorage.getItem(`leaderboardos_${key}`);
   if (!value) {
     localSet(key, defaults);
     return defaults;
@@ -93,7 +93,7 @@ function localSet(key: string, value: unknown): void {
     return;
   }
 
-  localStorage.setItem(`leagueboard_${key}`, JSON.stringify(value));
+  localStorage.setItem(`leaderboardos_${key}`, JSON.stringify(value));
 }
 
 function getLocalTournamentState(): LocalTournamentState {

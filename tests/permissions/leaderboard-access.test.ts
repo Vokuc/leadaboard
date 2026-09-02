@@ -41,7 +41,7 @@ describe('Leaderboard Permissions', () => {
     });
 
     // Reset admins database list in mock localStorage
-    localStorage.setItem('leagueboard_leaderboard_admins', JSON.stringify([]));
+    localStorage.setItem('leaderboardos_leaderboard_admins', JSON.stringify([]));
   });
 
   describe('Unauthenticated User', () => {
@@ -104,7 +104,7 @@ describe('Leaderboard Permissions', () => {
   describe('Authorized Leaderboard Admin', () => {
     beforeEach(async () => {
       // Temporarily become owner to add adminId as admin
-      mockUser = { id: ownerId, email: 'creator@leagueboard.com', full_name: 'Alex Mercer', role: 'super_admin' };
+      mockUser = { id: ownerId, email: 'creator@leaderboardos.com', full_name: 'Alex Mercer', role: 'super_admin' };
       await DatabaseService.addAdmin(boardId, adminId);
 
       // Now switch user context to the Admin
@@ -149,7 +149,7 @@ describe('Leaderboard Permissions', () => {
 
   describe('Leaderboard Owner', () => {
     beforeEach(() => {
-      mockUser = { id: ownerId, email: 'creator@leagueboard.com', full_name: 'Alex Mercer', role: 'super_admin' };
+      mockUser = { id: ownerId, email: 'creator@leaderboardos.com', full_name: 'Alex Mercer', role: 'super_admin' };
     });
 
     it('allows editing details', async () => {

@@ -94,7 +94,7 @@ export default function LoginPage() {
     setLoading(true);
     setMessage(null);
     try {
-      await login('creator@leagueboard.com', 'Alex Mercer');
+      await login('creator@leaderboardos.com', 'Alex Mercer');
       router.replace('/dashboard');
     } catch (err: unknown) {
       setMessage({
@@ -131,12 +131,12 @@ export default function LoginPage() {
               <Trophy className="w-6 h-6" />
             </div>
             <span className="font-bold text-2xl tracking-tight bg-gradient-to-r from-white via-neutral-200 to-neutral-500 bg-clip-text text-transparent">
-              LeagueBoard
+              LeaderboardOS
             </span>
           </div>
 
           <h2 className="text-center text-2xl font-bold tracking-tight text-white mt-4">
-            {isSignUp ? 'Create your platform account' : 'Welcome back to LeagueBoard'}
+            {isSignUp ? 'Create your platform account' : 'Welcome back to LeaderboardOS'}
           </h2>
           <p className="mt-2 text-center text-sm text-muted-foreground">
             {isSignUp ? 'Get started building custom leaderboards' : 'Enter your credentials to access your dashboard'}

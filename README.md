@@ -1,6 +1,6 @@
-# LeagueBoard (Leaderboardos)🏆 | Leaderboard-as-a-Service MVP
+# LeaderboardOS (Leaderboardos)🏆 | Leaderboard-as-a-Service MVP
 
-**LeagueBoard** is a modern, developer-first Leaderboard-as-a-Service (LaaS) platform built with Next.js, Tailwind CSS, and Supabase. It allows gamers, sports leagues, fitness coaches, and corporate managers to create, customize, and manage real-time leaderboards in under 60 seconds without writing code.
+**LeaderboardOS** is a modern, developer-first Leaderboard-as-a-Service (LaaS) platform built with Next.js, Tailwind CSS, and Supabase. It allows gamers, sports leagues, fitness coaches, and corporate managers to create, customize, and manage real-time leaderboards in under 60 seconds without writing code.
 
 ---
 
@@ -45,7 +45,7 @@ If you do not configure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANO
 
 ## 🗄️ Database Setup (Supabase)
 
-To connect LeagueBoard to your live Supabase database, follow these steps:
+To connect LeaderboardOS to your live Supabase database, follow these steps:
 
 1. Create a new project in your [Supabase Dashboard](https://supabase.com).
 2. Grab the URL and Anon Key from the **Project Settings -> API** tab and paste them in `.env.local`.
@@ -63,7 +63,7 @@ The root `schema.sql` file mirrors the same schema for quick copy/paste setup.
 
 ## 🌱 Demo Seed Data
 
-LeagueBoard ships with browser-backed demo data so the product works instantly without Supabase credentials. The demo leaderboards, members, scoring rules, and activity logs live in `src/lib/db.ts` and are loaded automatically whenever the app runs in Demo Sandbox Mode.
+LeaderboardOS ships with browser-backed demo data so the product works instantly without Supabase credentials. The demo leaderboards, members, scoring rules, and activity logs live in `src/lib/db.ts` and are loaded automatically whenever the app runs in Demo Sandbox Mode.
 
 ---
 

@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { DatabaseService } from '@/lib/db';
 import { LeagueService } from '@/lib/league/service';
 import { TournamentService } from '@/lib/tournament/service';
@@ -109,9 +109,10 @@ const TOURNAMENT_TEMPLATE_KEYS: CompetitionTemplateKey[] = [
   'custom',
 ];
 
-export default function CreateLeaderboardPage() {
+function CreateLeaderboardForm() {
   const { profile, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (!authLoading && !profile) {
@@ -127,14 +128,20 @@ export default function CreateLeaderboardPage() {
   const [isLeavingPage, setIsLeavingPage] = useState(false);
   const defaultStartDate = new Date().toISOString().split('T')[0];
 
+  // Read pre-fills from URL (e.g. from the free tools)
+  const prefillName = searchParams.get('name') || '';
+  const prefillType = (searchParams.get('type') as CompetitionType) || 'gaming';
+  const prefillEngine = (searchParams.get('engine') as CompetitionEngine) || DEFAULT_ENGINE;
+  const prefillTemplate = (searchParams.get('template') as CompetitionTemplateKey) || DEFAULT_TEMPLATE_KEY;
+
   // Form Fields
-  const [name, setName] = useState('');
+  const [name, setName] = useState(prefillName);
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState<VisibilityType>('public');
-  const [competitionType, setCompetitionType] = useState<CompetitionType>('gaming');
-  const [coverImageUrl, setCoverImageUrl] = useState(coverArtTemplates.gaming);
-  const [competitionEngine, setCompetitionEngine] = useState<CompetitionEngine>(DEFAULT_ENGINE);
-  const [templateKey, setTemplateKey] = useState<CompetitionTemplateKey>(DEFAULT_TEMPLATE_KEY);
+  const [competitionType, setCompetitionType] = useState<CompetitionType>(prefillType);
+  const [coverImageUrl, setCoverImageUrl] = useState(coverArtTemplates[prefillType] || coverArtTemplates.gaming);
+  const [competitionEngine, setCompetitionEngine] = useState<CompetitionEngine>(prefillEngine);
+  const [templateKey, setTemplateKey] = useState<CompetitionTemplateKey>(prefillTemplate);
   const [pointsForWin, setPointsForWin] = useState(3);
   const [pointsForDraw, setPointsForDraw] = useState(1);
   const [pointsForLoss, setPointsForLoss] = useState(0);
@@ -351,7 +358,7 @@ export default function CreateLeaderboardPage() {
         <div className="flex items-center gap-2">
           <Trophy className="w-5 h-5 text-violet-500" />
           <span className="font-bold text-base tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
-            LeagueBoard
+            LeaderboardOS
           </span>
         </div>
 
@@ -896,5 +903,13 @@ export default function CreateLeaderboardPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function CreateLeaderboardPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-neutral-400 font-medium">Loading form...</div>}>
+      <CreateLeaderboardForm />
+    </Suspense>
   );
 }

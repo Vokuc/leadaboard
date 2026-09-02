@@ -206,7 +206,7 @@ export default function DashboardPage() {
           <Link href="/" className="flex items-center gap-2">
             <Trophy className="w-5 h-5 text-violet-500" />
             <span className="font-bold text-lg tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
-              LeagueBoard
+              LeaderboardOS
             </span>
           </Link>
           <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-neutral-900 border-neutral-800 text-neutral-400">

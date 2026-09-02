@@ -5,7 +5,7 @@ import type { Metadata } from 'next';
 // (Next.js doesn't allow metadata exports from client components).
 export const metadata: Metadata = {
   title: 'Sign In',
-  description: 'Sign in to your LeagueBoard account to manage and publish your leaderboards.',
+  description: 'Sign in to your LeaderboardOS account to manage and publish your leaderboards.',
   robots: {
     index: false,
     follow: false,

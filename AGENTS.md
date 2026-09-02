@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This repository is the LeagueBoard project: a Next.js leaderboard platform for gaming, sports, fitness, and workplace competitions.
+This repository is the LeaderboardOS project: a Next.js leaderboard platform for gaming, sports, fitness, and workplace competitions.
 
 ## Required context
 
