@@ -22,6 +22,7 @@ import {
   buildLeaderboardBreadcrumbJsonLd,
   buildLeaderboardEventJsonLd,
 } from '@/lib/seo/metadata';
+import { canIndexLeaderboard } from '@/lib/seo/indexing';
 import LeaderboardView, {
   type LeaderboardViewInitialData,
 } from './LeaderboardView';
@@ -113,6 +114,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!lb || lb.visibility !== 'public') {
     return buildMetadata({
       title: 'Leaderboard Not Found',
+      noindex: true,
+    });
+  }
+
+  // Thin/empty leaderboard: render normally but noindex
+  const isIndexable = canIndexLeaderboard(lb, data.rankings.length);
+  if (!isIndexable) {
+    return buildMetadata({
+      title: lb.name,
+      description: lb.description || `Live real-time leaderboard for ${lb.name}.`,
       noindex: true,
     });
   }
