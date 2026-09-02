@@ -165,7 +165,7 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
     } else {
       // Demo Mode: Binds to storage updates across browser tabs
       const handleStorageUpdate = (e: StorageEvent) => {
-        if (e.key && e.key.startsWith('leagueboard_')) {
+        if (e.key && e.key.startsWith('leaderboardos_')) {
           void loadData(true); // Silent reload on local updates
         }
       };
@@ -308,7 +308,7 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
           <Link href="/" className="flex items-center gap-2">
             <Trophy className="w-5 h-5 text-violet-500 animate-pulse-glow" />
             <span className="font-bold text-base tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
-              LeagueBoard
+              LeaderboardOS
             </span>
           </Link>
 
@@ -360,7 +360,7 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
           <Link href="/" className="flex items-center gap-2">
             <Trophy className="w-5 h-5 text-violet-500 animate-pulse-glow" />
             <span className="font-bold text-base tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
-              LeagueBoard
+              LeaderboardOS
             </span>
           </Link>
 
@@ -476,7 +476,7 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
           <Link href="/" className="flex items-center gap-2">
             <Trophy className="w-5 h-5 text-violet-500 animate-pulse-glow" />
             <span className="font-bold text-base tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
-              LeagueBoard
+              LeaderboardOS
             </span>
           </Link>
 

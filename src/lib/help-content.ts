@@ -128,7 +128,7 @@ export const publicLeaderboardHelp = {
 
 export const loginHelp = {
   title: 'How Sign-In Works',
-  description: 'LeagueBoard uses secure, passwordless authentication — no passwords to remember.',
+  description: 'LeaderboardOS uses secure, passwordless authentication — no passwords to remember.',
   sections: [
     {
       heading: 'Email sign-in',

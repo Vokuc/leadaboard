@@ -74,7 +74,7 @@ export default function RootLayout({
       >
         {/*
          * Sitewide JSON-LD — Organization, WebSite, SoftwareApplication.
-         * Appears on every page. Establishes LeagueBoard as a known entity in
+         * Appears on every page. Establishes LeaderboardOS as a known entity in
          * Google's Knowledge Graph and enables rich results.
          */}
         <script

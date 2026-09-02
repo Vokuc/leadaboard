@@ -173,7 +173,7 @@ export default function LandingPage() {
             <Trophy className="w-5 h-5" />
           </div>
           <span className="font-bold text-xl tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
-            LeagueBoard
+            LeaderboardOS
           </span>
         </div>
 
@@ -208,7 +208,7 @@ export default function LandingPage() {
         </h1>
 
         <p className="mt-6 text-base sm:text-xl text-neutral-400 max-w-3xl leading-relaxed">
-          LeagueBoard gives sports leagues, gaming tournaments, fitness clubs, and corporate sales offices a plug-and-play ranking platform. Set scoring rules, invite players, and embed customizable widgets anywhere.
+          LeaderboardOS gives sports leagues, gaming tournaments, fitness clubs, and corporate sales offices a plug-and-play ranking platform. Set scoring rules, invite players, and embed customizable widgets anywhere.
         </p>
 
         <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center w-full max-w-md">
@@ -485,14 +485,14 @@ export default function LandingPage() {
       <footer className="mt-auto border-t border-white/5 bg-neutral-950/60 py-8 px-6 md:px-12 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-neutral-500 font-medium">
         <div className="flex items-center gap-1.5">
           <Trophy className="w-4 h-4 text-violet-400" />
-          <span>&copy; {new Date().getFullYear()} LeagueBoard. All rights reserved.</span>
+          <span>&copy; {new Date().getFullYear()} LeaderboardOS. All rights reserved.</span>
         </div>
         <div className="flex gap-6">
           <a href="#" className="hover:text-neutral-300">Terms of Service</a>
           <a href="#" className="hover:text-neutral-300">Privacy Policy</a>
           <Link href="/how-to-play" className="hover:text-neutral-300">How to Play</Link>
           <Link href="/tools" className="hover:text-neutral-300">Free Tools</Link>
-          <a href="mailto:support@leagueboard.com" className="hover:text-neutral-300">Support</a>
+          <a href="mailto:support@leaderboardos.com" className="hover:text-neutral-300">Support</a>
         </div>
       </footer>
     </div>

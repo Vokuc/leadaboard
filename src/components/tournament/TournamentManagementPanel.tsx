@@ -139,7 +139,7 @@ export default function TournamentManagementPanel({
     }
 
     const handleStorageUpdate = (event: StorageEvent) => {
-      if (event.key && event.key.startsWith('leagueboard_')) {
+      if (event.key && event.key.startsWith('leaderboardos_')) {
         void loadTournamentData(true);
       }
     };

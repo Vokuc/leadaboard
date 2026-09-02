@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Page Not Found',
-  description: 'The page you are looking for could not be found on LeagueBoard.',
+  description: 'The page you are looking for could not be found on LeaderboardOS.',
   robots: {
     index: false,
     follow: false,

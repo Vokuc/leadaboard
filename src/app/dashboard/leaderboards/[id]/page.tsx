@@ -237,7 +237,7 @@ export default function LeaderboardManagementPage() {
 
     if (typeof navigator !== 'undefined' && navigator.share) {
       navigator.share({
-        title: leaderboard?.name || 'LeagueBoard',
+        title: leaderboard?.name || 'LeaderboardOS',
         text: 'Open this leaderboard',
         url: resolvedPublicUrl,
       }).then(() => {
@@ -586,7 +586,7 @@ export default function LeaderboardManagementPage() {
           <div className="flex items-center gap-2">
             <Trophy className="w-5 h-5 text-violet-500" />
             <span className="font-bold text-base tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
-              LeagueBoard
+              LeaderboardOS
             </span>
           </div>
 
@@ -654,7 +654,7 @@ export default function LeaderboardManagementPage() {
           <div className="flex items-center gap-2">
             <Trophy className="w-5 h-5 text-violet-500" />
             <span className="font-bold text-base tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
-              LeagueBoard
+              LeaderboardOS
             </span>
           </div>
 
@@ -723,7 +723,7 @@ export default function LeaderboardManagementPage() {
         <div className="flex items-center gap-2">
           <Trophy className="w-5 h-5 text-violet-500" />
           <span className="font-bold text-base tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
-            LeagueBoard
+            LeaderboardOS
           </span>
         </div>
 

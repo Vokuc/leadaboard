@@ -7,7 +7,7 @@ import { buildMetadata, BASE_URL } from '@/lib/seo/metadata';
 export const metadata: Metadata = buildMetadata({
   title: 'How to Play',
   description:
-    'Learn how to set up and publish your first real-time leaderboard with LeagueBoard. Create competitions for gaming, sports, fitness, and the workplace in under a minute.',
+    'Learn how to set up and publish your first real-time leaderboard with LeaderboardOS. Create competitions for gaming, sports, fitness, and the workplace in under a minute.',
   canonical: `${BASE_URL}/how-to-play`,
 });
 
@@ -37,7 +37,7 @@ export default function HowToPlayPage() {
           </div>
 
           <p className="mt-4 text-sm text-neutral-300 leading-relaxed">
-            LeagueBoard lets you run and publish live rankings for sports, gaming, and workplace competitions. Follow this quick flow to get up and running.
+            LeaderboardOS lets you run and publish live rankings for sports, gaming, and workplace competitions. Follow this quick flow to get up and running.
           </p>
 
           <div className="mt-6 space-y-4">

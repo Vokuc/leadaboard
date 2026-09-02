@@ -6,7 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 // Cache sitemap requests for 24 hours to prevent database overload
 export const revalidate = 86400;
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://leagueboard.com';
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://leaderboardos.com';
 const SITEMAP_CHUNK_SIZE = 25000;
 
 // Create a stateless client for build-time generation

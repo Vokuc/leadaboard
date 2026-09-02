@@ -178,7 +178,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
         if (error) throw mapOAuthError(error);
       } else {
-        const prof = await DatabaseService.mockLogin('creator@leagueboard.com', 'Alex Mercer');
+        const prof = await DatabaseService.mockLogin('creator@leaderboardos.com', 'Alex Mercer');
         setProfile(prof);
       }
     } finally {
@@ -193,7 +193,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await supabase.auth.signOut();
       } else {
         if (typeof window !== 'undefined') {
-          localStorage.removeItem('leagueboard_profile');
+          localStorage.removeItem('leaderboardos_profile');
         }
       }
       setProfile(null);

@@ -15,13 +15,13 @@ import type { Metadata } from 'next';
 
 // ─── Site Configuration ───────────────────────────────────────────────────────
 
-export const BASE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://leagueboard.com').replace(
+export const BASE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://leaderboardos.com').replace(
   /\/$/,
   '',
 );
 
 export const SITE_CONFIG = {
-  name: 'LeagueBoard',
+  name: 'LeaderboardOS',
   tagline: 'Real-Time Leaderboard as a Service',
   description:
     'Create customizable, real-time leaderboards for gaming tournaments, sports clubs, fitness groups, and corporate sales targets in under a minute without writing code.',
@@ -33,7 +33,7 @@ export const SITE_CONFIG = {
 // ─── Metadata Builder ─────────────────────────────────────────────────────────
 
 export interface BuildMetadataOptions {
-  /** Page title. Will be formatted as "{title} | LeagueBoard" via the root template. */
+  /** Page title. Will be formatted as "{title} | LeaderboardOS" via the root template. */
   title: string;
   /** Meta description. Falls back to site default if omitted. */
   description?: string;

@@ -28,7 +28,7 @@ const SEED_CREATOR_ID = 'creator-user-id';
 
 const DEFAULT_PROFILE: Profile = {
   id: SEED_CREATOR_ID,
-  email: 'creator@leagueboard.com',
+  email: 'creator@leaderboardos.com',
   full_name: 'Alex Mercer',
   role: 'super_admin',
   avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
@@ -182,7 +182,7 @@ const DEFAULT_ACTIVITY_LOGS: ActivityLog[] = [
 class LocalDb {
   public get<T>(key: string, defaults: T): T {
     if (typeof window === 'undefined') return defaults;
-    const val = localStorage.getItem(`leagueboard_${key}`);
+    const val = localStorage.getItem(`leaderboardos_${key}`);
     if (!val) {
       this.set(key, defaults);
       return defaults;
@@ -196,12 +196,12 @@ class LocalDb {
 
   public set(key: string, val: unknown): void {
     if (typeof window === 'undefined') return;
-    localStorage.setItem(`leagueboard_${key}`, JSON.stringify(val));
+    localStorage.setItem(`leaderboardos_${key}`, JSON.stringify(val));
   }
 
   init(): void {
     if (typeof window === 'undefined') return;
-    if (!localStorage.getItem('leagueboard_initialized')) {
+    if (!localStorage.getItem('leaderboardos_initialized')) {
       this.set('profile', DEFAULT_PROFILE);
       this.set('leaderboards', DEFAULT_LEADERBOARDS);
       this.set('seasons', DEFAULT_SEASONS);
@@ -209,7 +209,7 @@ class LocalDb {
       this.set('members', DEFAULT_MEMBERS);
       this.set('score_events', DEFAULT_SCORE_EVENTS);
       this.set('activity_logs', DEFAULT_ACTIVITY_LOGS);
-      localStorage.setItem('leagueboard_initialized', 'true');
+      localStorage.setItem('leaderboardos_initialized', 'true');
     }
   }
 
@@ -358,7 +358,7 @@ export const DatabaseService = {
     return filtered.map(la => {
       const profile = mockDb.getProfile().id === la.user_id ? mockDb.getProfile() : {
         id: la.user_id,
-        email: `${la.user_id}@leagueboard.com`,
+        email: `${la.user_id}@leaderboardos.com`,
         full_name: la.user_id.toUpperCase(),
         role: 'member' as const,
         avatar_url: null,
@@ -399,7 +399,7 @@ export const DatabaseService = {
     
     const profile = mockDb.getProfile().id === userId ? mockDb.getProfile() : {
       id: userId,
-      email: `${userId}@leagueboard.com`,
+      email: `${userId}@leaderboardos.com`,
       full_name: userId.toUpperCase(),
       role: 'member' as const,
       avatar_url: null,

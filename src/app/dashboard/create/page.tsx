@@ -358,7 +358,7 @@ function CreateLeaderboardForm() {
         <div className="flex items-center gap-2">
           <Trophy className="w-5 h-5 text-violet-500" />
           <span className="font-bold text-base tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
-            LeagueBoard
+            LeaderboardOS
           </span>
         </div>
 

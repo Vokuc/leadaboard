@@ -59,13 +59,13 @@ export function useUnsavedChangesWarning(
         return;
       }
 
-      window.history.pushState({ leagueboardGuard: true }, '', window.location.href);
+      window.history.pushState({ leaderboardosGuard: true }, '', window.location.href);
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     document.addEventListener('click', handleDocumentClick, true);
     window.addEventListener('popstate', handlePopState);
-    window.history.pushState({ leagueboardGuard: true }, '', window.location.href);
+    window.history.pushState({ leaderboardosGuard: true }, '', window.location.href);
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
