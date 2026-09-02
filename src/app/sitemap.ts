@@ -36,18 +36,15 @@ export async function generateSitemaps() {
 
 export default async function sitemap({ id }: { id: number }): Promise<MetadataRoute.Sitemap> {
   const staticRoutes: MetadataRoute.Sitemap = id === 0 ? [
-    {
-      url: BASE_URL,
-      lastModified: new Date(),
-      priority: 1.0,
-      changeFrequency: 'weekly',
-    },
-    {
-      url: `${BASE_URL}/how-to-play`,
-      lastModified: new Date(),
-      priority: 0.5,
-      changeFrequency: 'monthly',
-    },
+    { url: BASE_URL, lastModified: new Date(), changeFrequency: 'daily', priority: 1.0 },
+    { url: `${BASE_URL}/login`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
+    { url: `${BASE_URL}/how-to-play`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
+    { url: `${BASE_URL}/tools`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.9 },
+    { url: `${BASE_URL}/tools/leaderboard-maker`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.9 },
+    { url: `${BASE_URL}/tools/league-table-generator`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
+    { url: `${BASE_URL}/tools/football-league-table`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
+    { url: `${BASE_URL}/tools/tournament-generator`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
+    { url: `${BASE_URL}/tools/points-calculator`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
   ] : [];
 
   if (!isSupabaseServerConfigured) {
