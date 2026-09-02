@@ -1,49 +1,49 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import { AuthProvider } from "@/context/AuthContext";
-import "./globals.css";
+import type { Metadata } from 'next';
+import { Geist, Geist_Mono } from 'next/font/google';
+import { AuthProvider } from '@/context/AuthContext';
+import { BASE_URL, SITE_CONFIG, buildSiteJsonLd } from '@/lib/seo/metadata';
+import './globals.css';
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
 });
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  variable: '--font-geist-mono',
+  subsets: ['latin'],
 });
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://leagueboard.com';
+// ─── Root Metadata ────────────────────────────────────────────────────────────
+// This is the fallback for every page that doesn't export its own metadata.
+// Pages that DO export metadata will inherit these defaults and override as needed.
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
   title: {
-    default: 'LeagueBoard | Real-Time Leaderboard as a Service',
-    template: '%s | LeagueBoard',
+    default: `${SITE_CONFIG.name} | ${SITE_CONFIG.tagline}`,
+    template: `%s | ${SITE_CONFIG.name}`,
   },
-  description:
-    'Create customizable, real-time leaderboards for gaming tournaments, sports clubs, fitness groups, and corporate sales targets in under a minute without writing code.',
+  description: SITE_CONFIG.description,
   openGraph: {
     type: 'website',
-    siteName: 'LeagueBoard',
-    title: 'LeagueBoard | Real-Time Leaderboard as a Service',
-    description:
-      'Create customizable, real-time leaderboards for gaming, sports, fitness, and workplace competitions in under a minute — no code required.',
+    siteName: SITE_CONFIG.name,
+    title: `${SITE_CONFIG.name} | ${SITE_CONFIG.tagline}`,
+    description: SITE_CONFIG.description,
     url: BASE_URL,
     images: [
       {
         url: '/og-default.png',
         width: 1200,
         height: 630,
-        alt: 'LeagueBoard — Real-Time Leaderboard Platform',
+        alt: `${SITE_CONFIG.name} — ${SITE_CONFIG.tagline}`,
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'LeagueBoard | Real-Time Leaderboard as a Service',
-    description:
-      'Create customizable, real-time leaderboards for gaming, sports, fitness, and workplace competitions in under a minute.',
+    title: `${SITE_CONFIG.name} | ${SITE_CONFIG.tagline}`,
+    description: SITE_CONFIG.description,
     images: ['/og-default.png'],
   },
   robots: {
@@ -58,6 +58,10 @@ export const metadata: Metadata = {
   },
 };
 
+// ─── Layout ───────────────────────────────────────────────────────────────────
+
+const siteJsonLd = buildSiteJsonLd();
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -65,10 +69,19 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark h-full antialiased">
-      <body className={`${geistSans.variable} ${geistMono.variable} min-h-full flex flex-col font-sans bg-background text-foreground`}>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} min-h-full flex flex-col font-sans bg-background text-foreground`}
+      >
+        {/*
+         * Sitewide JSON-LD — Organization, WebSite, SoftwareApplication.
+         * Appears on every page. Establishes LeagueBoard as a known entity in
+         * Google's Knowledge Graph and enables rich results.
+         */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(siteJsonLd) }}
+        />
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

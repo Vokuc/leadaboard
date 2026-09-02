@@ -14,7 +14,14 @@
 
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
+import { cache } from 'react';
 import { createSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/supabase/server';
+import {
+  buildMetadata,
+  BASE_URL,
+  buildLeaderboardBreadcrumbJsonLd,
+  buildLeaderboardEventJsonLd,
+} from '@/lib/seo/metadata';
 import LeaderboardView, {
   type LeaderboardViewInitialData,
 } from './LeaderboardView';
@@ -27,9 +34,13 @@ type PageProps = {
 
 // ─── Server-Side Data Fetching ────────────────────────────────────────────────
 
-async function fetchPublicLeaderboardData(
+// cache() deduplicates requests if called multiple times in the same render pass
+// (e.g. once in generateMetadata, once in the page component).
+const fetchPublicLeaderboardData = cache(async (
   slug: string,
-): Promise<LeaderboardViewInitialData | null> {
+): Promise<LeaderboardViewInitialData | null> => {
+  if (!isSupabaseServerConfigured) return null;
+
   const supabase = await createSupabaseServerClient();
 
   // Fetch the leaderboard — RLS will enforce visibility=public for anon requests.
@@ -80,7 +91,7 @@ async function fetchPublicLeaderboardData(
     activityLogs: (logs ?? []) as LeaderboardViewInitialData['activityLogs'],
     competitionConfig: (config ?? null) as LeaderboardViewInitialData['competitionConfig'],
   };
-}
+});
 
 // ─── Dynamic Metadata ─────────────────────────────────────────────────────────
 
@@ -89,56 +100,33 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   // Demo mode: we have no server data — return minimal non-indexed metadata
   if (!isSupabaseServerConfigured) {
-    return {
+    return buildMetadata({
       title: 'Leaderboard',
-      robots: { index: false, follow: false },
-    };
+      noindex: true,
+    });
   }
 
-  const supabase = await createSupabaseServerClient();
-  const { data: lb } = await supabase
-    .from('leaderboards')
-    .select('name, description, cover_image_url, visibility, slug')
-    .eq('slug', slug)
-    .maybeSingle();
+  const data = await fetchPublicLeaderboardData(slug);
+  const lb = data?.leaderboard;
 
   // Private or missing leaderboard: noindex
   if (!lb || lb.visibility !== 'public') {
-    return {
+    return buildMetadata({
       title: 'Leaderboard Not Found',
-      robots: { index: false, follow: false },
-    };
+      noindex: true,
+    });
   }
 
   const description =
     lb.description ||
     `Live real-time leaderboard for ${lb.name}. View current rankings, scores, and standings.`;
 
-  return {
+  return buildMetadata({
     title: lb.name,
     description,
-    openGraph: {
-      title: lb.name,
-      description,
-      type: 'website',
-      images: lb.cover_image_url
-        ? [{ url: lb.cover_image_url, width: 1200, height: 630, alt: lb.name }]
-        : undefined,
-    },
-    twitter: {
-      card: lb.cover_image_url ? 'summary_large_image' : 'summary',
-      title: lb.name,
-      description,
-      images: lb.cover_image_url ? [lb.cover_image_url] : undefined,
-    },
-    alternates: {
-      canonical: `/leaderboards/${lb.slug}`,
-    },
-    robots: {
-      index: true,
-      follow: true,
-    },
-  };
+    canonical: `${BASE_URL}/leaderboards/${lb.slug}`,
+    ...(lb.cover_image_url && { ogImage: lb.cover_image_url }),
+  });
 }
 
 // ─── Page Component ───────────────────────────────────────────────────────────
@@ -155,12 +143,35 @@ export default async function PublicLeaderboardPage({ params }: PageProps) {
   const data = await fetchPublicLeaderboardData(slug);
 
   // Private or non-existent leaderboard → proper 404
-  if (!data) {
+  if (!data || !data.leaderboard) {
     notFound();
   }
+
+  const breadcrumbJsonLd = buildLeaderboardBreadcrumbJsonLd(data.leaderboard.name, slug);
+  const eventJsonLd = buildLeaderboardEventJsonLd({
+    name: data.leaderboard.name,
+    description: data.leaderboard.description,
+    slug: data.leaderboard.slug,
+    cover_image_url: data.leaderboard.cover_image_url,
+    competition_type: data.competitionConfig?.template_key || 'standard',
+    startDate: data.season?.start_date || undefined,
+    endDate: data.season?.end_date || undefined,
+  });
 
   // Pass SSR data as initial props. The client component will:
   //  - Render immediately without a loading flash
   //  - Subscribe to Supabase Realtime for live updates
-  return <LeaderboardView slug={slug} initialData={data} />;
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(eventJsonLd) }}
+      />
+      <LeaderboardView slug={slug} initialData={data} />
+    </>
+  );
 }

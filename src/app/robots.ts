@@ -7,8 +7,21 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: '*',
-        allow: ['/', '/leaderboards/', '/how-to-play'],
-        disallow: ['/dashboard/', '/api/', '/auth/'],
+        allow: ['/', '/leaderboards/', '/how-to-play', '/templates/', '/tools/', '/blog/'],
+        disallow: [
+          '/dashboard/',
+          '/admin/',
+          '/account/',
+          '/settings/',
+          '/api/',
+          '/auth/',
+          '/login',
+          '/signup',
+          '/checkout/',
+          '/payment/',
+          '/*?*filter=',
+          '/*?*sort=',
+        ],
       },
     ],
     sitemap: `${BASE_URL}/sitemap.xml`,
