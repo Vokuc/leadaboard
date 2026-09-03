@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import SafeImage from '@/components/SafeImage';
+import Logo from '@/components/Logo';
+import SocialIcons from '@/components/SocialIcons';
 
 type PreviewTab = 'gaming' | 'sports' | 'workplace';
 type LifecycleLabel = 'created' | 'upcoming' | 'completed';
@@ -168,14 +170,9 @@ export default function LandingPage() {
       <div className="absolute bottom-[20%] left-[-15%] w-[full] md:w-[650px] max-w-[350px] md:max-w-[650px] h-[650px] rounded-full bg-indigo-600/10 blur-[140px] pointer-events-none overflow-x-hidden" />
 
       <header className="sticky top-0 z-50 glass border-b border-white/5 py-4 px-6 md:px-12 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <div className="p-2 rounded-xl bg-violet-600/15 border border-violet-500/30 text-violet-400">
-            <Trophy className="w-5 h-5" />
-          </div>
-          <span className="font-bold text-xl tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
-            LeaderboardOS
-          </span>
-        </div>
+        <Link href="/">
+          <Logo />
+        </Link>
 
         <nav className="hidden md:flex items-center gap-6 text-sm text-neutral-400">
           <a href="#features" className="hover:text-white transition-colors">Features</a>
@@ -483,18 +480,20 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <footer className="mt-auto border-t border-white/5 bg-neutral-950/60 py-8 px-6 md:px-12 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-neutral-500 font-medium">
-        <div className="flex items-center gap-1.5">
-          <Trophy className="w-4 h-4 text-violet-400" />
-          <span>&copy; {new Date().getFullYear()} LeaderboardOS. All rights reserved.</span>
+      <footer className="mt-auto border-t border-white/5 bg-neutral-950/60 py-8 px-6 md:px-12 flex flex-col lg:flex-row justify-between items-center gap-6 text-xs text-neutral-500 font-medium">
+        <div className="flex items-center gap-3">
+          <Logo className="scale-[0.6] origin-left -ml-2" hideText />
+          <span className="-ml-2">&copy; {new Date().getFullYear()} LeaderboardOS. All rights reserved.</span>
         </div>
-        <div className="flex gap-6">
-          <a href="#" className="hover:text-neutral-300">Terms of Service</a>
-          <a href="#" className="hover:text-neutral-300">Privacy Policy</a>
-          <Link href="/how-to-play" className="hover:text-neutral-300">How to Play</Link>
-          <Link href="/templates" className="hover:text-neutral-300">Templates</Link>
-          <Link href="/tools" className="hover:text-neutral-300">Free Tools</Link>
-          <a href="mailto:support@leaderboardos.com" className="hover:text-neutral-300">Support</a>
+        <div className="flex flex-col sm:flex-row items-center gap-6">
+          <div className="flex gap-4 sm:gap-6 flex-wrap justify-center">
+            <a href="#" className="hover:text-neutral-300">Terms of Service</a>
+            <a href="#" className="hover:text-neutral-300">Privacy Policy</a>
+            <Link href="/how-to-play" className="hover:text-neutral-300">How to Play</Link>
+            <a href="mailto:support@leaderboardos.com" className="hover:text-neutral-300">Support</a>
+          </div>
+          <div className="h-4 w-px bg-white/10 hidden sm:block" />
+          <SocialIcons />
         </div>
       </footer>
     </div>

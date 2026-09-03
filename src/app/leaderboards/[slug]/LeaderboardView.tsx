@@ -30,6 +30,7 @@ import { publicLeaderboardHelp } from '@/lib/help-content';
 import SafeImage from '@/components/SafeImage';
 import LeaguePublicView from '@/components/league/LeaguePublicView';
 import TournamentPublicView from '@/components/tournament/TournamentPublicView';
+import Logo from '@/components/Logo';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -306,10 +307,7 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[400px] rounded-full blur-[140px] pointer-events-none opacity-40 bg-cyan-900/15" />
         <header className="glass border-b border-white/5 py-4 px-6 md:px-12 flex justify-between items-center sticky top-0 z-40">
           <Link href="/" className="flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-violet-500 animate-pulse-glow" />
-            <span className="font-bold text-base tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
-              LeaderboardOS
-            </span>
+            <Logo className="scale-75 origin-left" />
           </Link>
 
           <div className="flex items-center gap-2">
