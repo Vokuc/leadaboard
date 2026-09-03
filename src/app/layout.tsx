@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     url: BASE_URL,
     images: [
       {
-        url: '/og-default.png',
+        url: '/og-default.jpg',
         width: 1200,
         height: 630,
         alt: `${SITE_CONFIG.name} — ${SITE_CONFIG.tagline}`,
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: `${SITE_CONFIG.name} | ${SITE_CONFIG.tagline}`,
     description: SITE_CONFIG.description,
-    images: ['/og-default.png'],
+    images: ['/og-default.jpg'],
   },
   robots: {
     index: true,
