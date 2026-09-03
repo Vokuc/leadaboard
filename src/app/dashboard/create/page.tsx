@@ -148,8 +148,25 @@ function CreateLeaderboardForm() {
   const [tournamentBracketSize, setTournamentBracketSize] = useState(8);
   const [tournamentSeedingMode, setTournamentSeedingMode] = useState<TournamentSeedingMode>('random');
   
+  // Parse prefill rules if provided (e.g. "Deal Closed:100,Meeting Booked:15")
+  const prefillRulesStr = searchParams.get('rules');
+  const initialRules: ScoringRuleInput[] = [];
+  if (prefillRulesStr) {
+    try {
+      const parts = prefillRulesStr.split(',');
+      parts.forEach(part => {
+        const [name, pts] = part.split(':');
+        if (name && pts && !isNaN(Number(pts))) {
+          initialRules.push({ event_name: name.trim(), points: Number(pts), description: '' });
+        }
+      });
+    } catch(e) {
+      // Ignore parse errors
+    }
+  }
+
   // Scoring rules list
-  const [scoringRules, setScoringRules] = useState<ScoringRuleInput[]>([]);
+  const [scoringRules, setScoringRules] = useState<ScoringRuleInput[]>(initialRules);
   // Input fields for current rule builder
   const [ruleName, setRuleName] = useState('');
   const [rulePoints, setRulePoints] = useState<number>(10);

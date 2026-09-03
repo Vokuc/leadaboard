@@ -2,6 +2,7 @@ import type { MetadataRoute } from 'next';
 import { isSupabaseServerConfigured } from '@/lib/supabase/server';
 import { canIndexLeaderboard } from '@/lib/seo/indexing';
 import { createClient } from '@supabase/supabase-js';
+import { MARKETPLACE_TEMPLATES } from '@/lib/templates/marketplace';
 
 // Cache sitemap requests for 24 hours to prevent database overload
 export const revalidate = 86400;
@@ -45,6 +46,13 @@ export default async function sitemap({ id }: { id: number }): Promise<MetadataR
     { url: `${BASE_URL}/tools/football-league-table`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
     { url: `${BASE_URL}/tools/tournament-generator`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
     { url: `${BASE_URL}/tools/points-calculator`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${BASE_URL}/templates`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.9 },
+    ...MARKETPLACE_TEMPLATES.map(template => ({
+      url: `${BASE_URL}/templates/${template.slug}`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly' as const,
+      priority: 0.8,
+    })),
   ] : [];
 
   if (!isSupabaseServerConfigured) {
