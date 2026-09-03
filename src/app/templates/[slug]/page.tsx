@@ -6,9 +6,9 @@ import TemplatePageWrapper from '@/components/templates/TemplatePageWrapper';
 import { BASE_URL } from '@/lib/seo/metadata';
 
 interface Props {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 }
 
 export async function generateStaticParams() {
@@ -18,7 +18,8 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const template = getMarketplaceTemplate(params.slug);
+  const { slug } = await params;
+  const template = getMarketplaceTemplate(slug);
   
   if (!template) {
     return {
@@ -48,8 +49,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default function TemplatePage({ params }: Props) {
-  const template = getMarketplaceTemplate(params.slug);
+export default async function TemplatePage({ params }: Props) {
+  const { slug } = await params;
+  const template = getMarketplaceTemplate(slug);
 
   if (!template) {
     notFound();
