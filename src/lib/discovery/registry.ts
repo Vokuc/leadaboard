@@ -14,14 +14,14 @@ export interface DiscoveryCategory {
 
 export const DISCOVERY_CATEGORIES: DiscoveryCategory[] = [
   {
-    slug: 'football',
-    title: 'Public Football Leaderboards & League Tables | LeaderboardOS',
-    description: 'Explore live public football leaderboards and league tables. Track goals, assists, and standings from amateur leagues around the world.',
-    h1: 'Football League Tables',
-    intro: 'Browse live public football leagues, tournaments, and friendly standings. Discover how other organizers are tracking their seasons.',
+    slug: 'sports',
+    title: 'Public Sports & Football Leaderboards | LeaderboardOS',
+    description: 'Explore live public sports leaderboards and league tables. Track goals, assists, and standings from amateur leagues around the world.',
+    h1: 'Sports League Tables',
+    intro: 'Browse live public sports leagues, tournaments, and friendly standings. Discover how other organizers are tracking their seasons.',
     filter: {
-      column: 'template_key',
-      value: 'football',
+      column: 'competition_type',
+      value: 'sports',
     },
     relatedTemplates: ['football-league-table'],
     relatedTools: ['football-league-table', 'league-table-generator'],
@@ -46,8 +46,8 @@ export const DISCOVERY_CATEGORIES: DiscoveryCategory[] = [
     h1: 'Basketball Standings',
     intro: 'Browse active basketball leagues and 3v3 tournaments. See how organizers keep score and track team statistics.',
     filter: {
-      column: 'template_key',
-      value: 'basketball',
+      column: 'competition_type',
+      value: 'sports',
     },
     relatedTemplates: [],
     relatedTools: ['league-table-generator'],
