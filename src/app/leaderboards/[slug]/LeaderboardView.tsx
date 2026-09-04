@@ -80,6 +80,7 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
   const qrCanvasRef = useRef<HTMLCanvasElement>(null);
   const [shareUrl, setShareUrl] = useState('');
   const [copied, setCopied] = useState(false);
+  const [embedCopied, setEmbedCopied] = useState(false);
 
   // ─── Data Loading ──────────────────────────────────────────────────────────
 
@@ -232,6 +233,14 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const copyEmbedCode = () => {
+    const host = typeof window !== 'undefined' ? window.location.origin : '';
+    const embedCode = `<iframe src="${host}/embed/${leaderboard?.slug}?theme=dark" width="100%" height="400" frameborder="0" style="border-radius: 12px; overflow: hidden; max-width: 600px; margin: 0 auto; display: block;"></iframe>`;
+    navigator.clipboard.writeText(embedCode);
+    setEmbedCopied(true);
+    setTimeout(() => setEmbedCopied(false), 2000);
+  };
+
   // ─── Render States ────────────────────────────────────────────────────────
 
   if (loading) {
@@ -294,6 +303,21 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
           >
             <Copy className="w-3 h-3" /> {copied ? 'Copied!' : 'Copy Link'}
           </button>
+        </div>
+
+        <div className="w-full mt-4 border-t border-white/5 pt-4">
+          <p className="text-[10px] text-neutral-500 mb-2">Or embed this leaderboard on your website:</p>
+          <div className="flex w-full border border-neutral-850 p-1 bg-neutral-950/65 rounded-xl text-xs gap-1.5 items-center">
+            <span className="flex-1 text-neutral-450 truncate text-[11px] px-2 text-left opacity-70">
+              &lt;iframe src="{typeof window !== 'undefined' ? window.location.origin : ''}/embed/{leaderboard?.slug}"...&gt;
+            </span>
+            <button
+              onClick={copyEmbedCode}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 rounded-lg text-[10px] font-bold text-white transition-all cursor-pointer whitespace-nowrap border border-white/10"
+            >
+              <Copy className="w-3 h-3" /> {embedCopied ? 'Copied Code!' : 'Copy Embed'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
