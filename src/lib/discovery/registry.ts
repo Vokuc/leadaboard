@@ -5,7 +5,7 @@ export interface DiscoveryCategory {
   h1: string;
   intro: string;
   filter: {
-    column: 'type' | 'template_key';
+    column: 'competition_type';
     value: string;
   };
   relatedTemplates: string[];
@@ -33,7 +33,7 @@ export const DISCOVERY_CATEGORIES: DiscoveryCategory[] = [
     h1: 'Gaming & Esports Leaderboards',
     intro: 'From local smash tournaments to global clan wars, explore how competitive gaming communities track their rankings.',
     filter: {
-      column: 'type',
+      column: 'competition_type',
       value: 'gaming',
     },
     relatedTemplates: ['gaming-tournament'],
@@ -59,7 +59,7 @@ export const DISCOVERY_CATEGORIES: DiscoveryCategory[] = [
     h1: 'Fitness Challenges',
     intro: 'Explore step challenges, weightlifting maxes, and running leaderboards. Join the community of people tracking their physical progress.',
     filter: {
-      column: 'type',
+      column: 'competition_type',
       value: 'fitness',
     },
     relatedTemplates: ['fitness-challenge'],
@@ -72,7 +72,7 @@ export const DISCOVERY_CATEGORIES: DiscoveryCategory[] = [
     h1: 'Sales & Business Leaderboards',
     intro: 'Discover public KPIs, sales races, and performance metrics. Learn how transparency drives workplace performance.',
     filter: {
-      column: 'type',
+      column: 'competition_type',
       value: 'workplace',
     },
     relatedTemplates: ['sales-leaderboard'],
@@ -85,7 +85,7 @@ export const DISCOVERY_CATEGORIES: DiscoveryCategory[] = [
     h1: 'Education Leaderboards',
     intro: 'Browse reading challenges, quiz scores, and academic competitions. Gamify the learning experience.',
     filter: {
-      column: 'type',
+      column: 'competition_type',
       value: 'education',
     },
     relatedTemplates: ['reading-challenge'],

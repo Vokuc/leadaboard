@@ -62,7 +62,7 @@ export default function LeaderboardCard({ leaderboard }: Props) {
           <span>{formattedDate}</span>
         </div>
         <div className="ml-auto flex items-center gap-1.5 px-2 py-1 rounded-md bg-violet-500/10 text-violet-400 font-medium">
-          <span className="capitalize">{leaderboard.engine.replace('_', ' ')}</span>
+          <span className="capitalize">{leaderboard.competition_type.replace('_', ' ')}</span>
         </div>
       </div>
     </Link>

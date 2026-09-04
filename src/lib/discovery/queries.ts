@@ -8,9 +8,7 @@ export interface DiscoveryLeaderboard {
   slug: string;
   name: string;
   description: string | null;
-  type: string;
-  template_key: string | null;
-  engine: string;
+  competition_type: string;
   cover_image_url: string | null;
   updated_at: string;
   rankings_count: number;
@@ -30,7 +28,7 @@ export async function getPublicLeaderboards(
 
   let query = supabase
     .from('leaderboards')
-    .select('id, slug, name, description, type, template_key, engine, cover_image_url, updated_at, rankings:leaderboard_rankings(count)', { count: 'exact' })
+    .select('id, slug, name, description, competition_type, cover_image_url, updated_at, rankings:leaderboard_rankings(count)', { count: 'exact' })
     .eq('visibility', 'public')
     .eq('status', 'active');
 
@@ -58,9 +56,7 @@ export async function getPublicLeaderboards(
     slug: lb.slug,
     name: lb.name,
     description: lb.description,
-    type: lb.type,
-    template_key: lb.template_key,
-    engine: lb.engine,
+    competition_type: lb.competition_type,
     cover_image_url: lb.cover_image_url,
     updated_at: lb.updated_at,
     // @ts-ignore - Supabase join count is returned as an array in PostgREST but TS typing can be tricky
