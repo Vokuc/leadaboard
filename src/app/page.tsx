@@ -373,18 +373,23 @@ export default function LandingPage() {
               </div>
               {/* Embed representation */}
               <div className="p-4 bg-[#0a0a0a] min-h-[280px] flex flex-col gap-3 relative rounded-b-xl border border-white/5 border-t-0">
-                <div className="w-2/3 h-4 bg-neutral-800/50 rounded animate-pulse" />
-                <div className="w-1/3 h-3 bg-neutral-800/50 rounded animate-pulse mb-3" />
+                <div className="text-white font-bold text-sm">Monthly Global Standings</div>
+                <div className="text-neutral-500 text-[10px] mb-2">Season 4 • Top Competitors</div>
                 
                 {/* Simulated rows */}
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="flex items-center justify-between p-2.5 rounded-lg bg-neutral-900/50 border border-white/5 transform transition-transform duration-1000 group-hover:translate-x-2" style={{ transitionDelay: `${i * 50}ms` }}>
+                {[
+                  { rank: 1, name: 'AlexTheGreat', points: 1450, seed: 'alex' },
+                  { rank: 2, name: 'SarahSniper', points: 1320, seed: 'sarah' },
+                  { rank: 3, name: 'JordanPro', points: 1150, seed: 'jordan' },
+                  { rank: 4, name: 'CaseyWins', points: 980, seed: 'casey' },
+                ].map((player, i) => (
+                  <div key={player.rank} className="flex items-center justify-between p-2.5 rounded-lg bg-neutral-900/50 border border-white/5 transform transition-transform duration-1000 group-hover:translate-x-2" style={{ transitionDelay: `${i * 50}ms` }}>
                     <div className="flex items-center gap-3">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${i === 1 ? 'bg-amber-500/20 text-amber-500 border border-amber-500/20' : 'bg-neutral-800 text-neutral-500'}`}>{i}</div>
-                      <div className="w-6 h-6 rounded bg-neutral-800/80" />
-                      <div className="w-20 h-2.5 bg-neutral-700/50 rounded" />
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${player.rank === 1 ? 'bg-amber-500/20 text-amber-500 border border-amber-500/20' : player.rank === 2 ? 'bg-neutral-300/20 text-neutral-300 border border-neutral-300/20' : player.rank === 3 ? 'bg-amber-700/20 text-amber-600 border border-amber-700/20' : 'bg-neutral-800 text-neutral-500'}`}>{player.rank}</div>
+                      <img src={`https://api.dicebear.com/7.x/identicon/svg?seed=${player.seed}`} alt={player.name} className="w-6 h-6 rounded border border-white/10" />
+                      <div className="text-[10px] font-bold text-neutral-200">{player.name}</div>
                     </div>
-                    <div className="w-10 h-3 bg-violet-900/50 rounded" />
+                    <div className="text-[10px] font-extrabold text-white">{player.points.toLocaleString()} pts</div>
                   </div>
                 ))}
                 
