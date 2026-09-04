@@ -3,6 +3,7 @@ import { isSupabaseServerConfigured } from '@/lib/supabase/server';
 import { canIndexLeaderboard } from '@/lib/seo/indexing';
 import { createClient } from '@supabase/supabase-js';
 import { MARKETPLACE_TEMPLATES } from '@/lib/templates/marketplace';
+import { DISCOVERY_CATEGORIES } from '@/lib/discovery/registry';
 
 // Cache sitemap requests for 24 hours to prevent database overload
 export const revalidate = 86400;
@@ -51,6 +52,13 @@ export default async function sitemap({ id }: { id: number }): Promise<MetadataR
       url: `${BASE_URL}/templates/${template.slug}`,
       lastModified: new Date(),
       changeFrequency: 'weekly' as const,
+      priority: 0.8,
+    })),
+    { url: `${BASE_URL}/directory`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.9 },
+    ...DISCOVERY_CATEGORIES.map(category => ({
+      url: `${BASE_URL}/directory/${category.slug}`,
+      lastModified: new Date(),
+      changeFrequency: 'daily' as const,
       priority: 0.8,
     })),
   ] : [];
