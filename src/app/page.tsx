@@ -336,6 +336,74 @@ export default function LandingPage() {
         </div>
       </section>
 
+      <section id="embed" className="relative z-10 py-20 px-6 md:px-12 max-w-5xl mx-auto w-full">
+        <div className="flex flex-col md:flex-row items-center gap-12">
+          {/* Text Content */}
+          <div className="flex-1 text-center md:text-left">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-400 text-xs font-semibold mb-6">
+              <Code className="w-3.5 h-3.5" /> Widget System
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Embed Anywhere</h2>
+            <p className="mt-4 text-neutral-400 leading-relaxed max-w-xl mx-auto md:mx-0">
+              Take your leaderboard beyond the platform. Generate a lightweight, secure iframe snippet and embed your live standings directly into your website, blog, or community portal.
+            </p>
+            <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
+              <Link
+                href={profile ? '/dashboard/create' : '/login?next=%2Fdashboard%2Fcreate'}
+                className="px-6 py-3 bg-neutral-900 border border-neutral-800 hover:border-neutral-700 font-semibold rounded-xl flex items-center justify-center gap-2 transition-all text-sm shadow-xl"
+              >
+                Create a Leaderboard to Embed
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+          
+          {/* Animated Visual */}
+          <div className="flex-1 w-full max-w-md relative">
+            <div className="absolute inset-0 bg-gradient-to-tr from-violet-600/20 to-cyan-400/20 rounded-3xl blur-2xl animate-pulse pointer-events-none" />
+            <div className="glass-premium border-white/10 rounded-2xl p-2 relative shadow-2xl overflow-hidden group hover:scale-[1.02] transition-transform duration-500">
+              {/* Fake browser header */}
+              <div className="flex items-center gap-1.5 px-3 py-2 border-b border-white/5 bg-black/40 rounded-t-xl">
+                <div className="w-2 h-2 rounded-full bg-red-500/80" />
+                <div className="w-2 h-2 rounded-full bg-yellow-500/80" />
+                <div className="w-2 h-2 rounded-full bg-green-500/80" />
+                <div className="ml-2 px-2 py-0.5 rounded-md bg-white/5 text-[9px] text-neutral-500 font-mono flex-1">
+                  yoursite.com/rankings
+                </div>
+              </div>
+              {/* Embed representation */}
+              <div className="p-4 bg-[#0a0a0a] min-h-[280px] flex flex-col gap-3 relative rounded-b-xl border border-white/5 border-t-0">
+                <div className="text-white font-bold text-sm">Monthly Global Standings</div>
+                <div className="text-neutral-500 text-[10px] mb-2">Season 4 • Top Competitors</div>
+                
+                {/* Simulated rows */}
+                {[
+                  { rank: 1, name: 'AlexTheGreat', points: 1450, seed: 'alex' },
+                  { rank: 2, name: 'SarahSniper', points: 1320, seed: 'sarah' },
+                  { rank: 3, name: 'JordanPro', points: 1150, seed: 'jordan' },
+                  { rank: 4, name: 'CaseyWins', points: 980, seed: 'casey' },
+                ].map((player, i) => (
+                  <div key={player.rank} className="flex items-center justify-between p-2.5 rounded-lg bg-neutral-900/50 border border-white/5 transform transition-transform duration-1000 group-hover:translate-x-2" style={{ transitionDelay: `${i * 50}ms` }}>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${player.rank === 1 ? 'bg-amber-500/20 text-amber-500 border border-amber-500/20' : player.rank === 2 ? 'bg-neutral-300/20 text-neutral-300 border border-neutral-300/20' : player.rank === 3 ? 'bg-amber-700/20 text-amber-600 border border-amber-700/20' : 'bg-neutral-800 text-neutral-500'}`}>{player.rank}</div>
+                      <img src={`https://api.dicebear.com/7.x/identicon/svg?seed=${player.seed}`} alt={player.name} className="w-6 h-6 rounded border border-white/10" />
+                      <div className="text-[10px] font-bold text-neutral-200">{player.name}</div>
+                    </div>
+                    <div className="text-[10px] font-extrabold text-white">{player.points.toLocaleString()} pts</div>
+                  </div>
+                ))}
+                
+                {/* Floating embed snippet */}
+                <div className="absolute -bottom-2 -right-2 md:-right-6 glass-premium px-3 py-2 rounded-xl border-violet-500/30 text-[10px] font-mono text-violet-300 shadow-2xl shadow-violet-900/40 animate-bounce flex items-center gap-2">
+                  <Code className="w-3 h-3 text-violet-400" />
+                  &lt;iframe src="..." /&gt;
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section id="features" className="relative z-10 py-20 px-6 md:px-12 max-w-5xl mx-auto w-full">
         <div className="text-center mb-16">
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Engineered for Competitions</h2>

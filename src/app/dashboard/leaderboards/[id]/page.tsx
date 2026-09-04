@@ -22,7 +22,8 @@ import {
   Search,
   ShieldAlert,
   Crown,
-  UserMinus
+  UserMinus,
+  Code
 } from 'lucide-react';
 import Link from 'next/link';
 import QRCode from 'qrcode';
@@ -62,7 +63,9 @@ export default function LeaderboardManagementPage() {
   const [coverUploading, setCoverUploading] = useState(false);
 
   // Layout Tab
-  const [activeTab, setActiveTab] = useState<'overview' | 'players' | 'scores' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'players' | 'scores' | 'settings' | 'integrations'>('overview');
+  const [showEmbedModal, setShowEmbedModal] = useState(false);
+  const [embedCopied, setEmbedCopied] = useState(false);
 
   // QR Code Canvas Ref
   const qrCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -608,7 +611,13 @@ export default function LeaderboardManagementPage() {
               <h1 className="text-2xl font-bold tracking-tight text-white">{leaderboard.name}</h1>
               <p className="text-xs text-neutral-400 mt-1 max-w-xl">{leaderboard.description || 'No description supplied.'}</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2 justify-end">
+              <button
+                onClick={() => setShowEmbedModal(true)}
+                className="flex items-center gap-1.5 px-3 py-2 border border-neutral-800 hover:border-neutral-700 bg-neutral-900 rounded-xl text-xs font-semibold text-neutral-300 hover:text-white transition-all cursor-pointer"
+              >
+                <Code className="w-3.5 h-3.5" /> <span className="hidden md:inline">Embed</span>
+              </button>
               <button
                 onClick={copyPublicLink}
                 className="flex items-center gap-1.5 px-3 py-2 border border-neutral-800 hover:border-neutral-700 bg-neutral-900 rounded-xl text-xs font-semibold text-neutral-300 hover:text-white transition-all cursor-pointer"
@@ -676,7 +685,13 @@ export default function LeaderboardManagementPage() {
               <h1 className="text-2xl font-bold tracking-tight text-white">{leaderboard.name}</h1>
               <p className="text-xs text-neutral-400 mt-1 max-w-xl">{leaderboard.description || 'No description supplied.'}</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2 justify-end">
+              <button
+                onClick={() => setShowEmbedModal(true)}
+                className="flex items-center gap-1.5 px-3 py-2 border border-neutral-800 hover:border-neutral-700 bg-neutral-900 rounded-xl text-xs font-semibold text-neutral-300 hover:text-white transition-all cursor-pointer"
+              >
+                <Code className="w-3.5 h-3.5" /> <span className="hidden md:inline">Embed</span>
+              </button>
               <button
                 onClick={copyPublicLink}
                 className="flex items-center gap-1.5 px-3 py-2 border border-neutral-800 hover:border-neutral-700 bg-neutral-900 rounded-xl text-xs font-semibold text-neutral-300 hover:text-white transition-all cursor-pointer"
@@ -750,7 +765,13 @@ export default function LeaderboardManagementPage() {
             <p className="text-xs text-neutral-400 mt-1 max-w-xl">{leaderboard?.description || 'No description supplied.'}</p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 justify-end">
+            <button
+              onClick={() => setShowEmbedModal(true)}
+              className="flex items-center gap-1.5 px-3 py-2 border border-neutral-800 hover:border-neutral-700 bg-neutral-900 rounded-xl text-xs font-semibold text-neutral-300 hover:text-white transition-all cursor-pointer"
+            >
+              <Code className="w-3.5 h-3.5" /> <span className="hidden md:inline">Embed</span>
+            </button>
             <button
               onClick={copyPublicLink}
               className="flex items-center gap-1.5 px-3 py-2 border border-neutral-800 hover:border-neutral-700 bg-neutral-900 rounded-xl text-xs font-semibold text-neutral-300 hover:text-white transition-all cursor-pointer"
@@ -769,8 +790,8 @@ export default function LeaderboardManagementPage() {
         </div>
 
         {/* Tab selection */}
-        <div className="flex border-b border-neutral-850 p-1 bg-neutral-900/40 rounded-2xl border mb-8 max-w-md">
-          {(['overview', 'players', 'scores', 'settings'] as const).map((tab) => (
+        <div className="flex border-b border-neutral-850 p-1 bg-neutral-900/40 rounded-2xl border mb-8 overflow-x-auto custom-scrollbar">
+          {(['overview', 'players', 'scores', 'settings', 'integrations'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -1388,7 +1409,87 @@ export default function LeaderboardManagementPage() {
             )}
           </div>
         )}
+        {/* ==========================================
+            TAB CONTENT: INTEGRATIONS
+            ========================================== */}
+        {activeTab === 'integrations' && (
+          <div className="space-y-6">
+            <div className="glass p-6 rounded-2xl border-white/5 shadow-xl">
+              <h2 className="text-xl font-bold mb-2 flex items-center gap-2">
+                <Code className="w-5 h-5 text-violet-400" /> Embed Widget
+              </h2>
+              <p className="text-sm text-neutral-400 mb-6">
+                Display this leaderboard on your own website, blog, or community portal.
+              </p>
+              
+              <div className="bg-black/50 border border-neutral-800 p-4 rounded-xl mb-6 relative">
+                <p className="text-[10px] text-neutral-500 mb-2 uppercase tracking-wider font-bold">Copy iframe code</p>
+                <code className="text-[11px] text-neutral-300 font-mono break-all block w-full bg-transparent border-none p-0">
+                  {`<iframe src="${publicUrl ? publicUrl.replace('/leaderboards/', '/embed/') : ''}?theme=dark" width="100%" height="400" frameborder="0" style="border-radius: 12px; overflow: hidden; max-width: 600px; margin: 0 auto; display: block;"></iframe>`}
+                </code>
+                <button
+                  onClick={() => {
+                    const host = typeof window !== 'undefined' ? window.location.origin : '';
+                    const embedCode = `<iframe src="${host}/embed/${leaderboard?.slug}?theme=dark" width="100%" height="400" frameborder="0" style="border-radius: 12px; overflow: hidden; max-width: 600px; margin: 0 auto; display: block;"></iframe>`;
+                    navigator.clipboard.writeText(embedCode);
+                    setEmbedCopied(true);
+                    setTimeout(() => setEmbedCopied(false), 2000);
+                  }}
+                  className="absolute top-4 right-4 px-3 py-1.5 bg-violet-600 hover:bg-violet-500 rounded-lg text-[10px] font-bold text-white transition-all cursor-pointer glow-primary"
+                >
+                  {embedCopied ? 'Copied!' : 'Copy Code'}
+                </button>
+              </div>
+
+              <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-4 flex gap-3 items-start">
+                <AlertCircle className="w-5 h-5 text-violet-400 shrink-0" />
+                <p className="text-xs text-violet-200 leading-relaxed">
+                  <strong>Tip:</strong> You can append <code className="text-[10px] bg-black/40 px-1 py-0.5 rounded">?theme=light</code> to the URL in the iframe code if you want a light mode widget instead.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
       </main>
+
+      {/* Embed Modal */}
+      {showEmbedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="glass-premium border-white/10 p-6 rounded-2xl shadow-2xl max-w-md w-full relative">
+            <h3 className="text-lg font-bold mb-2">Embed Widget</h3>
+            <p className="text-xs text-neutral-400 mb-6">Copy this code into your website's HTML to display a live leaderboard widget.</p>
+            
+            <div className="bg-black/50 border border-neutral-800 p-3 rounded-xl mb-6">
+              <code className="text-[11px] text-neutral-300 font-mono break-all">
+                {`<iframe src="${publicUrl ? publicUrl.replace('/leaderboards/', '/embed/') : ''}?theme=dark" width="100%" height="400" frameborder="0" style="border-radius: 12px; overflow: hidden; max-width: 600px; margin: 0 auto; display: block;"></iframe>`}
+              </code>
+            </div>
+
+            <div className="flex gap-3 w-full">
+              <button
+                onClick={() => setShowEmbedModal(false)}
+                className="flex-1 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-xs font-semibold rounded-xl text-white transition-all cursor-pointer"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  const host = typeof window !== 'undefined' ? window.location.origin : '';
+                  const embedCode = `<iframe src="${host}/embed/${leaderboard?.slug}?theme=dark" width="100%" height="400" frameborder="0" style="border-radius: 12px; overflow: hidden; max-width: 600px; margin: 0 auto; display: block;"></iframe>`;
+                  navigator.clipboard.writeText(embedCode);
+                  setEmbedCopied(true);
+                  setTimeout(() => setEmbedCopied(false), 2000);
+                }}
+                className="flex-1 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-xs font-semibold rounded-xl text-white transition-all cursor-pointer"
+              >
+                {embedCopied ? 'Copied!' : 'Copy Code'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
