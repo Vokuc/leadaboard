@@ -17,8 +17,9 @@ export function generateStaticParams() {
 }
 
 // Generate dynamic metadata for each page
-export function generateMetadata({ params }: { params: { slug: string } }): Metadata {
-  const content = seoContent[params.slug];
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const content = seoContent[slug];
   
   if (!content) {
     return {
@@ -40,8 +41,9 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
   };
 }
 
-export default function SeoLandingPage({ params }: { params: { slug: string } }) {
-  const content = seoContent[params.slug];
+export default async function SeoLandingPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const content = seoContent[slug];
 
   // Safely 404 if the slug isn't explicitly defined in our content registry
   if (!content) {
