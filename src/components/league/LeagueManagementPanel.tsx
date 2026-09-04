@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Activity, ArrowUpRight, Calendar, ImageUp, Plus, Save, Shield, Swords, Trophy, Upload, Users } from 'lucide-react';
+import { Activity, ArrowUpRight, Calendar, ImageUp, Plus, Save, Shield, Swords, Trophy, Upload, Users, Code, AlertCircle } from 'lucide-react';
 import { DatabaseService } from '@/lib/db';
 import { getCompetitionTemplate } from '@/lib/competition/templates';
 import { LeagueService } from '@/lib/league/service';
@@ -10,7 +10,7 @@ import { CompetitionConfig, CompetitionStatistic, Fixture, Leaderboard, Leaderbo
 import SafeImage from '@/components/SafeImage';
 import { uploadImageAsset } from '@/lib/image-upload';
 
-type TabKey = 'overview' | 'standings' | 'fixtures' | 'teams' | 'settings';
+type TabKey = 'overview' | 'standings' | 'fixtures' | 'teams' | 'settings' | 'integrations';
 
 interface LeagueManagementPanelProps {
   leaderboard: Leaderboard;
@@ -49,6 +49,7 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
   const [teamLogoUrl, setTeamLogoUrl] = useState('');
   const [teamLogoUploading, setTeamLogoUploading] = useState(false);
   const [teamLogoUpdatingId, setTeamLogoUpdatingId] = useState<string | null>(null);
+  const [embedCopied, setEmbedCopied] = useState(false);
 
   const [homeMemberId, setHomeMemberId] = useState('');
   const [awayMemberId, setAwayMemberId] = useState('');
@@ -288,8 +289,8 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
         </div>
       </div>
 
-      <div className="flex max-w-2xl gap-2 rounded-2xl border border-neutral-850 bg-neutral-900/40 p-1">
-        {(['overview', 'standings', 'fixtures', 'teams', 'settings'] as const).map((tab) => (
+      <div className="flex max-w-3xl gap-2 rounded-2xl border border-neutral-850 bg-neutral-900/40 p-1 overflow-x-auto custom-scrollbar">
+        {(['overview', 'standings', 'fixtures', 'teams', 'settings', 'integrations'] as const).map((tab) => (
           <button
             key={tab}
             type="button"
@@ -568,6 +569,43 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
             </button>
           </div>
         </form>
+      )}
+
+      {activeTab === 'integrations' && (
+        <div className="glass p-6 rounded-2xl border-white/5 shadow-xl">
+          <h2 className="text-xl font-bold mb-2 flex items-center gap-2">
+            <Code className="w-5 h-5 text-violet-400" /> Embed Widget
+          </h2>
+          <p className="text-sm text-neutral-400 mb-6">
+            Display this league table on your own website, blog, or community portal.
+          </p>
+          
+          <div className="bg-black/50 border border-neutral-800 p-4 rounded-xl mb-6 relative">
+            <p className="text-[10px] text-neutral-500 mb-2 uppercase tracking-wider font-bold">Copy iframe code</p>
+            <code className="text-[11px] text-neutral-300 font-mono break-all block w-full bg-transparent border-none p-0">
+              {`<iframe src="${typeof window !== 'undefined' ? window.location.origin : ''}/embed/${leaderboard?.slug}?theme=dark" width="100%" height="400" frameborder="0" style="border-radius: 12px; overflow: hidden; max-width: 600px; margin: 0 auto; display: block;"></iframe>`}
+            </code>
+            <button
+              onClick={() => {
+                const host = typeof window !== 'undefined' ? window.location.origin : '';
+                const embedCode = `<iframe src="${host}/embed/${leaderboard?.slug}?theme=dark" width="100%" height="400" frameborder="0" style="border-radius: 12px; overflow: hidden; max-width: 600px; margin: 0 auto; display: block;"></iframe>`;
+                navigator.clipboard.writeText(embedCode);
+                setEmbedCopied(true);
+                setTimeout(() => setEmbedCopied(false), 2000);
+              }}
+              className="absolute top-4 right-4 px-3 py-1.5 bg-violet-600 hover:bg-violet-500 rounded-lg text-[10px] font-bold text-white transition-all cursor-pointer glow-primary"
+            >
+              {embedCopied ? 'Copied!' : 'Copy Code'}
+            </button>
+          </div>
+
+          <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-4 flex gap-3 items-start">
+            <AlertCircle className="w-5 h-5 text-violet-400 shrink-0" />
+            <p className="text-xs text-violet-200 leading-relaxed">
+              <strong>Tip:</strong> You can append <code className="text-[10px] bg-black/40 px-1 py-0.5 rounded">?theme=light</code> to the URL in the iframe code if you want a light mode widget instead.
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -1425,7 +1425,7 @@ export default function LeaderboardManagementPage() {
               <div className="bg-black/50 border border-neutral-800 p-4 rounded-xl mb-6 relative">
                 <p className="text-[10px] text-neutral-500 mb-2 uppercase tracking-wider font-bold">Copy iframe code</p>
                 <code className="text-[11px] text-neutral-300 font-mono break-all block w-full bg-transparent border-none p-0">
-                  &lt;iframe src="{publicUrl ? publicUrl.replace('/leaderboards/', '/embed/') : ''}?theme=dark" width="100%" height="400" frameborder="0" style="border-radius: 12px; overflow: hidden; max-width: 600px; margin: 0 auto; display: block;"&gt;&lt;/iframe&gt;
+                  {`<iframe src="${publicUrl ? publicUrl.replace('/leaderboards/', '/embed/') : ''}?theme=dark" width="100%" height="400" frameborder="0" style="border-radius: 12px; overflow: hidden; max-width: 600px; margin: 0 auto; display: block;"></iframe>`}
                 </code>
                 <button
                   onClick={() => {
@@ -1462,7 +1462,7 @@ export default function LeaderboardManagementPage() {
             
             <div className="bg-black/50 border border-neutral-800 p-3 rounded-xl mb-6">
               <code className="text-[11px] text-neutral-300 font-mono break-all">
-                &lt;iframe src="{publicUrl ? publicUrl.replace('/leaderboards/', '/embed/') : ''}?theme=dark" width="100%" height="400" frameborder="0" style="border-radius: 12px; overflow: hidden; max-width: 600px; margin: 0 auto; display: block;"&gt;&lt;/iframe&gt;
+                {`<iframe src="${publicUrl ? publicUrl.replace('/leaderboards/', '/embed/') : ''}?theme=dark" width="100%" height="400" frameborder="0" style="border-radius: 12px; overflow: hidden; max-width: 600px; margin: 0 auto; display: block;"></iframe>`}
               </code>
             </div>
 

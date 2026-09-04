@@ -271,7 +271,7 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
 
   // ─── Share Modal (shared across engine types) ──────────────────────────────
 
-  const ShareModal = ({ title }: { title: string }) => (
+  const renderShareModal = (title: string) => (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="absolute inset-0" onClick={() => setShowShareModal(false)} />
 
@@ -309,7 +309,7 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
           <p className="text-[10px] text-neutral-500 mb-2">Or embed this leaderboard on your website:</p>
           <div className="flex w-full border border-neutral-850 p-1 bg-neutral-950/65 rounded-xl text-xs gap-1.5 items-center">
             <span className="flex-1 text-neutral-450 truncate text-[11px] px-2 text-left opacity-70">
-              &lt;iframe src="{typeof window !== 'undefined' ? window.location.origin : ''}/embed/{leaderboard?.slug}"...&gt;
+              {`<iframe src="${typeof window !== 'undefined' ? window.location.origin : ''}/embed/${leaderboard?.slug}"...>`}
             </span>
             <button
               onClick={copyEmbedCode}
@@ -367,7 +367,7 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
           <LeaguePublicView leaderboard={leaderboard} competitionConfig={competitionConfig} />
         </main>
 
-        {showShareModal && <ShareModal title="Share League" />}
+        {showShareModal && renderShareModal("Share League")}
       </div>
     );
   }
@@ -419,7 +419,7 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
           <TournamentPublicView leaderboard={leaderboard} competitionConfig={competitionConfig} />
         </main>
 
-        {showShareModal && <ShareModal title="Share Tournament" />}
+        {showShareModal && renderShareModal("Share Tournament")}
       </div>
     );
   }
@@ -931,7 +931,7 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
       )}
 
       {/* MODAL: SHARING QR & LINKS */}
-      {showShareModal && <ShareModal title="Share Leaderboard" />}
+      {showShareModal && renderShareModal("Share League")}
     </div>
   );
 }
