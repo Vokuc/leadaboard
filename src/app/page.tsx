@@ -178,6 +178,7 @@ export default function LandingPage() {
           <a href="#features" className="hover:text-white transition-colors">Features</a>
           <a href="#preview" className="hover:text-white transition-colors">Interactive Preview</a>
           <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
+          <Link href="/directory" className="hover:text-white transition-colors">Discover</Link>
           <Link href="/templates" className="hover:text-white transition-colors">Templates</Link>
           <Link href="/tools" className="hover:text-white transition-colors">Free Tools</Link>
         </nav>
@@ -487,9 +488,12 @@ export default function LandingPage() {
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-6">
           <div className="flex gap-4 sm:gap-6 flex-wrap justify-center">
+            <Link href="/how-to-play" className="hover:text-neutral-300">How to Play</Link>
+            <Link href="/directory" className="hover:text-neutral-300">Discover</Link>
+            <Link href="/templates" className="hover:text-neutral-300">Templates</Link>
+            <Link href="/tools" className="hover:text-neutral-300">Free Tools</Link>
             <a href="#" className="hover:text-neutral-300">Terms of Service</a>
             <a href="#" className="hover:text-neutral-300">Privacy Policy</a>
-            <Link href="/how-to-play" className="hover:text-neutral-300">How to Play</Link>
             <a href="mailto:support@leaderboardos.com" className="hover:text-neutral-300">Support</a>
           </div>
           <div className="h-4 w-px bg-white/10 hidden sm:block" />
