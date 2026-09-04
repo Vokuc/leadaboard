@@ -22,7 +22,8 @@ import {
   Search,
   ShieldAlert,
   Crown,
-  UserMinus
+  UserMinus,
+  Code
 } from 'lucide-react';
 import Link from 'next/link';
 import QRCode from 'qrcode';
