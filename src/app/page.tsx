@@ -173,13 +173,13 @@ export default function LandingPage() {
       <div className="absolute top-[-10%] right-[-10%] w-[550px] h-[550px] rounded-full bg-violet-600/10 blur-[130px] animate-pulse-glow pointer-events-none" />
       <div className="absolute bottom-[20%] left-[-15%] w-[full] md:w-[650px] max-w-[350px] md:max-w-[650px] h-[650px] rounded-full bg-indigo-600/10 blur-[140px] pointer-events-none overflow-x-hidden" />
 
-      <header className="sticky top-0 z-50 glass border-b border-white/5 py-4 px-6 md:px-12 flex justify-between items-center">
-        <div className="flex items-center gap-4">
+      <header className="sticky top-0 z-50 glass border-b border-white/5 py-4 px-4 sm:px-6 md:px-12 flex justify-between items-center">
+        <div className="flex items-center gap-3 sm:gap-4">
           <button 
             className="lg:hidden text-neutral-400 hover:text-white"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
-            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {isMobileMenuOpen ? <X className="w-5 h-5 sm:w-6 sm:h-6" /> : <Menu className="w-5 h-5 sm:w-6 sm:h-6" />}
           </button>
           <Link href="/" onClick={() => setIsMobileMenuOpen(false)}>
             <Logo />
