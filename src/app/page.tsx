@@ -188,9 +188,9 @@ export default function LandingPage() {
 
         <nav className="hidden lg:flex items-center gap-6 text-sm text-neutral-400">
           <a href="#features" className="hover:text-white transition-colors">Features</a>
-          <a href="#preview" className="hover:text-white transition-colors">Interactive Preview</a>
           <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
           <Link href="/directory" className="hover:text-white transition-colors">Discover</Link>
+          <Link href="/blog" className="hover:text-white transition-colors">Blog</Link>
           <Link href="/templates" className="hover:text-white transition-colors">Templates</Link>
           <Link href="/tools" className="hover:text-white transition-colors">Free Tools</Link>
         </nav>
@@ -212,9 +212,9 @@ export default function LandingPage() {
         <div className="fixed inset-0 top-[73px] z-40 bg-black/95 backdrop-blur-xl lg:hidden flex flex-col p-6 border-t border-white/10">
           <nav className="flex flex-col gap-6 text-lg font-medium text-neutral-300">
             <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-white transition-colors border-b border-white/5 pb-4">Features</a>
-            <a href="#preview" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-white transition-colors border-b border-white/5 pb-4">Interactive Preview</a>
             <a href="#pricing" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-white transition-colors border-b border-white/5 pb-4">Pricing</a>
             <Link href="/directory" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-white transition-colors border-b border-white/5 pb-4">Discover</Link>
+            <Link href="/blog" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-white transition-colors border-b border-white/5 pb-4">Blog</Link>
             <Link href="/templates" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-white transition-colors border-b border-white/5 pb-4">Templates</Link>
             <Link href="/tools" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-white transition-colors border-b border-white/5 pb-4">Free Tools</Link>
           </nav>
