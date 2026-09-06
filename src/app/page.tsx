@@ -198,9 +198,10 @@ export default function LandingPage() {
         <div>
           <Link
             href={profile ? '/dashboard' : '/login'}
-            className="flex items-center gap-2 px-3 py-2 md:px-4 border border-violet-500/30 hover:border-violet-500 bg-violet-600/10 hover:bg-violet-600 text-xs md:text-sm font-semibold rounded-xl text-violet-100 hover:text-white transition-all cursor-pointer glow-primary whitespace-nowrap"
+            className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 border border-violet-500/30 hover:border-violet-500 bg-violet-600/10 hover:bg-violet-600 text-[11px] sm:text-xs md:text-sm font-semibold rounded-lg sm:rounded-xl text-violet-100 hover:text-white transition-all cursor-pointer glow-primary whitespace-nowrap"
           >
-            {profile ? 'Go to Dashboard' : 'Launch Console'}
+            <span className="hidden sm:inline">{profile ? 'Go to Dashboard' : 'Launch Console'}</span>
+            <span className="sm:hidden">{profile ? 'Dashboard' : 'Console'}</span>
             <ArrowRight className="w-3 h-3 md:w-4 md:h-4" />
           </Link>
         </div>
