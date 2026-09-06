@@ -18,6 +18,8 @@ import {
   Gamepad2,
   Activity,
   Briefcase,
+  Menu,
+  X,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import SafeImage from '@/components/SafeImage';
@@ -149,6 +151,8 @@ export default function LandingPage() {
     };
   }, []);
 
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   const previewData = useMemo(() => {
     return {
       gaming: { ...basePreviewData.gaming, ...(previewOverrides.gaming || {}) },
@@ -170,11 +174,19 @@ export default function LandingPage() {
       <div className="absolute bottom-[20%] left-[-15%] w-[full] md:w-[650px] max-w-[350px] md:max-w-[650px] h-[650px] rounded-full bg-indigo-600/10 blur-[140px] pointer-events-none overflow-x-hidden" />
 
       <header className="sticky top-0 z-50 glass border-b border-white/5 py-4 px-6 md:px-12 flex justify-between items-center">
-        <Link href="/">
-          <Logo />
-        </Link>
+        <div className="flex items-center gap-4">
+          <button 
+            className="lg:hidden text-neutral-400 hover:text-white"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          >
+            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+          <Link href="/" onClick={() => setIsMobileMenuOpen(false)}>
+            <Logo />
+          </Link>
+        </div>
 
-        <nav className="hidden md:flex items-center gap-6 text-sm text-neutral-400">
+        <nav className="hidden lg:flex items-center gap-6 text-sm text-neutral-400">
           <a href="#features" className="hover:text-white transition-colors">Features</a>
           <a href="#preview" className="hover:text-white transition-colors">Interactive Preview</a>
           <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
@@ -186,13 +198,28 @@ export default function LandingPage() {
         <div>
           <Link
             href={profile ? '/dashboard' : '/login'}
-            className="flex items-center gap-2 px-4 py-2 border border-violet-500/30 hover:border-violet-500 bg-violet-600/10 hover:bg-violet-600 text-sm font-semibold rounded-xl text-violet-100 hover:text-white transition-all cursor-pointer glow-primary"
+            className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 border border-violet-500/30 hover:border-violet-500 bg-violet-600/10 hover:bg-violet-600 text-[11px] sm:text-xs md:text-sm font-semibold rounded-lg sm:rounded-xl text-violet-100 hover:text-white transition-all cursor-pointer glow-primary whitespace-nowrap"
           >
-            {profile ? 'Go to Dashboard' : 'Launch Console'}
-            <ArrowRight className="w-4 h-4" />
+            <span className="hidden sm:inline">{profile ? 'Go to Dashboard' : 'Launch Console'}</span>
+            <span className="sm:hidden">{profile ? 'Dashboard' : 'Console'}</span>
+            <ArrowRight className="w-3 h-3 md:w-4 md:h-4" />
           </Link>
         </div>
       </header>
+
+      {/* Mobile Navigation Menu */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 top-[73px] z-40 bg-black/95 backdrop-blur-xl lg:hidden flex flex-col p-6 border-t border-white/10">
+          <nav className="flex flex-col gap-6 text-lg font-medium text-neutral-300">
+            <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-white transition-colors border-b border-white/5 pb-4">Features</a>
+            <a href="#preview" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-white transition-colors border-b border-white/5 pb-4">Interactive Preview</a>
+            <a href="#pricing" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-white transition-colors border-b border-white/5 pb-4">Pricing</a>
+            <Link href="/directory" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-white transition-colors border-b border-white/5 pb-4">Discover</Link>
+            <Link href="/templates" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-white transition-colors border-b border-white/5 pb-4">Templates</Link>
+            <Link href="/tools" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-white transition-colors border-b border-white/5 pb-4">Free Tools</Link>
+          </nav>
+        </div>
+      )}
 
       <section className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-6 py-20 md:py-32 max-w-5xl mx-auto">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-400 text-xs font-semibold mb-6">
