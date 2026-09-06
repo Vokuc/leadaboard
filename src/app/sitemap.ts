@@ -4,6 +4,7 @@ import { canIndexLeaderboard } from '@/lib/seo/indexing';
 import { createClient } from '@supabase/supabase-js';
 import { MARKETPLACE_TEMPLATES } from '@/lib/templates/marketplace';
 import { DISCOVERY_CATEGORIES } from '@/lib/discovery/registry';
+import { seoContent } from '@/lib/seo/content';
 
 // Cache sitemap requests for 24 hours to prevent database overload
 export const revalidate = 86400;
@@ -59,6 +60,12 @@ export default async function sitemap({ id }: { id: number }): Promise<MetadataR
       url: `${BASE_URL}/directory/${category.slug}`,
       lastModified: new Date(),
       changeFrequency: 'daily' as const,
+      priority: 0.8,
+    })),
+    ...Object.keys(seoContent).map(slug => ({
+      url: `${BASE_URL}/${slug}`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly' as const,
       priority: 0.8,
     })),
   ] : [];
