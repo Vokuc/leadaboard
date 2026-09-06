@@ -312,5 +312,166 @@ export const seoContent: Record<string, SeoPageContent> = {
       { question: 'How are ties broken?', answer: 'By default, we use Goal Difference, then Goals Scored, but this is customizable.' }
     ],
     relatedCategory: 'sports'
+  },
+  'free-tournament-bracket-maker': {
+    slug: 'free-tournament-bracket-maker',
+    title: 'Free Tournament Bracket Maker | LeaderboardOS',
+    metaDescription: 'Create single and double elimination tournament brackets for free. Easy to share and update live.',
+    h1: 'Free Tournament Bracket Maker',
+    subtitle: 'Quickly generate a bracket for your gaming tournament, sports event, or pub game with zero friction.',
+    benefits: [
+      { title: '100% Free to Start', description: 'Create your first brackets completely free with no hidden fees.' },
+      { title: 'Instantly Shareable', description: 'Send a link to participants so they can view the live bracket.' },
+      { title: 'No Coding Needed', description: 'Visual drag-and-drop tools to manage your tournament.' }
+    ],
+    features: [
+      { title: 'Auto-Advancing', description: 'Winners automatically move to the next round.' },
+      { title: 'Custom Seedings', description: 'Manually place players or randomize matchups.' },
+      { title: 'Mobile Friendly', description: 'Works beautifully on smartphones during the event.' }
+    ],
+    useCases: ['Super Smash Bros Locals', 'Office Ping Pong', 'Pickleball Tournaments'],
+    faq: [
+      { question: 'Is it actually free?', answer: 'Yes, basic tournament brackets are free forever.' },
+      { question: 'Do participants need accounts?', answer: 'No, they can view the bracket via a public link.' }
+    ],
+    relatedCategory: 'gaming'
+  },
+  'live-leaderboard-for-events': {
+    slug: 'live-leaderboard-for-events',
+    title: 'Live Leaderboard for Events | LeaderboardOS',
+    metaDescription: 'Keep your event attendees engaged with a real-time, live leaderboard displayed on TVs or projectors.',
+    h1: 'Live Leaderboards for Events',
+    subtitle: 'Turn your event into an interactive experience. Display live scores, rankings, and updates instantly on the big screen.',
+    benefits: [
+      { title: 'Crowd Engagement', description: 'Attendees love seeing their names on the big screen.' },
+      { title: 'Zero Delay', description: 'Scores update instantly across all screens via WebSockets.' },
+      { title: 'Professional Polish', description: 'Sleek, high-contrast designs that look great on 4K displays.' }
+    ],
+    features: [
+      { title: 'TV Mode', description: 'Optimized full-screen mode specifically for projectors and monitors.' },
+      { title: 'Custom Branding', description: 'Add your event sponsors and custom brand colors.' },
+      { title: 'QR Code Joining', description: 'Let attendees scan to join the fun.' }
+    ],
+    useCases: ['Corporate Retreats', 'Charity Galas', 'Hackathons'],
+    faq: [
+      { question: 'How do I cast it to a TV?', answer: 'Simply open the leaderboard link in a web browser on your smart TV or connected laptop.' },
+      { question: 'Does it support thousands of players?', answer: 'Yes, our infrastructure easily scales to massive events.' }
+    ],
+    relatedCategory: 'all'
+  },
+  'obs-stream-leaderboard': {
+    slug: 'obs-stream-leaderboard',
+    title: 'OBS Stream Leaderboard Overlay | LeaderboardOS',
+    metaDescription: 'Easily embed a live updating leaderboard directly into your OBS or Streamlabs broadcast.',
+    h1: 'Live Leaderboards for Twitch & OBS',
+    subtitle: 'Engage your stream chat. Display real-time rankings, speedrun times, or tournament brackets right on your broadcast.',
+    benefits: [
+      { title: 'Seamless Integration', description: 'Works natively as an OBS Browser Source.' },
+      { title: 'Transparent Backgrounds', description: 'Clean overlays that do not obstruct your gameplay.' },
+      { title: 'Chat Engagement', description: 'Give your viewers a reason to cheer and interact.' }
+    ],
+    features: [
+      { title: 'Custom CSS', description: 'Tweak the exact look and feel of the widget via OBS.' },
+      { title: 'Live Pushes', description: 'Update scores on your phone and watch them appear on stream instantly.' },
+      { title: 'Dark Mode Native', description: 'Built from the ground up for gaming aesthetics.' }
+    ],
+    useCases: ['Speedrunning Marathons', 'Subathons', 'Community Tournaments'],
+    faq: [
+      { question: 'How do I add this to OBS?', answer: 'Create a leaderboard, click Share -> Embed, and paste that URL into an OBS Browser Source.' },
+      { question: 'Does it auto-refresh?', answer: 'You do not need to refresh the browser source. It uses WebSockets to update live.' }
+    ],
+    relatedCategory: 'gaming'
+  },
+  'employee-competition-tracker': {
+    slug: 'employee-competition-tracker',
+    title: 'Employee Competition Tracker | LeaderboardOS',
+    metaDescription: 'Gamify your workplace. Track KPIs, sales goals, or step challenges with an employee leaderboard.',
+    h1: 'Employee Competition Tracker',
+    subtitle: 'Boost morale and productivity by gamifying the workplace. Track goals transparently and celebrate wins.',
+    benefits: [
+      { title: 'Boost Productivity', description: 'Friendly competition naturally increases output.' },
+      { title: 'Transparent Goals', description: 'Everyone knows exactly where they stand.' },
+      { title: 'Remote Inclusion', description: 'Keep remote workers engaged with the rest of the team.' }
+    ],
+    features: [
+      { title: 'Multi-Metric Tracking', description: 'Track calls, revenue, or customer satisfaction scores.' },
+      { title: 'Private Links', description: 'Ensure your internal company data stays secure.' },
+      { title: 'Confetti Celebrations', description: 'Trigger on-screen celebrations for major milestones.' }
+    ],
+    useCases: ['Sales Floors', 'Customer Support Teams', 'Corporate Wellness'],
+    faq: [
+      { question: 'Can I restrict access to just my company?', answer: 'Yes, setting the board to Private ensures only authorized members can view it.' },
+      { question: 'Can I track teams instead of individuals?', answer: 'Yes, you can group employees into departments or regions.' }
+    ],
+    relatedCategory: 'workplace'
+  },
+  'sunday-league-football-table-maker': {
+    slug: 'sunday-league-football-table-maker',
+    title: 'Sunday League Football Table Maker | LeaderboardOS',
+    metaDescription: 'Generate professional standings for your Sunday League. Track Goal Difference, Points, and Fixtures.',
+    h1: 'Sunday League Table Maker',
+    subtitle: 'Ditch the Excel spreadsheets. Run your local 5-a-side or Sunday League like the Premier League.',
+    benefits: [
+      { title: 'Save Time', description: 'We calculate points and goal difference automatically.' },
+      { title: 'Look Professional', description: 'Give your players a beautiful, mobile-friendly table to check.' },
+      { title: 'Share Easily', description: 'Post the link in your team WhatsApp group instantly.' }
+    ],
+    features: [
+      { title: 'Standard Rules', description: '3 points for a win, 1 for a draw natively supported.' },
+      { title: 'Team Badges', description: 'Upload custom crests for every club.' },
+      { title: 'Match History', description: 'Keep a log of who played who, and the final score.' }
+    ],
+    useCases: ['5-a-side Leagues', 'Pub Leagues', 'Youth Tournaments'],
+    faq: [
+      { question: 'Can I embed it on our club website?', answer: 'Yes, just copy and paste our iframe snippet.' },
+      { question: 'What if teams tie on points?', answer: 'Ties are automatically broken by Goal Difference, then Goals Scored.' }
+    ],
+    relatedCategory: 'sports'
+  },
+  'classroom-house-points-tracker': {
+    slug: 'classroom-house-points-tracker',
+    title: 'Classroom House Points Tracker | LeaderboardOS',
+    metaDescription: 'Track student behavior and house points with a fun, animated digital leaderboard.',
+    h1: 'Classroom House Points Tracker',
+    subtitle: 'Engage your students and encourage positive behavior with a vibrant, digital house points system.',
+    benefits: [
+      { title: 'Positive Reinforcement', description: 'Instantly reward good behavior visually.' },
+      { title: 'Student Engagement', description: 'Bright colors and fun animations keep kids excited.' },
+      { title: 'Private & Secure', description: 'Keep student data hidden from the public.' }
+    ],
+    features: [
+      { title: 'Team Grouping', description: 'Group students into Houses (e.g. Red vs Blue).' },
+      { title: 'Custom Avatars', description: 'Assign fun emojis to each student.' },
+      { title: 'Audit Log', description: 'Track exactly when and why points were awarded.' }
+    ],
+    useCases: ['Elementary Classrooms', 'Summer Camps', 'Reading Challenges'],
+    faq: [
+      { question: 'Can I project this on the whiteboard?', answer: 'Yes! It scales perfectly to projectors and smartboards.' },
+      { question: 'Is student data safe?', answer: 'Yes, you can set the board to Private.' }
+    ],
+    relatedCategory: 'all'
+  },
+  'embed-leaderboard-in-wordpress': {
+    slug: 'embed-leaderboard-in-wordpress',
+    title: 'Embed a Leaderboard in WordPress | LeaderboardOS',
+    metaDescription: 'Easily embed a live, interactive leaderboard into your WordPress site or blog.',
+    h1: 'Embed a Leaderboard in WordPress',
+    subtitle: 'Add a professional, real-time leaderboard to your WordPress site in less than 60 seconds. No plugins required.',
+    benefits: [
+      { title: 'No Plugin Bloat', description: 'Keep your WordPress site fast. Just paste a simple iframe code.' },
+      { title: 'Responsive Design', description: 'The widget automatically fits into your theme, whether on mobile or desktop.' },
+      { title: 'Live Updates', description: 'Changes you make in the dashboard instantly reflect on your site.' }
+    ],
+    features: [
+      { title: 'Custom Dimensions', description: 'Adjust the height and width to fit your sidebar or page.' },
+      { title: 'Light/Dark Theme', description: 'Force the widget to match your website\'s aesthetic.' },
+      { title: 'Secure Origins', description: 'Lock the embed down so it only works on your specific domain.' }
+    ],
+    useCases: ['Gaming Blogs', 'Local Sports Club Sites', 'Corporate Intranets'],
+    faq: [
+      { question: 'Do I need a specific WordPress version?', answer: 'No, if your WordPress supports Custom HTML blocks, you are good to go.' },
+      { question: 'Will it slow down my site?', answer: 'No, the iframe is incredibly lightweight and loads asynchronously.' }
+    ],
+    relatedCategory: 'all'
   }
 };
