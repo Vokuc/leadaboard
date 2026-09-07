@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { ArrowRight, Trophy, Zap, Calendar, ListOrdered, Hash } from 'lucide-react';
+import { ArrowRight, Trophy, Zap, Calendar, ListOrdered, Hash, Calculator } from 'lucide-react';
 import { buildMetadata, BASE_URL } from '@/lib/seo/metadata';
 
 export const metadata = buildMetadata({
@@ -39,6 +39,12 @@ const tools = [
     href: '/tools/points-calculator',
     desc: 'Calculate sports league points based on wins, draws, and losses.',
     icon: <Hash className="w-8 h-8 text-fuchsia-400" />,
+  },
+  {
+    name: 'Elo Rating Calculator',
+    href: '/tools/elo-calculator',
+    desc: 'Instantly calculate rating changes for chess, esports, or matchmaking using the official Elo formula.',
+    icon: <Calculator className="w-8 h-8 text-cyan-400" />,
   },
 ];
 
