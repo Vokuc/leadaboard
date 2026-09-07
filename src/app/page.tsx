@@ -191,6 +191,7 @@ export default function LandingPage() {
           <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
           <Link href="/directory" className="hover:text-white transition-colors">Discover</Link>
           <Link href="/blog" className="hover:text-white transition-colors">Blog</Link>
+          <Link href="/resources" className="hover:text-white transition-colors">Resources</Link>
           <Link href="/templates" className="hover:text-white transition-colors">Templates</Link>
           <Link href="/tools" className="hover:text-white transition-colors">Free Tools</Link>
         </nav>
@@ -215,6 +216,7 @@ export default function LandingPage() {
             <a href="#pricing" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-white transition-colors border-b border-white/5 pb-4">Pricing</a>
             <Link href="/directory" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-white transition-colors border-b border-white/5 pb-4">Discover</Link>
             <Link href="/blog" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-white transition-colors border-b border-white/5 pb-4">Blog</Link>
+            <Link href="/resources" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-white transition-colors border-b border-white/5 pb-4">Resources</Link>
             <Link href="/templates" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-white transition-colors border-b border-white/5 pb-4">Templates</Link>
             <Link href="/tools" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-white transition-colors border-b border-white/5 pb-4">Free Tools</Link>
           </nav>
