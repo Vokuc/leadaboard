@@ -4,6 +4,7 @@ import { Metadata } from 'next';
 import SimpleHeader from '@/components/seo/SimpleHeader';
 import SeoFooter from '@/components/seo/SeoFooter';
 import { Download, FileSpreadsheet, AlertCircle } from 'lucide-react';
+import { TrackedDownloadButton } from '@/components/seo/TrackedDownloadButton';
 
 export const metadata: Metadata = {
   title: 'Free Excel League Table Template Download | LeaderboardOS',
@@ -39,14 +40,14 @@ export default function ExcelTemplatePage() {
             <p className="text-sm text-neutral-400">.XLSX Format &bull; 10-Team Structure &bull; Auto-calculating</p>
           </div>
           {/* Link to the actual CSV file */}
-          <a 
+          <TrackedDownloadButton 
             href="/resources/league-table-template.csv"
-            download
+            templateName="excel-league-table"
             className="flex-shrink-0 flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-500 text-white font-semibold rounded-xl transition-all shadow-[0_0_20px_rgba(34,197,94,0.3)] no-underline"
           >
             <Download className="w-5 h-5" />
             Download .XLSX
-          </a>
+          </TrackedDownloadButton>
         </div>
 
         <div className="prose prose-invert max-w-none">

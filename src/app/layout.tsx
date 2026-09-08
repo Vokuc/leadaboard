@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { AuthProvider } from '@/context/AuthContext';
 import { BASE_URL, SITE_CONFIG, buildSiteJsonLd } from '@/lib/seo/metadata';
+import { AnalyticsTracker } from '@/components/seo/AnalyticsTracker';
 import './globals.css';
 
 const geistSans = Geist({
@@ -85,7 +86,10 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(siteJsonLd) }}
         />
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <AnalyticsTracker />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );
