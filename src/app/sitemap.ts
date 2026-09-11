@@ -38,8 +38,10 @@ export async function generateSitemaps() {
   return Array.from({ length: chunkCount }, (_, i) => ({ id: i }));
 }
 
-export default async function sitemap({ id }: { id: number }): Promise<MetadataRoute.Sitemap> {
-  const staticRoutes: MetadataRoute.Sitemap = id === 0 ? [
+export default async function sitemap({ id }: { id: Promise<number> | number }): Promise<MetadataRoute.Sitemap> {
+  const resolvedId = await id;
+  const chunkId = Number(resolvedId ?? 0);
+  const staticRoutes: MetadataRoute.Sitemap = chunkId === 0 ? [
     { url: BASE_URL, lastModified: new Date(), changeFrequency: 'daily', priority: 1.0 },
     { url: `${BASE_URL}/login`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
     { url: `${BASE_URL}/how-to-play`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
@@ -96,7 +98,7 @@ export default async function sitemap({ id }: { id: number }): Promise<MetadataR
       .eq('visibility', 'public')
       .eq('status', 'active')
       .order('id', { ascending: true }) // Stable sort for pagination
-      .range(id * SITEMAP_CHUNK_SIZE, (id + 1) * SITEMAP_CHUNK_SIZE - 1);
+      .range(chunkId * SITEMAP_CHUNK_SIZE, (chunkId + 1) * SITEMAP_CHUNK_SIZE - 1);
 
     const validLeaderboards = (data || []).filter((lb) => {
       // @ts-ignore - Supabase types return { count } for joined tables but TS doesn't infer it correctly
