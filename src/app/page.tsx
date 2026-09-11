@@ -527,12 +527,12 @@ export default function LandingPage() {
               <h3 className="font-bold text-lg text-violet-400">Pro</h3>
               <p className="mt-1 text-sm text-neutral-400">For active creators and sports centers</p>
               <div className="mt-6 flex items-baseline">
-                <span className="text-4xl font-extrabold tracking-tight">{formatNaira(30000)}</span>
+                <span className="text-4xl font-extrabold tracking-tight">{formatNaira(10000)}</span>
                 <span className="ml-1 text-sm text-neutral-500">/ month</span>
               </div>
               <p className="mt-2 text-xs text-neutral-400">
-                Yearly {formatNaira(300000)}
-                <span className="ml-2 line-through text-neutral-600">{formatNaira(360000)}</span>
+                Yearly {formatNaira(100000)}
+                <span className="ml-2 line-through text-neutral-600">{formatNaira(120000)}</span>
               </p>
               <ul className="mt-6 space-y-3.5 text-sm text-neutral-300">
                 <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-violet-400" /> Unlimited Leaderboards</li>
