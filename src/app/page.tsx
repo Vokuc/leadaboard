@@ -554,12 +554,12 @@ export default function LandingPage() {
               <h3 className="font-bold text-lg">Business</h3>
               <p className="mt-1 text-sm text-neutral-400">For agencies, portals, and organizations</p>
               <div className="mt-6 flex items-baseline">
-                <span className="text-4xl font-extrabold tracking-tight">{formatNaira(100000)}</span>
+                <span className="text-4xl font-extrabold tracking-tight">{formatNaira(50000)}</span>
                 <span className="ml-1 text-sm text-neutral-500">/ month</span>
               </div>
               <p className="mt-2 text-xs text-neutral-400">
-                Yearly {formatNaira(1000000)}
-                <span className="ml-2 line-through text-neutral-600">{formatNaira(1200000)}</span>
+                Yearly {formatNaira(500000)}
+                <span className="ml-2 line-through text-neutral-600">{formatNaira(600000)}</span>
               </p>
               <ul className="mt-6 space-y-3.5 text-sm text-neutral-300">
                 <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-500" /> White Label Branding</li>
