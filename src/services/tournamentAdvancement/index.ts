@@ -54,24 +54,54 @@ function shuffle<T>(items: T[]): T[] {
   return clone;
 }
 
+export function getSeedingPattern(size: number): number[] {
+  let pattern = [1, 2];
+  while (pattern.length < size) {
+    const nextLength = pattern.length * 2;
+    const nextPattern: number[] = [];
+    for (const seed of pattern) {
+      nextPattern.push(seed);
+      nextPattern.push(nextLength + 1 - seed);
+    }
+    pattern = nextPattern;
+  }
+  return pattern;
+}
+
 function seededParticipants(
   participants: LeaderboardMember[],
   seedingMode: TournamentSeedingMode,
+  bracketSize: number,
   manualSeedMemberIds?: string[]
 ): Array<LeaderboardMember | null> {
-  if (seedingMode === 'manual' && manualSeedMemberIds?.length) {
+  if (seedingMode === 'random') {
+    const shuffled = shuffle(participants);
+    const slots: Array<LeaderboardMember | null> = [...shuffled];
+    while (slots.length < bracketSize) {
+      slots.push(null);
+    }
+    return slots;
+  }
+
+  // Ordered seeding (league_standings or manual)
+  let ordered: LeaderboardMember[] = [];
+  if (manualSeedMemberIds?.length) {
     const byId = new Map(participants.map((member) => [member.id, member]));
-    const ordered = manualSeedMemberIds.map((memberId) => byId.get(memberId) || null).filter(Boolean) as LeaderboardMember[];
+    ordered = manualSeedMemberIds.map((memberId) => byId.get(memberId) || null).filter(Boolean) as LeaderboardMember[];
     const seen = new Set(ordered.map((member) => member.id));
     const remainder = participants.filter((member) => !seen.has(member.id));
-    return [...ordered, ...remainder];
+    ordered.push(...remainder);
+  } else {
+    ordered = [...participants];
   }
 
-  if (seedingMode === 'league_standings') {
-    return [...participants];
+  const pattern = getSeedingPattern(bracketSize);
+  const slots: Array<LeaderboardMember | null> = [];
+  for (let i = 0; i < bracketSize; i += 1) {
+    const seedIndex = pattern[i] - 1;
+    slots.push(ordered[seedIndex] || null);
   }
-
-  return shuffle(participants);
+  return slots;
 }
 
 function ensureValidBracketSize(bracketSize: number): void {
@@ -97,10 +127,7 @@ export function generateSingleEliminationBracket(params: GenerateBracketParams):
 
   const timestamp = nowIso();
   const roundsCount = Math.log2(bracketSize);
-  const participantSlots = seededParticipants(participants, seedingMode, manualSeedMemberIds);
-  while (participantSlots.length < bracketSize) {
-    participantSlots.push(null);
-  }
+  const participantSlots = seededParticipants(participants, seedingMode, bracketSize, manualSeedMemberIds);
 
   const rounds: TournamentRound[] = [];
   const roundMatchIds: string[][] = [];

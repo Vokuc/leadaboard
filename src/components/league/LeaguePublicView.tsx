@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Activity, Calendar, Trophy } from 'lucide-react';
 import SafeImage from '@/components/SafeImage';
+import { isSupabaseConfigured, supabase } from '@/lib/db';
 import { LeagueService } from '@/lib/league/service';
 import { CompetitionConfig, CompetitionStatistic, Leaderboard, LeagueStandingRow } from '@/types';
 
@@ -25,38 +26,78 @@ export default function LeaguePublicView({ leaderboard, competitionConfig }: Lea
   const [standings, setStandings] = useState<LeagueStandingRow[]>([]);
   const [recentResults, setRecentResults] = useState<Array<Awaited<ReturnType<typeof LeagueService.getRecentResults>>[number]>>([]);
 
-  useEffect(() => {
-    let mounted = true;
-
-    const load = async () => {
+  const loadData = useCallback(async (silent = false) => {
+    if (!silent) {
       setLoading(true);
-      try {
-        const [nextStatistics, nextStandings, nextRecentResults] = await Promise.all([
-          LeagueService.getCompetitionStatistics(leaderboard.id),
-          LeagueService.getLeagueStandings(leaderboard.id),
-          LeagueService.getRecentResults(leaderboard.id),
-        ]);
+    }
+    try {
+      const [nextStatistics, nextStandings, nextRecentResults] = await Promise.all([
+        LeagueService.getCompetitionStatistics(leaderboard.id),
+        LeagueService.getLeagueStandings(leaderboard.id),
+        LeagueService.getRecentResults(leaderboard.id),
+      ]);
 
-        if (!mounted) {
-          return;
-        }
+      setStatistics(nextStatistics.filter((item) => item.is_enabled).sort((a, b) => a.display_order - b.display_order));
+      setStandings(nextStandings);
+      setRecentResults(nextRecentResults);
+    } catch (err) {
+      console.error('Error loading league data:', err);
+    } finally {
+      if (!silent) {
+        setLoading(false);
+      }
+    }
+  }, [leaderboard.id]);
 
-        setStatistics(nextStatistics.filter((item) => item.is_enabled).sort((a, b) => a.display_order - b.display_order));
-        setStandings(nextStandings);
-        setRecentResults(nextRecentResults);
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+  useEffect(() => {
+    queueMicrotask(() => {
+      void loadData();
+    });
+  }, [loadData]);
+
+  // Real-time updates for live fixtures & results
+  useEffect(() => {
+    if (isSupabaseConfigured && supabase) {
+      const channel = supabase
+        .channel(`public:league:${leaderboard.id}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'fixtures', filter: `leaderboard_id=eq.${leaderboard.id}` },
+          () => {
+            void loadData(true);
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'fixture_results' },
+          () => {
+            void loadData(true);
+          }
+        )
+        .subscribe();
+
+      return () => {
+        channel.unsubscribe();
+      };
+    }
+
+    // Demo Mode: Binds to storage updates across browser tabs
+    const handleStorageUpdate = (event: StorageEvent) => {
+      if (event.key && event.key.startsWith('leaderboardos_')) {
+        void loadData(true);
       }
     };
 
-    void load();
+    window.addEventListener('storage', handleStorageUpdate);
+    const interval = window.setInterval(() => {
+      void loadData(true);
+    }, 3000);
 
     return () => {
-      mounted = false;
+      window.removeEventListener('storage', handleStorageUpdate);
+      window.clearInterval(interval);
     };
-  }, [leaderboard.id]);
+  }, [leaderboard.id, loadData]);
 
   const topTeam = standings[0]?.name || 'No standings yet';
   const visibleColumns = useMemo(() => statistics.slice(0, 8), [statistics]);

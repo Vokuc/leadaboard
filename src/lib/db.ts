@@ -36,7 +36,7 @@ const DEFAULT_PROFILE: Profile = {
   updated_at: new Date().toISOString(),
 };
 
-const DEFAULT_LEADERBOARDS: Leaderboard[] = [
+export const DEFAULT_LEADERBOARDS: Leaderboard[] = [
   {
     id: 'lb-gaming-1',
     owner_id: SEED_CREATOR_ID,
@@ -116,7 +116,7 @@ const DEFAULT_SCORING_RULES: ScoringRule[] = [
   { id: 'rule-s3', leaderboard_id: 'lb-sports-1', event_name: 'Podium Finish', points: 75, description: 'Finished in the top 3 overall positions in a club race', created_at: new Date().toISOString() }
 ];
 
-const DEFAULT_MEMBERS: LeaderboardMember[] = [
+export const DEFAULT_MEMBERS: LeaderboardMember[] = [
   // Gaming Members
   { id: 'mem-g1', leaderboard_id: 'lb-gaming-1', name: 'NinjaCoder', email: 'ninja@gaming.com', avatar_url: 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=100&q=80', team: 'Team Rogue', notes: 'Top fragger', is_active: true, created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
   { id: 'mem-g2', leaderboard_id: 'lb-gaming-1', name: 'CyberKnight', email: 'knight@gaming.com', avatar_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=100&q=80', team: 'Team Rogue', notes: 'Tank specialist', is_active: true, created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
@@ -919,6 +919,37 @@ export const DatabaseService = {
       return data || [];
     }
     return mockDb.getActivityLogs().filter(log => log.leaderboard_id === leaderboardId);
+  },
+
+  async addActivityLog(leaderboardId: string, message: string): Promise<ActivityLog> {
+    const timestamp = new Date().toISOString();
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('activity_logs')
+        .insert([{ leaderboard_id: leaderboardId, message, created_at: timestamp }])
+        .select()
+        .single();
+      if (error) {
+        console.error('Failed to insert activity log:', error);
+        return {
+          id: `log-${Date.now()}`,
+          leaderboard_id: leaderboardId,
+          message,
+          created_at: timestamp,
+        };
+      }
+      return data;
+    }
+
+    const newLog: ActivityLog = {
+      id: `log-${Math.random().toString(36).substr(2, 9)}`,
+      leaderboard_id: leaderboardId,
+      message,
+      created_at: timestamp,
+    };
+    const currentLogs = mockDb.getActivityLogs();
+    mockDb.setActivityLogs([newLog, ...currentLogs]);
+    return newLog;
   },
 
   // Dynamic Rankings logic (ordered by sum points descending, then tie-breaker: last_score_at ascending)

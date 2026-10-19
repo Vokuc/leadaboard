@@ -718,3 +718,6 @@ CREATE POLICY "Owners and admins can manage tournament advancements" ON public.t
 
 ALTER PUBLICATION supabase_realtime ADD TABLE public.tournament_matches;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.tournament_match_results;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.fixtures;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.fixture_results;
+

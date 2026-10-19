@@ -1,6 +1,7 @@
 'use client';
 
 import { DatabaseService, isSupabaseConfigured, supabase } from '@/lib/db';
+import { LeagueService } from '@/lib/league/service';
 import {
   CompetitionConfig,
   CompetitionTemplateKey,
@@ -42,6 +43,7 @@ interface GenerateBracketInput {
   bracketSize: number;
   seedingMode: TournamentSeedingMode;
   manualSeedMemberIds?: string[];
+  sourceLeagueId?: string;
 }
 
 interface SaveTournamentMatchResultInput {
@@ -329,13 +331,36 @@ export const TournamentService = {
     await DatabaseService.requireAdminPermission(input.leaderboardId);
     const members = await DatabaseService.getMembers(input.leaderboardId);
     const activeMembers = members.filter((member) => member.is_active);
+    let manualSeeds = input.manualSeedMemberIds;
+
+    if (input.seedingMode === 'league_standings' && input.sourceLeagueId) {
+      const standings = await LeagueService.getLeagueStandings(input.sourceLeagueId);
+      const seedIds: string[] = [];
+      for (const row of standings) {
+        let matched = activeMembers.find(
+          (m) => m.name.toLowerCase() === row.name.toLowerCase() || m.id === row.member_id
+        );
+        if (!matched) {
+          matched = await DatabaseService.addMember(input.leaderboardId, {
+            name: row.name,
+            team: row.team || null,
+            email: null,
+            notes: `Seeded from league standing #${row.position}`,
+            avatar_url: row.avatar_url || null,
+          });
+          activeMembers.push(matched);
+        }
+        seedIds.push(matched.id);
+      }
+      manualSeeds = seedIds;
+    }
 
     const { rounds, matches, advancements } = generateSingleEliminationBracket({
       leaderboardId: input.leaderboardId,
       participants: activeMembers,
       bracketSize: input.bracketSize,
       seedingMode: input.seedingMode,
-      manualSeedMemberIds: input.manualSeedMemberIds,
+      manualSeedMemberIds: manualSeeds,
     });
 
     const timestamp = nowIso();
@@ -490,43 +515,62 @@ export const TournamentService = {
       if (tournamentError) {
         throw tournamentError;
       }
-
-      return;
-    }
-
-    const state = getLocalTournamentState();
-    const resultIndex = state.results.findIndex((item) => item.match_id === processed.result.match_id);
-    if (resultIndex >= 0) {
-      state.results[resultIndex] = {
-        ...state.results[resultIndex],
-        home_score: processed.result.home_score,
-        away_score: processed.result.away_score,
-        updated_at: timestamp,
-      };
     } else {
-      state.results.push(processed.result);
+      const state = getLocalTournamentState();
+      const resultIndex = state.results.findIndex((item) => item.match_id === processed.result.match_id);
+      if (resultIndex >= 0) {
+        state.results[resultIndex] = {
+          ...state.results[resultIndex],
+          home_score: processed.result.home_score,
+          away_score: processed.result.away_score,
+          updated_at: timestamp,
+        };
+      } else {
+        state.results.push(processed.result);
+      }
+
+      state.matches = state.matches.map((match) => {
+        const updated = processed.matches.find((candidate) => candidate.id === match.id);
+        return updated || match;
+      });
+
+      if (processed.advancements.length > 0) {
+        state.advancements.push(...processed.advancements);
+      }
+
+      const tournamentIndex = state.tournaments.findIndex((item) => item.leaderboard_id === leaderboardId);
+      if (tournamentIndex >= 0) {
+        state.tournaments[tournamentIndex] = {
+          ...state.tournaments[tournamentIndex],
+          state: champion ? 'completed' : 'in_progress',
+          champion_member_id: champion,
+          updated_at: timestamp,
+        };
+      }
+
+      setLocalTournamentState(state);
     }
 
-    state.matches = state.matches.map((match) => {
-      const updated = processed.matches.find((candidate) => candidate.id === match.id);
-      return updated || match;
-    });
+    // Emit activity log for tournament match completion
+    try {
+      const members = await DatabaseService.getMembers(leaderboardId);
+      const home = members.find((m) => m.id === currentMatch.home_member_id);
+      const away = members.find((m) => m.id === currentMatch.away_member_id);
+      const winnerId = input.homeScore > input.awayScore ? currentMatch.home_member_id : currentMatch.away_member_id;
+      const winner = members.find((m) => m.id === winnerId);
+      const homeName = home?.name || 'Home';
+      const awayName = away?.name || 'Away';
+      const winnerName = winner?.name || 'Winner';
 
-    if (processed.advancements.length > 0) {
-      state.advancements.push(...processed.advancements);
+      let logMsg = `[Tournament R${currentMatch.round_index}] ${homeName} ${input.homeScore} - ${input.awayScore} ${awayName} (${winnerName} advanced)`;
+      if (champion) {
+        const champMember = members.find((m) => m.id === champion);
+        logMsg = `[Tournament Final] ${homeName} ${input.homeScore} - ${input.awayScore} ${awayName} — 🏆 ${champMember?.name || winnerName} crowned champion!`;
+      }
+      await DatabaseService.addActivityLog(leaderboardId, logMsg);
+    } catch (logErr) {
+      console.error('Failed to log tournament match activity:', logErr);
     }
-
-    const tournamentIndex = state.tournaments.findIndex((item) => item.leaderboard_id === leaderboardId);
-    if (tournamentIndex >= 0) {
-      state.tournaments[tournamentIndex] = {
-        ...state.tournaments[tournamentIndex],
-        champion_member_id: champion,
-        state: champion ? 'completed' : 'in_progress',
-        updated_at: timestamp,
-      };
-    }
-
-    setLocalTournamentState(state);
   },
 
   async getBracketView(leaderboardId: string): Promise<TournamentBracketView | null> {

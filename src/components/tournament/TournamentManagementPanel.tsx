@@ -60,6 +60,8 @@ export default function TournamentManagementPanel({
   const [stateSelection, setStateSelection] = useState<TournamentState>('draft');
   const [bracketSizeSelection, setBracketSizeSelection] = useState(8);
   const [seedingSelection, setSeedingSelection] = useState<TournamentSeedingMode>('random');
+  const [availableLeagues, setAvailableLeagues] = useState<Leaderboard[]>([]);
+  const [sourceLeagueId, setSourceLeagueId] = useState<string>('');
 
   const [newMemberName, setNewMemberName] = useState('');
   const [newMemberEmail, setNewMemberEmail] = useState('');
@@ -73,15 +75,21 @@ export default function TournamentManagementPanel({
     }
 
     try {
-      const [nextMembers, nextBracketView, nextRecentResults] = await Promise.all([
+      const [nextMembers, nextBracketView, nextRecentResults, allLeaderboards] = await Promise.all([
         DatabaseService.getMembers(leaderboard.id),
         TournamentService.getBracketView(leaderboard.id),
         TournamentService.getRecentResults(leaderboard.id),
+        DatabaseService.getLeaderboards(),
       ]);
 
       setMembers(nextMembers);
       setBracketView(nextBracketView);
       setRecentResults(nextRecentResults);
+      const otherLbs = allLeaderboards.filter((lb) => lb.id !== leaderboard.id);
+      setAvailableLeagues(otherLbs);
+      if (otherLbs.length > 0) {
+        setSourceLeagueId((current) => current || otherLbs[0].id);
+      }
 
       if (nextBracketView) {
         setStateSelection(nextBracketView.tournament.state);
@@ -207,6 +215,7 @@ export default function TournamentManagementPanel({
         leaderboardId: leaderboard.id,
         bracketSize: bracketSizeSelection,
         seedingMode: seedingSelection,
+        sourceLeagueId: seedingSelection === 'league_standings' ? sourceLeagueId : undefined,
       });
       await TournamentService.updateTournamentState(leaderboard.id, 'in_progress');
       setToast('Bracket generated. BYEs auto-advanced where applicable.');
@@ -355,11 +364,39 @@ export default function TournamentManagementPanel({
                 >
                   <option value="random">Random seeding</option>
                   <option value="manual">Manual seeding</option>
-                  <option value="league_standings">Seed from existing league standings (placeholder)</option>
+                  <option value="league_standings">Seed from existing league standings</option>
                 </select>
+
+                {seedingSelection === 'league_standings' && (
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-neutral-400">Source League</label>
+                    {availableLeagues.length === 0 ? (
+                      <div className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5">
+                        No other leagues available to seed from.
+                      </div>
+                    ) : (
+                      <select
+                        value={sourceLeagueId}
+                        onChange={(event) => setSourceLeagueId(event.target.value)}
+                        className="w-full rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white"
+                      >
+                        {availableLeagues.map((lb) => (
+                          <option key={lb.id} value={lb.id}>
+                            {lb.name} ({lb.competition_type})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                )}
+
                 <button
                   type="button"
-                  disabled={saving || members.length < 2}
+                  disabled={
+                    saving ||
+                    (seedingSelection !== 'league_standings' && members.length < 2) ||
+                    (seedingSelection === 'league_standings' && !sourceLeagueId)
+                  }
                   onClick={() => void handleGenerateBracket()}
                   className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                 >

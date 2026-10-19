@@ -1,4 +1,5 @@
 import { createSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/supabase/server';
+import { DEFAULT_LEADERBOARDS, DEFAULT_MEMBERS } from '@/lib/db';
 import { DiscoveryCategory } from './registry';
 
 export const DISCOVERY_PAGE_SIZE = 12;
@@ -20,7 +21,43 @@ export async function getPublicLeaderboards(
   searchQuery?: string
 ): Promise<{ data: DiscoveryLeaderboard[]; totalCount: number }> {
   if (!isSupabaseServerConfigured) {
-    return { data: [], totalCount: 0 };
+    let mockList = DEFAULT_LEADERBOARDS.filter(
+      (lb) => lb.visibility === 'public' && lb.status === 'active'
+    );
+
+    if (category) {
+      mockList = mockList.filter(
+        (lb) => lb[category.filter.column] === category.filter.value
+      );
+    }
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      mockList = mockList.filter(
+        (lb) =>
+          lb.name.toLowerCase().includes(q) ||
+          (lb.description ? lb.description.toLowerCase().includes(q) : false)
+      );
+    }
+
+    mockList.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+
+    const totalCount = mockList.length;
+    const offset = (page - 1) * DISCOVERY_PAGE_SIZE;
+    const pageData = mockList.slice(offset, offset + DISCOVERY_PAGE_SIZE);
+
+    const formattedData: DiscoveryLeaderboard[] = pageData.map((lb) => ({
+      id: lb.id,
+      slug: lb.slug,
+      name: lb.name,
+      description: lb.description,
+      competition_type: lb.competition_type,
+      cover_image_url: lb.cover_image_url,
+      updated_at: lb.updated_at,
+      rankings_count: DEFAULT_MEMBERS.filter((m) => m.leaderboard_id === lb.id).length,
+    }));
+
+    return { data: formattedData, totalCount };
   }
 
   const supabase = await createSupabaseServerClient();
@@ -59,8 +96,7 @@ export async function getPublicLeaderboards(
     competition_type: lb.competition_type,
     cover_image_url: lb.cover_image_url,
     updated_at: lb.updated_at,
-    // @ts-ignore - Supabase join count is returned as an array in PostgREST but TS typing can be tricky
-    rankings_count: lb.rankings?.[0]?.count ?? 0,
+    rankings_count: (lb as { rankings?: Array<{ count?: number }> }).rankings?.[0]?.count ?? 0,
   }));
 
   return { data: formattedData, totalCount: count || 0 };
