@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useParams, useRouter } from 'next/navigation';
 import { DatabaseService } from '@/lib/db';
 import { LeagueService } from '@/lib/league/service';
-import { CompetitionConfig, Leaderboard, Season, ScoringRule, LeaderboardMember, ActivityLog, Ranking, LeaderboardAdmin } from '@/types';
+import { CompetitionConfig, Leaderboard, Season, ScoringRule, LeaderboardMember, ActivityLog, Ranking, LeaderboardAdmin, Team } from '@/types';
 import { 
   Trophy, 
   ArrowLeft, 
@@ -35,6 +35,7 @@ import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 import SafeImage from '@/components/SafeImage';
 import LeagueManagementPanel from '@/components/league/LeagueManagementPanel';
 import TournamentManagementPanel from '@/components/tournament/TournamentManagementPanel';
+import { TeamRosterManagement } from '@/components/teams/TeamRosterManagement';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -63,7 +64,8 @@ export default function LeaderboardManagementPage() {
   const [coverUploading, setCoverUploading] = useState(false);
 
   // Layout Tab
-  const [activeTab, setActiveTab] = useState<'overview' | 'players' | 'scores' | 'settings' | 'integrations'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'players' | 'teams' | 'scores' | 'settings' | 'integrations'>('overview');
+  const [teams, setTeams] = useState<Team[]>([]);
   const [showEmbedModal, setShowEmbedModal] = useState(false);
   const [embedCopied, setEmbedCopied] = useState(false);
 
@@ -178,8 +180,12 @@ export default function LeaderboardManagementPage() {
       const rls = await DatabaseService.getScoringRules(boardId);
       setRules(rls);
 
-      const mems = await DatabaseService.getMembers(boardId);
+      const [mems, allTeams] = await Promise.all([
+        DatabaseService.getMembers(boardId),
+        DatabaseService.getTeams(boardId)
+      ]);
       setMembers(mems);
+      setTeams(allTeams);
       setSelectedMemberId((current) => current || mems[0]?.id || '');
 
       const ranks = await DatabaseService.getRankings(boardId);
@@ -791,7 +797,7 @@ export default function LeaderboardManagementPage() {
 
         {/* Tab selection */}
         <div className="flex border-b border-neutral-850 p-1 bg-neutral-900/40 rounded-2xl border mb-8 overflow-x-auto custom-scrollbar">
-          {(['overview', 'players', 'scores', 'settings', 'integrations'] as const).map((tab) => (
+          {(['overview', 'players', 'teams', 'scores', 'settings', 'integrations'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -1021,11 +1027,17 @@ export default function LeaderboardManagementPage() {
                       <label className="block font-semibold text-neutral-400 mb-1.5 uppercase tracking-wide">Team Group (Optional)</label>
                       <input
                         type="text"
-                        placeholder="e.g. Team Rogue, Sales - NA"
+                        list="teams-datalist"
+                        placeholder="Select existing team or type new..."
                         value={playerTeam}
                         onChange={(e) => setPlayerTeam(e.target.value)}
                         className="block w-full px-3 py-2 bg-neutral-900 border border-neutral-850 rounded-lg text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-violet-500 text-xs transition-all"
                       />
+                      <datalist id="teams-datalist">
+                        {teams.map((t) => (
+                          <option key={t.id} value={t.name}>{t.short_code ? `[${t.short_code}]` : ''}</option>
+                        ))}
+                      </datalist>
                     </div>
 
                     <div>
@@ -1099,6 +1111,16 @@ export default function LeaderboardManagementPage() {
               </div>
             )}
           </div>
+        )}
+
+        {/* ==========================================
+            TAB CONTENT: TEAMS & ROSTERS
+            ========================================== */}
+        {activeTab === 'teams' && (
+          <TeamRosterManagement
+            leaderboardId={boardId}
+            onChanged={loadAllData}
+          />
         )}
 
         {/* ==========================================

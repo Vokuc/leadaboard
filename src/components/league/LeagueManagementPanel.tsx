@@ -9,6 +9,7 @@ import { LeagueService } from '@/lib/league/service';
 import { CompetitionConfig, CompetitionStatistic, Fixture, Leaderboard, LeaderboardMember, LeagueSettings, LeagueStandingRow } from '@/types';
 import SafeImage from '@/components/SafeImage';
 import { uploadImageAsset } from '@/lib/image-upload';
+import { TeamRosterManagement } from '@/components/teams/TeamRosterManagement';
 
 type TabKey = 'overview' | 'standings' | 'fixtures' | 'teams' | 'settings' | 'integrations';
 
@@ -456,8 +457,18 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
       )}
 
       {activeTab === 'teams' && (
-        <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-          <form onSubmit={handleAddTeam} className="glass rounded-2xl p-6 space-y-4">
+        <div className="space-y-8">
+          <TeamRosterManagement
+            leaderboardId={leaderboard.id}
+            onChanged={() => void loadLeagueData()}
+          />
+
+          <div className="pt-6 border-t border-white/5">
+            <div className="mb-4 text-xs font-bold uppercase tracking-wider text-neutral-400">
+              Direct {competitionConfig.entity_type === 'team' ? 'Team / Club' : 'Competitor'} Registration
+            </div>
+            <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+              <form onSubmit={handleAddTeam} className="glass rounded-2xl p-6 space-y-4">
             <div className="flex items-center gap-2 text-sm font-bold text-white">
               <Users className="h-4 w-4 text-violet-400" /> Add {competitionConfig.entity_type === 'team' ? 'Team' : 'Competitor'}
             </div>
@@ -527,6 +538,8 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
               ))}
             </div>
           </div>
+        </div>
+        </div>
         </div>
       )}
 

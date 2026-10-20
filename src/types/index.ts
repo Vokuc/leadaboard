@@ -86,6 +86,35 @@ export interface ScoringRule {
   created_at: string;
 }
 
+export type TeamRosterRole = 'captain' | 'player' | 'substitute';
+
+export interface Team {
+  id: string;
+  leaderboard_id: string;
+  name: string;
+  short_code: string | null;
+  logo_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TeamMember {
+  id: string;
+  team_id: string;
+  leaderboard_id: string;
+  member_id: string;
+  role: TeamRosterRole;
+  jersey_number?: number | null;
+  created_at: string;
+  updated_at: string;
+  member?: LeaderboardMember;
+}
+
+export interface TeamWithRoster extends Team {
+  members: Array<TeamMember & { member: LeaderboardMember }>;
+  member_count: number;
+}
+
 export interface LeaderboardMember {
   id: string;
   leaderboard_id: string;
@@ -93,6 +122,7 @@ export interface LeaderboardMember {
   email: string | null;
   avatar_url: string | null;
   team: string | null;
+  team_id?: string | null;
   notes: string | null;
   is_active: boolean;
   created_at: string;

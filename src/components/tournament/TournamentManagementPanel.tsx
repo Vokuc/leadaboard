@@ -23,7 +23,9 @@ import {
   TournamentBracketView,
   TournamentSeedingMode,
   TournamentState,
+  Team,
 } from '@/types';
+import { TeamRosterManagement } from '@/components/teams/TeamRosterManagement';
 
 interface TournamentManagementPanelProps {
   leaderboard: Leaderboard;
@@ -31,7 +33,7 @@ interface TournamentManagementPanelProps {
   onLeaderboardUpdated: (leaderboard: Leaderboard) => void;
 }
 
-type TabKey = 'overview' | 'bracket' | 'matches' | 'participants' | 'settings' | 'integrations';
+type TabKey = 'overview' | 'bracket' | 'matches' | 'participants' | 'teams' | 'settings' | 'integrations';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -48,6 +50,7 @@ export default function TournamentManagementPanel({
   const [toast, setToast] = useState<string | null>(null);
 
   const [members, setMembers] = useState<LeaderboardMember[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [bracketView, setBracketView] = useState<TournamentBracketView | null>(null);
   const [recentResults, setRecentResults] = useState<Array<Awaited<ReturnType<typeof TournamentService.getRecentResults>>[number]>>([]);
   const [embedCopied, setEmbedCopied] = useState(false);
@@ -75,14 +78,16 @@ export default function TournamentManagementPanel({
     }
 
     try {
-      const [nextMembers, nextBracketView, nextRecentResults, allLeaderboards] = await Promise.all([
+      const [nextMembers, nextBracketView, nextRecentResults, allLeaderboards, nextTeams] = await Promise.all([
         DatabaseService.getMembers(leaderboard.id),
         TournamentService.getBracketView(leaderboard.id),
         TournamentService.getRecentResults(leaderboard.id),
         DatabaseService.getLeaderboards(),
+        DatabaseService.getTeams(leaderboard.id),
       ]);
 
       setMembers(nextMembers);
+      setTeams(nextTeams);
       setBracketView(nextBracketView);
       setRecentResults(nextRecentResults);
       const otherLbs = allLeaderboards.filter((lb) => lb.id !== leaderboard.id);
@@ -308,7 +313,7 @@ export default function TournamentManagementPanel({
       </div>
 
       <div className="flex max-w-3xl gap-2 rounded-2xl border border-neutral-850 bg-neutral-900/40 p-1 overflow-x-auto custom-scrollbar">
-        {(['overview', 'bracket', 'matches', 'participants', 'settings', 'integrations'] as const).map((tab) => (
+        {(['overview', 'bracket', 'matches', 'participants', 'teams', 'settings', 'integrations'] as const).map((tab) => (
           <button
             key={tab}
             type="button"
@@ -506,7 +511,18 @@ export default function TournamentManagementPanel({
             </div>
             <input value={newMemberName} onChange={(event) => setNewMemberName(event.target.value)} placeholder="Participant name" className="w-full rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
             <input value={newMemberEmail} onChange={(event) => setNewMemberEmail(event.target.value)} placeholder="Contact email (optional)" className="w-full rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
-            <input value={newMemberTeam} onChange={(event) => setNewMemberTeam(event.target.value)} placeholder="Team or group" className="w-full rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
+            <input 
+              value={newMemberTeam} 
+              onChange={(event) => setNewMemberTeam(event.target.value)} 
+              list="tournament-teams-datalist"
+              placeholder="Team or group (select or type new)" 
+              className="w-full rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" 
+            />
+            <datalist id="tournament-teams-datalist">
+              {teams.map((t) => (
+                <option key={t.id} value={t.name}>{t.short_code ? `[${t.short_code}]` : ''}</option>
+              ))}
+            </datalist>
             <button disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
               <Plus className="h-4 w-4" /> Save
             </button>
@@ -529,6 +545,13 @@ export default function TournamentManagementPanel({
             </div>
           </div>
         </div>
+      )}
+
+      {activeTab === 'teams' && (
+        <TeamRosterManagement
+          leaderboardId={leaderboard.id}
+          onChanged={() => void loadTournamentData(true)}
+        />
       )}
 
       {activeTab === 'settings' && (

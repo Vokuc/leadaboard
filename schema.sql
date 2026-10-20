@@ -90,11 +90,44 @@ CREATE TABLE IF NOT EXISTS public.leaderboard_members (
   email TEXT,
   avatar_url TEXT,
   team TEXT,
+  team_id UUID,
   notes TEXT,
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(leaderboard_id, name)
+);
+
+-- 5b. Teams Table
+CREATE TABLE IF NOT EXISTS public.teams (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  short_code TEXT,
+  logo_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (leaderboard_id, name)
+);
+
+ALTER TABLE public.leaderboard_members
+  DROP CONSTRAINT IF EXISTS fk_leaderboard_members_team_id;
+ALTER TABLE public.leaderboard_members
+  ADD CONSTRAINT fk_leaderboard_members_team_id
+  FOREIGN KEY (team_id) REFERENCES public.teams(id) ON DELETE SET NULL;
+
+-- 5c. Team Members (Rosters) Table
+CREATE TABLE IF NOT EXISTS public.team_members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  team_id UUID NOT NULL REFERENCES public.teams(id) ON DELETE CASCADE,
+  leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  member_id UUID NOT NULL REFERENCES public.leaderboard_members(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('captain', 'player', 'substitute')) DEFAULT 'player',
+  jersey_number INTEGER,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (leaderboard_id, member_id),
+  UNIQUE (team_id, member_id)
 );
 
 -- 6. Score Events (Score updates log)
@@ -418,17 +451,7 @@ CREATE POLICY "Authenticated users can update leaderboard media" ON storage.obje
 
 DROP POLICY IF EXISTS "Authenticated users can delete leaderboard media" ON storage.objects;
 CREATE POLICY "Authenticated users can delete leaderboard media" ON storage.objects
-  FOR DELETE TO authenticated
-  USING (
-    bucket_id = 'leaderboard-media'
-    AND owner_id = (SELECT auth.uid()::text)
-  );
 
-
--- ==========================================
--- LEADERBOARD DYNAMIC RANKING VIEW
--- ==========================================
--- Dynamic Rankings incorporating Tie-Breaker logic:
 -- 1. Order by points descending (COALESCE to 0 if no score events)
 -- 2. Tie-breaker: Whomever reached their current score earlier wins (MAX(se.created_at) ascending)
 -- 3. If no score events, fallback to the member creation date (earliest join wins)
@@ -720,4 +743,26 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.tournament_matches;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.tournament_match_results;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.fixtures;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.fixture_results;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.teams;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.team_members;
+
+-- Teams and Team Members Policies
+ALTER TABLE public.teams ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.team_members ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can view teams for accessible leaderboards" ON public.teams;
+CREATE POLICY "Anyone can view teams for accessible leaderboards" ON public.teams
+  FOR SELECT USING (public.can_view_leaderboard(leaderboard_id, auth.uid()));
+
+DROP POLICY IF EXISTS "Owners and admins can manage teams" ON public.teams;
+CREATE POLICY "Owners and admins can manage teams" ON public.teams
+  FOR ALL USING (public.can_manage_leaderboard(leaderboard_id, auth.uid()));
+
+DROP POLICY IF EXISTS "Anyone can view team members for accessible leaderboards" ON public.team_members;
+CREATE POLICY "Anyone can view team members for accessible leaderboards" ON public.team_members
+  FOR SELECT USING (public.can_view_leaderboard(leaderboard_id, auth.uid()));
+
+DROP POLICY IF EXISTS "Owners and admins can manage team members" ON public.team_members;
+CREATE POLICY "Owners and admins can manage team members" ON public.team_members
+  FOR ALL USING (public.can_manage_leaderboard(leaderboard_id, auth.uid()));
 
