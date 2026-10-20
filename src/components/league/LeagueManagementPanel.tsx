@@ -2,11 +2,13 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Activity, ArrowUpRight, Calendar, ImageUp, Plus, Save, Shield, Swords, Trophy, Upload, Users, Code, AlertCircle, History } from 'lucide-react';
+import { Activity, ArrowUpRight, Calendar, ImageUp, Plus, Save, Shield, Swords, Trophy, Upload, Users, Code, AlertCircle, History, Workflow } from 'lucide-react';
 import { DatabaseService } from '@/lib/db';
 import { getCompetitionTemplate } from '@/lib/competition/templates';
 import { LeagueService } from '@/lib/league/service';
-import { CompetitionConfig, CompetitionStatistic, Fixture, Leaderboard, LeaderboardMember, LeagueSettings, LeagueStandingRow } from '@/types';
+import { CompetitionLifecycleService } from '@/lib/competition/lifecycle/service';
+import { CompetitionPathwayService } from '@/lib/competition/pathway/service';
+import { CompetitionConfig, CompetitionStatistic, Fixture, Leaderboard, LeaderboardMember, LeagueSettings, LeagueStandingRow, CompetitionOperationalStatus, CompetitionPathway } from '@/types';
 import SafeImage from '@/components/SafeImage';
 import { uploadImageAsset } from '@/lib/image-upload';
 import { TeamRosterManagement } from '@/components/teams/TeamRosterManagement';
@@ -74,6 +76,9 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
   const [pointsForDraw, setPointsForDraw] = useState(1);
   const [pointsForLoss, setPointsForLoss] = useState(0);
   const [seasonName, setSeasonName] = useState('Season 1');
+  const [operationalStatus, setOperationalStatus] = useState<CompetitionOperationalStatus>('draft');
+  const [initialOpStatus, setInitialOpStatus] = useState<CompetitionOperationalStatus>('draft');
+  const [pathways, setPathways] = useState<CompetitionPathway[]>([]);
 
   const template = useMemo(() => getCompetitionTemplate(competitionConfig.template_key), [competitionConfig.template_key]);
   const enabledColumns = useMemo(() => statistics.filter((item) => item.is_enabled).sort((a, b) => a.display_order - b.display_order), [statistics]);
@@ -81,13 +86,24 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
   const loadLeagueData = useCallback(async () => {
     setLoading(true);
     try {
-      const [nextMembers, nextStatistics, nextStandings, nextFixtures, nextRecentResults, nextLeagueSettings] = await Promise.all([
+      const [
+        nextMembers,
+        nextStatistics,
+        nextStandings,
+        nextFixtures,
+        nextRecentResults,
+        nextLeagueSettings,
+        nextOpStatus,
+        nextPathways,
+      ] = await Promise.all([
         DatabaseService.getMembers(leaderboard.id),
         LeagueService.getCompetitionStatistics(leaderboard.id),
         LeagueService.getLeagueStandings(leaderboard.id),
         LeagueService.getFixtures(leaderboard.id),
         LeagueService.getRecentResults(leaderboard.id),
         LeagueService.getLeagueSettings(leaderboard.id),
+        CompetitionLifecycleService.getOperationalStatus(leaderboard.id),
+        CompetitionPathwayService.getPathwaysForLeaderboard(leaderboard.id),
       ]);
 
       setMembers(nextMembers);
@@ -96,6 +112,9 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
       setFixtures(nextFixtures);
       setRecentResults(nextRecentResults);
       setLeagueSettings(nextLeagueSettings);
+      setOperationalStatus(nextOpStatus);
+      setInitialOpStatus(nextOpStatus);
+      setPathways(nextPathways);
       setHomeMemberId((current) => current || nextMembers[0]?.id || '');
       setAwayMemberId((current) => current || nextMembers[1]?.id || nextMembers[0]?.id || '');
 
@@ -254,6 +273,13 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
         points_for_loss: pointsForLoss,
       });
 
+      if (operationalStatus !== initialOpStatus) {
+        await CompetitionLifecycleService.updateOperationalStatus({
+          leaderboardId: leaderboard.id,
+          targetStatus: operationalStatus,
+        });
+      }
+
       onLeaderboardUpdated(updatedLeaderboard);
       setToast('League settings saved.');
       await loadLeagueData();
@@ -347,6 +373,29 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
           </div>
 
           <div className="space-y-6">
+            {pathways.length > 0 && (
+              <div className="glass rounded-2xl p-6 border-violet-500/20 bg-violet-950/10">
+                <div className="flex items-center gap-2 text-sm font-bold text-violet-300">
+                  <Workflow className="h-4 w-4" /> Connected Stage Pathways
+                </div>
+                <div className="mt-3 space-y-2">
+                  {pathways.map((p) => (
+                    <div key={p.id} className="p-3 rounded-xl bg-neutral-900 border border-white/5 text-xs flex items-center justify-between">
+                      <div>
+                        <div className="font-semibold text-white">{p.name}</div>
+                        <div className="text-neutral-400 text-[11px] mt-0.5">Top {p.qualifier_count} advance to playoff bracket</div>
+                      </div>
+                      <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${
+                        p.status === 'committed' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-neutral-800 text-neutral-400 border-neutral-700'
+                      }`}>
+                        {p.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="glass rounded-2xl p-6">
               <div className="flex items-center gap-2 text-sm font-bold text-white">
                 <Shield className="h-4 w-4 text-emerald-400" /> League Rules
@@ -570,7 +619,16 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
                 <option value="public">Public</option>
                 <option value="private">Private</option>
               </select>
-              <input value={settingsCover} onChange={(event) => setSettingsCover(event.target.value)} placeholder="Cover image URL" className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
+              <select value={operationalStatus} onChange={(event) => setOperationalStatus(event.target.value as CompetitionOperationalStatus)} className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white">
+                <option value="draft">Draft</option>
+                <option value="registration_open">Registration Open</option>
+                <option value="scheduled">Scheduled</option>
+                <option value="in_progress">In Progress</option>
+                <option value="under_review">Under Review</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+              <input value={settingsCover} onChange={(event) => setSettingsCover(event.target.value)} placeholder="Cover image URL" className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white md:col-span-2" />
             </div>
             <textarea value={settingsDescription} onChange={(event) => setSettingsDescription(event.target.value)} rows={4} placeholder="Description" className="w-full rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
 

@@ -877,4 +877,46 @@ CREATE TRIGGER trg_prevent_result_audit_log_mutation
 
 ALTER PUBLICATION supabase_realtime ADD TABLE public.result_audit_log;
 
+-- ============================================================================
+-- 31. Operational Competition Lifecycle & Multi-Stage Pathways
+-- ============================================================================
+ALTER TABLE public.competition_configs
+  ADD COLUMN IF NOT EXISTS operational_status TEXT NOT NULL DEFAULT 'draft';
+
+ALTER TABLE public.competition_configs
+  DROP CONSTRAINT IF EXISTS competition_configs_operational_status_check;
+
+ALTER TABLE public.competition_configs
+  ADD CONSTRAINT competition_configs_operational_status_check
+  CHECK (operational_status IN ('draft', 'registration_open', 'scheduled', 'in_progress', 'under_review', 'completed', 'cancelled'));
+
+ALTER TABLE public.tournaments
+  DROP CONSTRAINT IF EXISTS tournaments_state_check;
+
+ALTER TABLE public.tournaments
+  ADD CONSTRAINT tournaments_state_check
+  CHECK (state IN ('draft', 'registration_open', 'scheduled', 'in_progress', 'under_review', 'completed', 'cancelled'));
+
+CREATE TABLE IF NOT EXISTS public.competition_pathways (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  source_leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  destination_leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  stage_order INTEGER NOT NULL DEFAULT 1,
+  qualifier_count INTEGER NOT NULL CHECK (qualifier_count >= 1),
+  tie_handling TEXT NOT NULL CHECK (tie_handling IN ('standard_rules', 'playoff', 'manual_approval', 'random')) DEFAULT 'standard_rules',
+  status TEXT NOT NULL CHECK (status IN ('configured', 'previewed', 'committed', 'cancelled')) DEFAULT 'configured',
+  committed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (source_leaderboard_id, destination_leaderboard_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_competition_pathways_source ON public.competition_pathways(source_leaderboard_id);
+CREATE INDEX IF NOT EXISTS idx_competition_pathways_dest ON public.competition_pathways(destination_leaderboard_id);
+CREATE INDEX IF NOT EXISTS idx_competition_pathways_status ON public.competition_pathways(status);
+
+ALTER TABLE public.competition_pathways ENABLE ROW LEVEL SECURITY;
+
+
 

@@ -110,9 +110,31 @@ export default function TournamentPublicView({ leaderboard, competitionConfig }:
           <div className="mt-1 text-xs text-neutral-400">Live progression</div>
         </div>
         <div className="glass rounded-2xl p-5">
-          <div className="text-[10px] uppercase tracking-widest text-neutral-500">Champion</div>
-          <div className="mt-2 text-lg font-bold text-white">{bracketView?.champion?.name || 'TBD'}</div>
-          <div className="mt-1 text-xs text-neutral-400">{bracketView?.tournament.state || 'draft'}</div>
+          <div className="text-[10px] uppercase tracking-widest text-neutral-500">Status & Champion</div>
+          <div className="mt-2 flex items-center gap-2">
+            <span
+              className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wider border ${
+                bracketView?.tournament.state === 'registration_open'
+                  ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                  : bracketView?.tournament.state === 'scheduled'
+                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                    : bracketView?.tournament.state === 'in_progress'
+                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                      : bracketView?.tournament.state === 'under_review'
+                        ? 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                        : bracketView?.tournament.state === 'completed'
+                          ? 'bg-neutral-800 text-neutral-300 border-neutral-700'
+                          : bracketView?.tournament.state === 'cancelled'
+                            ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                            : 'bg-neutral-800 text-neutral-400 border-neutral-700'
+              }`}
+            >
+              {(bracketView?.tournament.state || 'draft').replace('_', ' ')}
+            </span>
+          </div>
+          <div className="mt-2 text-xs text-neutral-400">
+            {bracketView?.champion?.name ? `Champion: ${bracketView.champion.name}` : 'Champion: TBD'}
+          </div>
         </div>
       </div>
 

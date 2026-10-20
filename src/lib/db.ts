@@ -794,7 +794,11 @@ export const DatabaseService = {
     return found || null;
   },
 
-  async createLeaderboard(lb: Omit<Leaderboard, 'id' | 'owner_id' | 'created_at' | 'updated_at' | 'status'>, rules: Omit<ScoringRule, 'id' | 'leaderboard_id' | 'created_at'>[], season: Omit<Season, 'id' | 'leaderboard_id' | 'created_at'> | null): Promise<Leaderboard> {
+  async createLeaderboard(
+    lb: Omit<Leaderboard, 'id' | 'owner_id' | 'created_at' | 'updated_at' | 'status'>,
+    rules: Omit<ScoringRule, 'id' | 'leaderboard_id' | 'created_at'>[] = [],
+    season: Omit<Season, 'id' | 'leaderboard_id' | 'created_at'> | null = null
+  ): Promise<Leaderboard> {
     const profile = await this.getCurrentProfile();
     const owner_id = profile?.id;
     

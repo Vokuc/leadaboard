@@ -12,10 +12,17 @@ import {
   Trophy,
   Users,
   Code,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  CheckCircle2,
+  AlertTriangle,
+  Workflow,
+  Loader2,
 } from 'lucide-react';
 import { DatabaseService, isSupabaseConfigured, supabase } from '@/lib/db';
 import { TournamentService } from '@/lib/tournament/service';
+import { CompetitionPathwayService } from '@/lib/competition/pathway/service';
+import { CompetitionLifecycleService } from '@/lib/competition/lifecycle/service';
 import {
   CompetitionConfig,
   Leaderboard,
@@ -24,6 +31,8 @@ import {
   TournamentSeedingMode,
   TournamentState,
   Team,
+  QualificationPreview,
+  PathwayTieHandling,
 } from '@/types';
 import { TeamRosterManagement } from '@/components/teams/TeamRosterManagement';
 
@@ -65,6 +74,11 @@ export default function TournamentManagementPanel({
   const [seedingSelection, setSeedingSelection] = useState<TournamentSeedingMode>('random');
   const [availableLeagues, setAvailableLeagues] = useState<Leaderboard[]>([]);
   const [sourceLeagueId, setSourceLeagueId] = useState<string>('');
+  const [tieHandlingSelection, setTieHandlingSelection] = useState<PathwayTieHandling>('standard_rules');
+  const [qualifierCountSelection, setQualifierCountSelection] = useState<number>(8);
+  const [qualificationPreview, setQualificationPreview] = useState<QualificationPreview | null>(null);
+  const [previewing, setPreviewing] = useState(false);
+  const [committing, setCommitting] = useState(false);
 
   const [newMemberName, setNewMemberName] = useState('');
   const [newMemberEmail, setNewMemberEmail] = useState('');
@@ -222,13 +236,56 @@ export default function TournamentManagementPanel({
         seedingMode: seedingSelection,
         sourceLeagueId: seedingSelection === 'league_standings' ? sourceLeagueId : undefined,
       });
-      await TournamentService.updateTournamentState(leaderboard.id, 'in_progress');
+      await CompetitionLifecycleService.updateOperationalStatus({
+        leaderboardId: leaderboard.id,
+        targetStatus: 'in_progress',
+        reason: 'Bracket generated',
+      });
       setToast('Bracket generated. BYEs auto-advanced where applicable.');
       await loadTournamentData(true);
     } catch (error) {
       setToast(getErrorMessage(error, 'Failed to generate bracket.'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePreviewQualification = async () => {
+    if (!sourceLeagueId) return;
+    setPreviewing(true);
+    try {
+      const preview = await CompetitionPathwayService.previewQualification({
+        sourceLeaderboardId: sourceLeagueId,
+        destinationLeaderboardId: leaderboard.id,
+        qualifierCount: qualifierCountSelection || bracketSizeSelection,
+        tieHandling: tieHandlingSelection,
+      });
+      setQualificationPreview(preview);
+    } catch (error) {
+      setToast(getErrorMessage(error, 'Failed to preview qualification.'));
+    } finally {
+      setPreviewing(false);
+    }
+  };
+
+  const handleCommitPathway = async () => {
+    if (!sourceLeagueId) return;
+    setCommitting(true);
+    try {
+      await CompetitionPathwayService.commitQualification({
+        sourceLeaderboardId: sourceLeagueId,
+        destinationLeaderboardId: leaderboard.id,
+        qualifierCount: qualifierCountSelection || bracketSizeSelection,
+        tieHandling: tieHandlingSelection,
+        forceReset: true,
+      });
+      setToast('Qualification pathway committed. Bracket successfully generated!');
+      setQualificationPreview(null);
+      await loadTournamentData(true);
+    } catch (error) {
+      setToast(getErrorMessage(error, 'Failed to commit qualification pathway.'));
+    } finally {
+      setCommitting(false);
     }
   };
 
@@ -373,40 +430,154 @@ export default function TournamentManagementPanel({
                 </select>
 
                 {seedingSelection === 'league_standings' && (
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-semibold text-neutral-400">Source League</label>
-                    {availableLeagues.length === 0 ? (
-                      <div className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5">
-                        No other leagues available to seed from.
+                  <div className="space-y-3 pt-1 border-t border-white/5">
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-semibold text-neutral-400">Source League</label>
+                      {availableLeagues.length === 0 ? (
+                        <div className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5">
+                          No other leagues available to seed from.
+                        </div>
+                      ) : (
+                        <select
+                          value={sourceLeagueId}
+                          onChange={(event) => {
+                            setSourceLeagueId(event.target.value);
+                            setQualificationPreview(null);
+                          }}
+                          className="w-full rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white"
+                        >
+                          {availableLeagues.map((lb) => (
+                            <option key={lb.id} value={lb.id}>
+                              {lb.name} ({lb.competition_type})
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-semibold text-neutral-400">Qualifiers Count</label>
+                        <select
+                          value={qualifierCountSelection}
+                          onChange={(e) => {
+                            setQualifierCountSelection(Number(e.target.value));
+                            setQualificationPreview(null);
+                          }}
+                          className="w-full rounded-xl border border-neutral-800 bg-neutral-950/70 px-2.5 py-1.5 text-xs text-white"
+                        >
+                          {[2, 4, 8, 16, 32].map((num) => (
+                            <option key={num} value={num}>{num} Qualifiers</option>
+                          ))}
+                        </select>
                       </div>
-                    ) : (
-                      <select
-                        value={sourceLeagueId}
-                        onChange={(event) => setSourceLeagueId(event.target.value)}
-                        className="w-full rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white"
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-semibold text-neutral-400">Cutoff Tie Handling</label>
+                        <select
+                          value={tieHandlingSelection}
+                          onChange={(e) => {
+                            setTieHandlingSelection(e.target.value as PathwayTieHandling);
+                            setQualificationPreview(null);
+                          }}
+                          className="w-full rounded-xl border border-neutral-800 bg-neutral-950/70 px-2.5 py-1.5 text-xs text-white"
+                        >
+                          <option value="standard_rules">Standard Rules</option>
+                          <option value="manual_approval">Manual Approval</option>
+                          <option value="random">Random Draw</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        type="button"
+                        disabled={previewing || !sourceLeagueId}
+                        onClick={() => void handlePreviewQualification()}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-violet-500/30 bg-violet-600/20 px-3 py-2 text-xs font-semibold text-violet-300 hover:bg-violet-600/30 disabled:opacity-50"
                       >
-                        {availableLeagues.map((lb) => (
-                          <option key={lb.id} value={lb.id}>
-                            {lb.name} ({lb.competition_type})
-                          </option>
-                        ))}
-                      </select>
+                        {previewing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
+                        Preview Qualifiers
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={committing || !sourceLeagueId || (qualificationPreview !== null && !qualificationPreview.canCommit)}
+                        onClick={() => void handleCommitPathway()}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-violet-600 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
+                      >
+                        {committing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                        Commit Pathway
+                      </button>
+                    </div>
+
+                    {/* Preview Results Box */}
+                    {qualificationPreview && (
+                      <div className="mt-3 p-3 rounded-xl border border-violet-500/30 bg-neutral-950/80 space-y-3">
+                        <div className="flex items-center justify-between text-xs font-bold text-violet-300">
+                          <span className="flex items-center gap-1.5">
+                            <Workflow className="h-3.5 w-3.5" /> Qualification Preview
+                          </span>
+                          <span className="text-[10px] text-neutral-400">
+                            {qualificationPreview.qualifiers.length} Qualified
+                          </span>
+                        </div>
+
+                        {qualificationPreview.warnings.length > 0 && (
+                          <div className="space-y-1">
+                            {qualificationPreview.warnings.map((w, widx) => (
+                              <div key={widx} className="flex items-start gap-1.5 text-[11px] text-amber-300 bg-amber-500/10 border border-amber-500/20 p-2 rounded-lg">
+                                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                                <span>{w}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="space-y-1 text-xs">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Qualifiers (Ranked Seeds)</div>
+                          <div className="max-h-36 overflow-y-auto space-y-1">
+                            {qualificationPreview.qualifiers.map((q) => (
+                              <div key={q.memberId} className="flex items-center justify-between p-1.5 rounded-lg bg-neutral-900 border border-white/5 text-[11px]">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-violet-400 font-bold">#{q.seedIndex}</span>
+                                  <span className="text-white font-medium">{q.name}</span>
+                                  {q.team && <span className="text-neutral-500 text-[10px]">({q.team})</span>}
+                                </div>
+                                <span className="text-neutral-400 font-mono">{q.points} pts</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="space-y-1 text-xs">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Round 1 Matchup Preview</div>
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {qualificationPreview.bracketPlacementPreview.map((m) => (
+                              <div key={m.matchIndex} className="p-1.5 rounded-lg bg-neutral-900 border border-white/5 text-[10px]">
+                                <span className="font-bold text-neutral-400">M{m.matchIndex}: </span>
+                                <span className="text-emerald-400 font-semibold">{m.homeParticipantName}</span>
+                                <span className="text-neutral-500"> vs </span>
+                                <span className="text-amber-400 font-semibold">{m.awayParticipantName}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}
 
-                <button
-                  type="button"
-                  disabled={
-                    saving ||
-                    (seedingSelection !== 'league_standings' && members.length < 2) ||
-                    (seedingSelection === 'league_standings' && !sourceLeagueId)
-                  }
-                  onClick={() => void handleGenerateBracket()}
-                  className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                >
-                  <Shuffle className="h-4 w-4" /> Generate bracket
-                </button>
+                {seedingSelection !== 'league_standings' && (
+                  <button
+                    type="button"
+                    disabled={saving || members.length < 2}
+                    onClick={() => void handleGenerateBracket()}
+                    className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    <Shuffle className="h-4 w-4" /> Generate bracket
+                  </button>
+                )}
               </div>
             </div>
 
@@ -566,7 +737,9 @@ export default function TournamentManagementPanel({
             <select value={stateSelection} onChange={(event) => setStateSelection(event.target.value as TournamentState)} className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white">
               <option value="draft">Draft</option>
               <option value="registration_open">Registration Open</option>
+              <option value="scheduled">Scheduled</option>
               <option value="in_progress">In Progress</option>
+              <option value="under_review">Under Review</option>
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
             </select>

@@ -37,7 +37,15 @@ export type TieBreakerCriterionType =
   | 'random';
 export type RankingDirection = 'asc' | 'desc';
 export type FixtureStatus = 'scheduled' | 'live' | 'completed';
-export type TournamentState = 'draft' | 'registration_open' | 'in_progress' | 'completed' | 'cancelled';
+export type CompetitionOperationalStatus = 
+  | 'draft' 
+  | 'registration_open' 
+  | 'scheduled' 
+  | 'in_progress' 
+  | 'under_review' 
+  | 'completed' 
+  | 'cancelled';
+export type TournamentState = CompetitionOperationalStatus;
 export type TournamentMatchState = 'scheduled' | 'live' | 'completed' | 'cancelled' | 'walkover' | 'bye';
 export type TournamentFormat = 'single_elimination';
 export type TournamentSeedingMode = 'random' | 'manual' | 'league_standings';
@@ -265,8 +273,76 @@ export interface CompetitionConfig {
   engine_type: CompetitionEngine;
   template_key: CompetitionTemplateKey;
   entity_type: CompetitionEntityType;
+  operational_status?: CompetitionOperationalStatus;
   created_at: string;
   updated_at: string;
+}
+
+export type PathwayTieHandling = 'standard_rules' | 'playoff' | 'manual_approval' | 'random';
+export type PathwayStatus = 'configured' | 'previewed' | 'committed' | 'cancelled';
+
+export interface CompetitionPathway {
+  id: string;
+  source_leaderboard_id: string;
+  destination_leaderboard_id: string;
+  name: string;
+  stage_order: number;
+  qualifier_count: number;
+  tie_handling: PathwayTieHandling;
+  status: PathwayStatus;
+  committed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreatePathwayInput {
+  sourceLeaderboardId: string;
+  destinationLeaderboardId: string;
+  name: string;
+  stageOrder?: number;
+  qualifierCount: number;
+  tieHandling?: PathwayTieHandling;
+}
+
+export interface QualificationPreviewRow {
+  rank: number;
+  memberId: string;
+  name: string;
+  team: string | null;
+  avatarUrl: string | null;
+  points: number;
+  stats: Record<string, number>;
+  seedIndex: number;
+  isQualified: boolean;
+  isCutoffTie: boolean;
+}
+
+export interface BracketMatchupPreview {
+  matchIndex: number;
+  homeSeed: number | null;
+  homeParticipantName: string | null;
+  awaySeed: number | null;
+  awayParticipantName: string | null;
+}
+
+export interface QualificationPreview {
+  sourceLeaderboardId: string;
+  destinationLeaderboardId: string;
+  qualifiers: QualificationPreviewRow[];
+  bracketPlacementPreview: BracketMatchupPreview[];
+  hasUnresolvedTies: boolean;
+  unresolvedTieMembers: string[];
+  canCommit: boolean;
+  warnings: string[];
+}
+
+export interface CommitQualificationInput {
+  pathwayId?: string;
+  sourceLeaderboardId?: string;
+  destinationLeaderboardId?: string;
+  qualifierCount?: number;
+  tieHandling?: PathwayTieHandling;
+  forceReset?: boolean;
 }
 
 export interface StatisticsRegistryItem {
