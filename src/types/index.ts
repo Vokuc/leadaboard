@@ -22,7 +22,19 @@ export type StatisticCalculationType =
   | 'win_percentage'
   | 'average_points'
   | 'kill_death_ratio';
-export type RankingCriterionType = 'statistic' | 'alphabetical';
+export type RankingCriterionType = 'statistic' | 'alphabetical' | 'head_to_head';
+export type TieBreakerCriterionType =
+  | 'points'
+  | 'goal_difference'
+  | 'goals_for'
+  | 'goals_against'
+  | 'head_to_head'
+  | 'statistic'
+  | 'earliest_score'
+  | 'latest_score'
+  | 'event_count'
+  | 'alphabetical'
+  | 'random';
 export type RankingDirection = 'asc' | 'desc';
 export type FixtureStatus = 'scheduled' | 'live' | 'completed';
 export type TournamentState = 'draft' | 'registration_open' | 'in_progress' | 'completed' | 'cancelled';
@@ -158,6 +170,41 @@ export interface Ranking {
   total_points: number;
   last_score_at: string;
   joined_at: string;
+  position?: number;
+  tie_break_explanation?: string;
+}
+
+export interface TieBreakerRule {
+  type: TieBreakerCriterionType;
+  statistic_key?: string | null;
+  direction?: RankingDirection;
+  label: string;
+}
+
+export interface PointsRuleConfig {
+  points_for_win: number;
+  points_for_draw: number;
+  points_for_loss: number;
+  allow_draws: boolean;
+  allow_negative_points: boolean;
+  min_points_per_event?: number | null;
+  max_points_per_event?: number | null;
+  walkover_win_score?: number;
+  walkover_loss_score?: number;
+}
+
+export interface CompetitionRules {
+  id: string;
+  leaderboard_id: string;
+  version: number;
+  engine: CompetitionEngine;
+  ranking_order: RankingDirection;
+  primary_metric: string;
+  points_config: PointsRuleConfig;
+  tie_breakers: TieBreakerRule[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CompetitionConfig {
@@ -248,6 +295,7 @@ export interface LeagueStandingRow {
   is_active: boolean;
   stats: Record<string, number>;
   position: number;
+  tie_break_explanation?: string;
 }
 
 export interface CompetitionTemplate {

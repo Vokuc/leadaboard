@@ -36,6 +36,7 @@ import SafeImage from '@/components/SafeImage';
 import LeagueManagementPanel from '@/components/league/LeagueManagementPanel';
 import TournamentManagementPanel from '@/components/tournament/TournamentManagementPanel';
 import { TeamRosterManagement } from '@/components/teams/TeamRosterManagement';
+import { CompetitionRulesSettings } from '@/components/competition/CompetitionRulesSettings';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -1427,6 +1428,17 @@ export default function LeaderboardManagementPage() {
                     ))
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* Configurable Competition Rules & Tie-Breakers */}
+            {leaderboard && (
+              <div className="md:col-span-3 glass p-6 rounded-2xl shadow-xl border border-white/5">
+                <CompetitionRulesSettings
+                  leaderboardId={leaderboard.id}
+                  engine="simple_points"
+                  onSaved={loadAllData}
+                />
               </div>
             )}
           </div>

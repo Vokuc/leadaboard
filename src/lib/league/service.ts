@@ -16,6 +16,9 @@ import {
 import { DatabaseService, isSupabaseConfigured, supabase } from '@/lib/db';
 import { COMPETITION_TEMPLATES, getCompetitionTemplate, getStatisticDefinition } from '@/lib/competition/templates';
 import { buildLeagueStandings } from '@/lib/league/standings';
+import { CompetitionRulesService } from '@/lib/competition/rules/service';
+import { validateFixtureResult } from '@/lib/competition/rules/validation';
+import { evaluateLeagueStandings } from '@/lib/competition/rules/evaluator';
 
 interface CreateLeagueCompetitionInput {
   name: string;
@@ -505,6 +508,14 @@ export const LeagueService = {
       throw new Error('Fixture not found.');
     }
     await DatabaseService.requireAdminPermission(leaderboardId);
+
+    // Validate fixture result with competition rules
+    const rules = await CompetitionRulesService.getRules(leaderboardId);
+    const validation = validateFixtureResult(rules, { homeScore: input.homeScore, awayScore: input.awayScore }, false);
+    if (!validation.valid) {
+      throw new Error(validation.errors.join(' '));
+    }
+
     const timestamp = new Date().toISOString();
 
     if (isSupabaseConfigured && supabase) {
@@ -604,19 +615,20 @@ export const LeagueService = {
   },
 
   async getLeagueStandings(leaderboardId: string): Promise<LeagueStandingRow[]> {
-    const { members, config, settings, statistics, rankingRules, fixtures, results } = await getLeaguePieces(leaderboardId);
-    if (!config || !settings) {
+    const { members, config, statistics, fixtures, results } = await getLeaguePieces(leaderboardId);
+    if (!config) {
       return [];
     }
 
+    const rules = await CompetitionRulesService.getRules(leaderboardId);
     const template = getCompetitionTemplate(config.template_key);
-    return buildLeagueStandings({
+
+    return evaluateLeagueStandings({
       members: members.filter((member) => member.is_active),
       fixtures,
       results,
-      leagueSettings: settings,
+      rules,
       competitionStatistics: statistics,
-      rankingRules,
       scoredStatKey: template.scored_stat_key,
       allowedStatKey: template.allowed_stat_key,
     });

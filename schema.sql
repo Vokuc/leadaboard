@@ -451,7 +451,16 @@ CREATE POLICY "Authenticated users can update leaderboard media" ON storage.obje
 
 DROP POLICY IF EXISTS "Authenticated users can delete leaderboard media" ON storage.objects;
 CREATE POLICY "Authenticated users can delete leaderboard media" ON storage.objects
+  FOR DELETE TO authenticated
+  USING (
+    bucket_id = 'leaderboard-media'
+    AND owner_id = (SELECT auth.uid()::text)
+  );
 
+-- ==========================================
+-- LEADERBOARD DYNAMIC RANKING VIEW
+-- ==========================================
+-- Dynamic Rankings incorporating Tie-Breaker logic:
 -- 1. Order by points descending (COALESCE to 0 if no score events)
 -- 2. Tie-breaker: Whomever reached their current score earlier wins (MAX(se.created_at) ascending)
 -- 3. If no score events, fallback to the member creation date (earliest join wins)
@@ -745,6 +754,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.fixtures;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.fixture_results;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.teams;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.team_members;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.competition_rules;
 
 -- Teams and Team Members Policies
 ALTER TABLE public.teams ENABLE ROW LEVEL SECURITY;
@@ -765,4 +775,39 @@ CREATE POLICY "Anyone can view team members for accessible leaderboards" ON publ
 DROP POLICY IF EXISTS "Owners and admins can manage team members" ON public.team_members;
 CREATE POLICY "Owners and admins can manage team members" ON public.team_members
   FOR ALL USING (public.can_manage_leaderboard(leaderboard_id, auth.uid()));
+
+-- Competition Rules Table and Policies
+CREATE TABLE IF NOT EXISTS public.competition_rules (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  version INTEGER NOT NULL DEFAULT 1,
+  engine TEXT NOT NULL CHECK (engine IN ('simple_points', 'league_table', 'tournament')),
+  ranking_order TEXT NOT NULL DEFAULT 'desc' CHECK (ranking_order IN ('asc', 'desc')),
+  primary_metric TEXT NOT NULL DEFAULT 'points',
+  points_for_win DOUBLE PRECISION NOT NULL DEFAULT 3,
+  points_for_draw DOUBLE PRECISION NOT NULL DEFAULT 1,
+  points_for_loss DOUBLE PRECISION NOT NULL DEFAULT 0,
+  allow_draws BOOLEAN NOT NULL DEFAULT TRUE,
+  allow_negative_points BOOLEAN NOT NULL DEFAULT TRUE,
+  min_points_per_event DOUBLE PRECISION,
+  max_points_per_event DOUBLE PRECISION,
+  walkover_win_score DOUBLE PRECISION NOT NULL DEFAULT 3,
+  walkover_loss_score DOUBLE PRECISION NOT NULL DEFAULT 0,
+  tie_breakers JSONB NOT NULL DEFAULT '[]'::jsonb,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (leaderboard_id, version)
+);
+
+ALTER TABLE public.competition_rules ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can view competition rules for accessible leaderboards" ON public.competition_rules;
+CREATE POLICY "Anyone can view competition rules for accessible leaderboards" ON public.competition_rules
+  FOR SELECT USING (public.can_view_leaderboard(leaderboard_id, auth.uid()));
+
+DROP POLICY IF EXISTS "Owners and admins can manage competition rules" ON public.competition_rules;
+CREATE POLICY "Owners and admins can manage competition rules" ON public.competition_rules
+  FOR ALL USING (public.can_manage_leaderboard(leaderboard_id, auth.uid()));
+
 

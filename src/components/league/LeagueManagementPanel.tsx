@@ -10,6 +10,7 @@ import { CompetitionConfig, CompetitionStatistic, Fixture, Leaderboard, Leaderbo
 import SafeImage from '@/components/SafeImage';
 import { uploadImageAsset } from '@/lib/image-upload';
 import { TeamRosterManagement } from '@/components/teams/TeamRosterManagement';
+import { CompetitionRulesSettings } from '@/components/competition/CompetitionRulesSettings';
 
 type TabKey = 'overview' | 'standings' | 'fixtures' | 'teams' | 'settings' | 'integrations';
 
@@ -544,44 +545,39 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
       )}
 
       {activeTab === 'settings' && (
-        <form onSubmit={handleSaveSettings} className="glass rounded-2xl p-6 space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <input value={settingsName} onChange={(event) => setSettingsName(event.target.value)} placeholder="League name" className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
-            <input value={seasonName} onChange={(event) => setSeasonName(event.target.value)} placeholder="Season name" className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
-            <select value={settingsVisibility} onChange={(event) => setSettingsVisibility(event.target.value as Leaderboard['visibility'])} className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white">
-              <option value="public">Public</option>
-              <option value="private">Private</option>
-            </select>
-            <input value={settingsCover} onChange={(event) => setSettingsCover(event.target.value)} placeholder="Cover image URL" className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
-          </div>
-          <textarea value={settingsDescription} onChange={(event) => setSettingsDescription(event.target.value)} rows={4} placeholder="Description" className="w-full rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
-
-          <div className="grid gap-4 md:grid-cols-3">
-            <input type="number" value={pointsForWin} onChange={(event) => setPointsForWin(Number(event.target.value) || 0)} placeholder="Points for win" className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
-            <input type="number" value={pointsForDraw} onChange={(event) => setPointsForDraw(Number(event.target.value) || 0)} placeholder="Points for draw" className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
-            <input type="number" value={pointsForLoss} onChange={(event) => setPointsForLoss(Number(event.target.value) || 0)} placeholder="Points for loss" className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
-          </div>
-
-          <div className="rounded-xl border border-white/5 bg-black/20 p-4 text-xs text-neutral-300">
-            <div className="font-bold text-white">Ranking criteria</div>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {template.ranking_rules.map((rule, index) => (
-                <span key={`${rule.label}-${index}`} className="rounded-lg border border-violet-500/20 bg-violet-500/10 px-2 py-1 text-[11px] text-violet-200">
-                  {index + 1}. {rule.label}
-                </span>
-              ))}
+        <div className="space-y-6">
+          <form onSubmit={handleSaveSettings} className="glass rounded-2xl p-6 space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <input value={settingsName} onChange={(event) => setSettingsName(event.target.value)} placeholder="League name" className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
+              <input value={seasonName} onChange={(event) => setSeasonName(event.target.value)} placeholder="Season name" className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
+              <select value={settingsVisibility} onChange={(event) => setSettingsVisibility(event.target.value as Leaderboard['visibility'])} className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white">
+                <option value="public">Public</option>
+                <option value="private">Private</option>
+              </select>
+              <input value={settingsCover} onChange={(event) => setSettingsCover(event.target.value)} placeholder="Cover image URL" className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
             </div>
-          </div>
+            <textarea value={settingsDescription} onChange={(event) => setSettingsDescription(event.target.value)} rows={4} placeholder="Description" className="w-full rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
 
-          <div className="flex items-center justify-between">
-            <Link href={`/leaderboards/${leaderboard.slug}`} target="_blank" className="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-white">
-              <ArrowUpRight className="h-4 w-4" /> Open public league page
-            </Link>
-            <button disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
-              <Save className="h-4 w-4" /> Save settings
-            </button>
+            <div className="flex items-center justify-between pt-2">
+              <Link href={`/leaderboards/${leaderboard.slug}`} target="_blank" className="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-white">
+                <ArrowUpRight className="h-4 w-4" /> Open public league page
+              </Link>
+              <button disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                <Save className="h-4 w-4" /> Save settings
+              </button>
+            </div>
+          </form>
+
+          <div className="glass rounded-2xl p-6 shadow-xl border border-white/5">
+            <CompetitionRulesSettings
+              leaderboardId={leaderboard.id}
+              engine="league_table"
+              onSaved={() => {
+                void loadLeagueData();
+              }}
+            />
           </div>
-        </form>
+        </div>
       )}
 
       {activeTab === 'integrations' && (

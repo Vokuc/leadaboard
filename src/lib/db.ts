@@ -14,6 +14,9 @@ import {
   TeamWithRoster,
   TeamRosterRole
 } from '../types';
+import { CompetitionRulesService } from '@/lib/competition/rules/service';
+import { validateScoreAdjustment } from '@/lib/competition/rules/validation';
+import { evaluatePointsRankings } from '@/lib/competition/rules/evaluator';
 
 // Detect environment keys
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -1748,6 +1751,14 @@ export const DatabaseService = {
   // Score Events
   async addScoreEvent(leaderboardId: string, memberId: string, event: Omit<ScoreEvent, 'id' | 'leaderboard_id' | 'member_id' | 'created_at'>): Promise<ScoreEvent> {
     await this.requireAdminPermission(leaderboardId);
+    
+    // Validate score adjustment against competition rules
+    const rules = await CompetitionRulesService.getRules(leaderboardId);
+    const validation = validateScoreAdjustment(rules, { points: event.points, reason: event.reason });
+    if (!validation.valid) {
+      throw new Error(validation.errors.join(' '));
+    }
+
     const timestamp = new Date().toISOString();
     
     if (isSupabaseConfigured && supabase) {
@@ -1836,8 +1847,10 @@ export const DatabaseService = {
     return newLog;
   },
 
-  // Dynamic Rankings logic (ordered by sum points descending, then tie-breaker: last_score_at ascending)
+  // Dynamic Rankings logic using configurable competition rules
   async getRankings(leaderboardId: string): Promise<Ranking[]> {
+    const rules = await CompetitionRulesService.getRules(leaderboardId);
+
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase
         .from('leaderboard_rankings')
@@ -1845,52 +1858,89 @@ export const DatabaseService = {
         .eq('leaderboard_id', leaderboardId);
       if (error) throw error;
 
-      // PostgreSQL View returns ungrouped items, let's sort them appropriately
-      return (data || []).sort((a, b) => {
-        if (b.total_points !== a.total_points) {
-          return b.total_points - a.total_points;
+      const rawRankings: Ranking[] = (data || []).map((row: any) => ({
+        member_id: row.member_id,
+        leaderboard_id: row.leaderboard_id,
+        player_name: row.player_name,
+        player_email: row.player_email,
+        avatar_url: row.avatar_url,
+        team: row.team,
+        notes: row.notes,
+        is_active: row.is_active,
+        total_points: Number(row.total_points) || 0,
+        last_score_at: row.last_score_at,
+        joined_at: row.created_at || row.last_score_at,
+      }));
+
+      const rankingOrder = rules.ranking_order || 'desc';
+      const tieBreakers = rules.tie_breakers && rules.tie_breakers.length > 0
+        ? rules.tie_breakers
+        : [
+            { type: 'points' as const, label: 'Points', direction: rankingOrder },
+            { type: 'earliest_score' as const, label: 'Earliest Achieved', direction: 'asc' as const },
+            { type: 'alphabetical' as const, label: 'Alphabetical', direction: 'asc' as const },
+          ];
+
+      const compareRanks = (a: Ranking, b: Ranking): { diff: number; reason?: string } => {
+        for (const rule of tieBreakers) {
+          if (rule.type === 'points') {
+            if (a.total_points !== b.total_points) {
+              const dir = rule.direction || rankingOrder;
+              const diff = dir === 'asc' ? a.total_points - b.total_points : b.total_points - a.total_points;
+              return { diff, reason: `Points (${a.total_points} vs ${b.total_points})` };
+            }
+            continue;
+          }
+          if (rule.type === 'earliest_score') {
+            const timeA = new Date(a.last_score_at).getTime();
+            const timeB = new Date(b.last_score_at).getTime();
+            if (timeA !== timeB) {
+              const dir = rule.direction || 'asc';
+              const diff = dir === 'asc' ? timeA - timeB : timeB - timeA;
+              return { diff, reason: 'Earlier score achievement' };
+            }
+            continue;
+          }
+          if (rule.type === 'latest_score') {
+            const timeA = new Date(a.last_score_at).getTime();
+            const timeB = new Date(b.last_score_at).getTime();
+            if (timeA !== timeB) {
+              const dir = rule.direction || 'desc';
+              const diff = dir === 'desc' ? timeB - timeA : timeA - timeB;
+              return { diff, reason: 'Latest score achievement' };
+            }
+            continue;
+          }
+          if (rule.type === 'alphabetical') {
+            const comp = a.player_name.localeCompare(b.player_name);
+            if (comp !== 0) {
+              const dir = rule.direction || 'asc';
+              const diff = dir === 'desc' ? -comp : comp;
+              return { diff, reason: 'Alphabetical order' };
+            }
+            continue;
+          }
         }
-        return new Date(a.last_score_at).getTime() - new Date(b.last_score_at).getTime();
+        return { diff: a.player_name.localeCompare(b.player_name), reason: 'Alphabetical order' };
+      };
+
+      rawRankings.sort((a, b) => compareRanks(a, b).diff);
+      rawRankings.forEach((r, idx) => {
+        r.position = idx + 1;
+        if (idx > 0) {
+          r.tie_break_explanation = compareRanks(rawRankings[idx - 1], r).reason;
+        } else {
+          r.tie_break_explanation = 'Leader';
+        }
       });
+
+      return rawRankings;
     }
 
-    // Local Storage logic replicating views
+    // Local Storage logic replicating views with rules
     const members = mockDb.getMembers().filter(m => m.leaderboard_id === leaderboardId);
     const events = mockDb.getScoreEvents().filter(e => e.leaderboard_id === leaderboardId);
-
-    const rankings: Ranking[] = members.map(m => {
-      const playerEvents = events.filter(e => e.member_id === m.id);
-      const total_points = playerEvents.reduce((sum, e) => sum + e.points, 0);
-      
-      let last_score_at = m.created_at;
-      if (playerEvents.length > 0) {
-        // Find latest event timestamp
-        const times = playerEvents.map(e => new Date(e.created_at).getTime());
-        last_score_at = new Date(Math.max(...times)).toISOString();
-      }
-
-      return {
-        member_id: m.id,
-        leaderboard_id: m.leaderboard_id,
-        player_name: m.name,
-        player_email: m.email,
-        avatar_url: m.avatar_url,
-        team: m.team,
-        notes: m.notes,
-        is_active: m.is_active,
-        total_points,
-        last_score_at,
-        joined_at: m.created_at
-      };
-    });
-
-    // Sort: Points DESC, last score time ASC (earlier score achieved wins)
-    return rankings.sort((a, b) => {
-      if (b.total_points !== a.total_points) {
-        return b.total_points - a.total_points;
-      }
-      return new Date(a.last_score_at).getTime() - new Date(b.last_score_at).getTime();
-    });
+    return evaluatePointsRankings(members, events, rules);
   },
 
   async getPlayerHistory(memberId: string): Promise<ScoreEvent[]> {

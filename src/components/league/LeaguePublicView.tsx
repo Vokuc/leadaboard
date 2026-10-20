@@ -5,7 +5,9 @@ import { Activity, Calendar, Trophy } from 'lucide-react';
 import SafeImage from '@/components/SafeImage';
 import { isSupabaseConfigured, supabase } from '@/lib/db';
 import { LeagueService } from '@/lib/league/service';
-import { CompetitionConfig, CompetitionStatistic, Leaderboard, LeagueStandingRow } from '@/types';
+import { CompetitionConfig, CompetitionRules, CompetitionStatistic, Leaderboard, LeagueStandingRow } from '@/types';
+import { CompetitionRulesService } from '@/lib/competition/rules/service';
+import { RulesExplainerCard } from '@/components/competition/RulesExplainerCard';
 
 interface LeaguePublicViewProps {
   leaderboard: Leaderboard;
@@ -25,21 +27,24 @@ export default function LeaguePublicView({ leaderboard, competitionConfig }: Lea
   const [statistics, setStatistics] = useState<CompetitionStatistic[]>([]);
   const [standings, setStandings] = useState<LeagueStandingRow[]>([]);
   const [recentResults, setRecentResults] = useState<Array<Awaited<ReturnType<typeof LeagueService.getRecentResults>>[number]>>([]);
+  const [rules, setRules] = useState<CompetitionRules | null>(null);
 
   const loadData = useCallback(async (silent = false) => {
     if (!silent) {
       setLoading(true);
     }
     try {
-      const [nextStatistics, nextStandings, nextRecentResults] = await Promise.all([
+      const [nextStatistics, nextStandings, nextRecentResults, nextRules] = await Promise.all([
         LeagueService.getCompetitionStatistics(leaderboard.id),
         LeagueService.getLeagueStandings(leaderboard.id),
         LeagueService.getRecentResults(leaderboard.id),
+        CompetitionRulesService.getRules(leaderboard.id),
       ]);
 
       setStatistics(nextStatistics.filter((item) => item.is_enabled).sort((a, b) => a.display_order - b.display_order));
       setStandings(nextStandings);
       setRecentResults(nextRecentResults);
+      setRules(nextRules);
     } catch (err) {
       console.error('Error loading league data:', err);
     } finally {
@@ -152,7 +157,14 @@ export default function LeaguePublicView({ leaderboard, competitionConfig }: Lea
                     />
                     <div>
                       <div className="font-bold text-white">{row.name}</div>
-                      {row.team && <div className="text-[11px] text-neutral-500">{row.team}</div>}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {row.team && <span className="text-[11px] text-neutral-500">{row.team}</span>}
+                        {row.tie_break_explanation && row.position > 1 && (
+                          <span className="text-[10px] text-violet-400 font-mono bg-violet-500/10 border border-violet-500/20 px-1.5 py-0.2 rounded" title={`Tie-break explanation: ${row.tie_break_explanation}`}>
+                            {row.tie_break_explanation}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </td>
@@ -164,6 +176,10 @@ export default function LeaguePublicView({ leaderboard, competitionConfig }: Lea
           </tbody>
         </table>
       </div>
+
+      {rules && (
+        <RulesExplainerCard rules={rules} />
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
         <div className="glass rounded-2xl p-6">

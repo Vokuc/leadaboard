@@ -21,6 +21,8 @@ import {
   generateSingleEliminationBracket,
   processSingleEliminationMatchResult,
 } from '@/services/tournamentAdvancement';
+import { CompetitionRulesService } from '@/lib/competition/rules/service';
+import { validateFixtureResult } from '@/lib/competition/rules/validation';
 
 interface CreateTournamentCompetitionInput {
   name: string;
@@ -446,6 +448,13 @@ export const TournamentService = {
     }
 
     await DatabaseService.requireAdminPermission(leaderboardId);
+
+    // Validate knockout match result against competition rules (disallowing draws)
+    const rules = await CompetitionRulesService.getRules(leaderboardId);
+    const validation = validateFixtureResult(rules, { homeScore: input.homeScore, awayScore: input.awayScore }, true);
+    if (!validation.valid) {
+      throw new Error(validation.errors.join(' '));
+    }
 
     const matches = await this.getMatches(leaderboardId);
     const processed = processSingleEliminationMatchResult({
