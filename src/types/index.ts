@@ -141,6 +141,58 @@ export interface LeaderboardMember {
   updated_at: string;
 }
 
+export type ResultEntityType = 'score_event' | 'fixture_result' | 'tournament_match';
+export type ResultAuditAction = 'submit' | 'correct' | 'dispute' | 'approve' | 'reject' | 'void';
+export type ResultStatus = 'submitted' | 'confirmed' | 'disputed' | 'approved' | 'rejected' | 'voided';
+export type ResultActorRole = 'owner' | 'admin' | 'referee' | 'participant' | 'system';
+
+export interface ResultAuditEntry {
+  id: string;
+  leaderboard_id: string;
+  entity_type: ResultEntityType;
+  entity_id: string;
+  previous_payload: Record<string, unknown> | null;
+  proposed_payload: Record<string, unknown>;
+  actor_id: string | null;
+  actor_email: string | null;
+  actor_name: string | null;
+  actor_role: ResultActorRole;
+  participant_id?: string | null;
+  participant_name?: string | null;
+  action: ResultAuditAction;
+  status: ResultStatus;
+  reason: string;
+  evidence_urls: string[];
+  created_at: string;
+}
+
+export interface CorrectResultInput {
+  entityType: ResultEntityType;
+  entityId: string;
+  leaderboardId: string;
+  newPayload: Record<string, unknown>;
+  reason: string;
+  evidenceUrls?: string[];
+  forceDownstreamReset?: boolean;
+}
+
+export interface DisputeResultInput {
+  entityType: ResultEntityType;
+  entityId: string;
+  leaderboardId: string;
+  reason: string;
+  evidenceUrls?: string[];
+}
+
+export interface ResolveDisputeInput {
+  leaderboardId: string;
+  entityType: ResultEntityType;
+  entityId: string;
+  decision: 'approve' | 'reject';
+  resolutionReason: string;
+  auditEntryId?: string;
+}
+
 export interface ScoreEvent {
   id: string;
   leaderboard_id: string;
@@ -148,6 +200,7 @@ export interface ScoreEvent {
   rule_id: string | null;
   points: number;
   reason: string;
+  status?: ResultStatus;
   created_at: string;
 }
 
@@ -282,6 +335,7 @@ export interface FixtureResult {
   fixture_id: string;
   home_score: number;
   away_score: number;
+  status?: ResultStatus;
   created_at: string;
   updated_at: string;
 }
@@ -372,6 +426,7 @@ export interface TournamentMatchResult {
   match_id: string;
   home_score: number;
   away_score: number;
+  status?: ResultStatus;
   created_at: string;
   updated_at: string;
 }

@@ -505,7 +505,7 @@ class LocalDb {
   }
 }
 
-const mockDb = new LocalDb();
+export const mockDb = new LocalDb();
 
 // ==========================================
 // UNIFIED DATABASE SERVICE EXPORT
@@ -1761,45 +1761,66 @@ export const DatabaseService = {
 
     const timestamp = new Date().toISOString();
     
+    let createdEvent: ScoreEvent;
+    let participantName = 'Unknown Player';
+
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase
         .from('score_events')
         .insert([{ ...event, leaderboard_id: leaderboardId, member_id: memberId }])
-        .select()
+        .select('*, leaderboard_members(name)')
         .single();
       if (error) throw error;
-      return data;
+      createdEvent = data as ScoreEvent;
+      participantName = (data.leaderboard_members as { name?: string })?.name || 'Unknown Player';
+    } else {
+      const newEvent: ScoreEvent = {
+        ...event,
+        id: `ev-${Math.random().toString(36).substr(2, 9)}`,
+        leaderboard_id: leaderboardId,
+        member_id: memberId,
+        created_at: timestamp
+      };
+
+      const currentEvents = mockDb.getScoreEvents();
+      mockDb.setScoreEvents([...currentEvents, newEvent]);
+
+      const members = mockDb.getMembers();
+      const player = members.find(m => m.id === memberId);
+      participantName = player ? player.name : 'Unknown Player';
+      const ptsStr = event.points >= 0 ? `+${event.points}` : `${event.points}`;
+      const logMessage = `${participantName} score adjusted by ${ptsStr} points: ${event.reason}`;
+      await this.logActivity(leaderboardId, logMessage);
+
+      createdEvent = newEvent;
     }
 
-    // Local storage flow
-    const newEvent: ScoreEvent = {
-      ...event,
-      id: `ev-${Math.random().toString(36).substr(2, 9)}`,
-      leaderboard_id: leaderboardId,
-      member_id: memberId,
-      created_at: timestamp
-    };
+    // Log initial result submission to immutable audit trail
+    try {
+      const { ResultAuditService } = await import('@/lib/competition/audit/service');
+      const profile = await this.getCurrentProfile();
+      await ResultAuditService.logAuditEntry({
+        leaderboard_id: leaderboardId,
+        entity_type: 'score_event',
+        entity_id: createdEvent.id,
+        previous_payload: null,
+        proposed_payload: { points: event.points, reason: event.reason },
+        actor_id: profile?.id || null,
+        actor_email: profile?.email || null,
+        actor_name: profile?.full_name || 'Admin',
+        actor_role: profile?.role === 'super_admin' ? 'owner' : 'admin',
+        participant_id: memberId,
+        participant_name: participantName,
+        action: 'submit',
+        status: 'approved',
+        reason: event.reason || 'Initial score submission',
+        evidence_urls: [],
+      });
+    } catch (auditErr) {
+      console.warn('Could not record initial audit entry for score event:', auditErr);
+    }
 
-    const currentEvents = mockDb.getScoreEvents();
-    mockDb.setScoreEvents([...currentEvents, newEvent]);
-
-    // Handle immutable activity log trigger manually in mock mode
-    const currentLogs = mockDb.getActivityLogs();
-    const members = mockDb.getMembers();
-    const player = members.find(m => m.id === memberId);
-    const pName = player ? player.name : 'Unknown Player';
-    const ptsStr = event.points >= 0 ? `+${event.points}` : `${event.points}`;
-    const logMessage = `${pName} score adjusted by ${ptsStr} points: ${event.reason}`;
-
-    const newLog: ActivityLog = {
-      id: `log-${Math.random().toString(36).substr(2, 9)}`,
-      leaderboard_id: leaderboardId,
-      message: logMessage,
-      created_at: timestamp
-    };
-    mockDb.setActivityLogs([newLog, ...currentLogs]);
-
-    return newEvent;
+    return createdEvent;
   },
 
   // Activity Logs
@@ -1817,6 +1838,10 @@ export const DatabaseService = {
   },
 
   async addActivityLog(leaderboardId: string, message: string): Promise<ActivityLog> {
+    return this.logActivity(leaderboardId, message);
+  },
+
+  async logActivity(leaderboardId: string, message: string): Promise<ActivityLog> {
     const timestamp = new Date().toISOString();
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase

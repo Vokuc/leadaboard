@@ -52,6 +52,9 @@ interface SaveTournamentMatchResultInput {
   matchId: string;
   homeScore: number;
   awayScore: number;
+  reason?: string;
+  evidenceUrls?: string[];
+  skipAuditLog?: boolean;
 }
 
 interface LocalTournamentState {
@@ -579,6 +582,39 @@ export const TournamentService = {
       await DatabaseService.addActivityLog(leaderboardId, logMsg);
     } catch (logErr) {
       console.error('Failed to log tournament match activity:', logErr);
+    }
+
+    // Record immutable tournament result audit entry
+    if (!input.skipAuditLog) {
+      try {
+        const { ResultAuditService } = await import('@/lib/competition/audit/service');
+        const profile = await DatabaseService.getCurrentProfile();
+        await ResultAuditService.logAuditEntry({
+          leaderboard_id: leaderboardId,
+          entity_type: 'tournament_match',
+          entity_id: input.matchId,
+          previous_payload: currentMatch.winner_member_id ? {
+            winner_member_id: currentMatch.winner_member_id,
+            home_score: currentMatch.home_member_id,
+            away_score: currentMatch.away_member_id,
+          } : null,
+          proposed_payload: {
+            winner_member_id: input.homeScore > input.awayScore ? currentMatch.home_member_id : currentMatch.away_member_id,
+            home_score: input.homeScore,
+            away_score: input.awayScore,
+          },
+          actor_id: profile?.id || null,
+          actor_email: profile?.email || null,
+          actor_name: profile?.full_name || 'Admin',
+          actor_role: profile?.role === 'super_admin' ? 'owner' : 'admin',
+          action: currentMatch.winner_member_id ? 'correct' : 'submit',
+          status: 'approved',
+          reason: input.reason || (currentMatch.winner_member_id ? 'Tournament match result updated' : 'Initial match result recorded'),
+          evidence_urls: input.evidenceUrls || [],
+        });
+      } catch (auditErr) {
+        console.warn('Could not record audit entry for tournament match result:', auditErr);
+      }
     }
   },
 

@@ -810,4 +810,71 @@ DROP POLICY IF EXISTS "Owners and admins can manage competition rules" ON public
 CREATE POLICY "Owners and admins can manage competition rules" ON public.competition_rules
   FOR ALL USING (public.can_manage_leaderboard(leaderboard_id, auth.uid()));
 
+-- Result Audit Log (Append-only Result Revisions & Dispute Workflow)
+CREATE TABLE IF NOT EXISTS public.result_audit_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('score_event', 'fixture_result', 'tournament_match')),
+  entity_id TEXT NOT NULL,
+  previous_payload JSONB,
+  proposed_payload JSONB NOT NULL,
+  actor_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  actor_email TEXT,
+  actor_name TEXT,
+  actor_role TEXT NOT NULL DEFAULT 'admin' CHECK (actor_role IN ('owner', 'admin', 'referee', 'participant', 'system')),
+  participant_id UUID,
+  participant_name TEXT,
+  action TEXT NOT NULL CHECK (action IN ('submit', 'correct', 'dispute', 'approve', 'reject', 'void')),
+  status TEXT NOT NULL CHECK (status IN ('submitted', 'confirmed', 'disputed', 'approved', 'rejected', 'voided')) DEFAULT 'approved',
+  reason TEXT NOT NULL,
+  evidence_urls JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.fixture_results 
+  ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'approved' 
+  CHECK (status IN ('submitted', 'confirmed', 'disputed', 'approved', 'rejected', 'voided'));
+
+ALTER TABLE public.score_events 
+  ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'approved' 
+  CHECK (status IN ('submitted', 'confirmed', 'disputed', 'approved', 'rejected', 'voided'));
+
+ALTER TABLE public.tournament_match_results 
+  ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'approved' 
+  CHECK (status IN ('submitted', 'confirmed', 'disputed', 'approved', 'rejected', 'voided'));
+
+CREATE INDEX IF NOT EXISTS idx_result_audit_log_lb ON public.result_audit_log(leaderboard_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_result_audit_log_entity ON public.result_audit_log(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_result_audit_log_status ON public.result_audit_log(leaderboard_id, status);
+
+ALTER TABLE public.result_audit_log ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can view result audit log for accessible leaderboards" ON public.result_audit_log;
+CREATE POLICY "Anyone can view result audit log for accessible leaderboards" ON public.result_audit_log
+  FOR SELECT USING (public.can_view_leaderboard(leaderboard_id, auth.uid()));
+
+DROP POLICY IF EXISTS "Authorized users can insert result audit log" ON public.result_audit_log;
+CREATE POLICY "Authorized users can insert result audit log" ON public.result_audit_log
+  FOR INSERT WITH CHECK (
+    public.can_manage_leaderboard(leaderboard_id, auth.uid()) OR
+    auth.uid() IS NOT NULL
+  );
+
+CREATE OR REPLACE FUNCTION public.prevent_result_audit_log_mutation()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RAISE EXCEPTION 'Result audit log records are immutable and cannot be updated or deleted.';
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_prevent_result_audit_log_mutation ON public.result_audit_log;
+CREATE TRIGGER trg_prevent_result_audit_log_mutation
+  BEFORE UPDATE OR DELETE ON public.result_audit_log
+  FOR EACH ROW
+  EXECUTE FUNCTION public.prevent_result_audit_log_mutation();
+
+ALTER PUBLICATION supabase_realtime ADD TABLE public.result_audit_log;
+
 

@@ -15,7 +15,6 @@ import {
 } from '@/types';
 import { DatabaseService, isSupabaseConfigured, supabase } from '@/lib/db';
 import { COMPETITION_TEMPLATES, getCompetitionTemplate, getStatisticDefinition } from '@/lib/competition/templates';
-import { buildLeagueStandings } from '@/lib/league/standings';
 import { CompetitionRulesService } from '@/lib/competition/rules/service';
 import { validateFixtureResult } from '@/lib/competition/rules/validation';
 import { evaluateLeagueStandings } from '@/lib/competition/rules/evaluator';
@@ -59,6 +58,8 @@ interface SaveFixtureResultInput {
   fixtureId: string;
   homeScore: number;
   awayScore: number;
+  reason?: string;
+  evidenceUrls?: string[];
 }
 
 interface LocalLeagueState {
@@ -518,11 +519,22 @@ export const LeagueService = {
 
     const timestamp = new Date().toISOString();
 
+    let previousResult: FixtureResult | null = null;
+    if (isSupabaseConfigured && supabase) {
+      const { data: cur } = await supabase.from('fixture_results').select('*').eq('fixture_id', input.fixtureId).maybeSingle();
+      if (cur) previousResult = cur as FixtureResult;
+    } else {
+      const curState = getLocalLeagueState();
+      const cur = curState.fixtureResults.find((item) => item.fixture_id === input.fixtureId);
+      if (cur) previousResult = { ...cur };
+    }
+
     if (isSupabaseConfigured && supabase) {
       const { error: resultError } = await supabase.from('fixture_results').upsert({
         fixture_id: input.fixtureId,
         home_score: input.homeScore,
         away_score: input.awayScore,
+        status: 'approved',
         updated_at: timestamp,
       });
 
@@ -612,6 +624,35 @@ export const LeagueService = {
     } catch (logErr) {
       console.error('Failed to log fixture activity:', logErr);
     }
+
+    // Record immutable result audit entry
+    try {
+      const { ResultAuditService } = await import('@/lib/competition/audit/service');
+      const profile = await DatabaseService.getCurrentProfile();
+      await ResultAuditService.logAuditEntry({
+        leaderboard_id: leaderboardId,
+        entity_type: 'fixture_result',
+        entity_id: input.fixtureId,
+        previous_payload: previousResult ? {
+          home_score: previousResult.home_score,
+          away_score: previousResult.away_score,
+        } : null,
+        proposed_payload: {
+          home_score: input.homeScore,
+          away_score: input.awayScore,
+        },
+        actor_id: profile?.id || null,
+        actor_email: profile?.email || null,
+        actor_name: profile?.full_name || 'Admin',
+        actor_role: profile?.role === 'super_admin' ? 'owner' : 'admin',
+        action: previousResult ? 'correct' : 'submit',
+        status: 'approved',
+        reason: input.reason || (previousResult ? 'Match result updated' : 'Initial match result recorded'),
+        evidence_urls: input.evidenceUrls || [],
+      });
+    } catch (auditErr) {
+      console.warn('Could not record audit entry for fixture result:', auditErr);
+    }
   },
 
   async getLeagueStandings(leaderboardId: string): Promise<LeagueStandingRow[]> {
@@ -690,5 +731,13 @@ export const LeagueService = {
     state.leagueSettings[index] = updated;
     setLocalLeagueState(state);
     return updated;
+  },
+
+  getLocalLeagueState() {
+    return getLocalLeagueState();
+  },
+
+  setLocalLeagueState(state: LocalLeagueState) {
+    setLocalLeagueState(state);
   },
 };

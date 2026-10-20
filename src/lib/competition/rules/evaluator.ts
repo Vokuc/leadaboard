@@ -158,7 +158,7 @@ export function evaluateLeagueStandings(params: {
   for (const fixture of fixtures) {
     if (fixture.status !== 'completed') continue;
     const result = resultsByFixtureId.get(fixture.id);
-    if (!result) continue;
+    if (!result || result.status === 'voided') continue;
 
     const homeRow = rows.get(fixture.home_member_id);
     const awayRow = rows.get(fixture.away_member_id);
@@ -330,7 +330,7 @@ export function evaluatePointsRankings(
       ];
 
   const rankings: Ranking[] = members.map((m) => {
-    const playerEvents = events.filter((e) => e.member_id === m.id);
+    const playerEvents = events.filter((e) => e.member_id === m.id && e.status !== 'voided');
     const total_points = playerEvents.reduce((sum, e) => sum + e.points, 0);
 
     let last_score_at = m.created_at;

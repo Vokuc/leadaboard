@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Activity, ArrowUpRight, Calendar, ImageUp, Plus, Save, Shield, Swords, Trophy, Upload, Users, Code, AlertCircle } from 'lucide-react';
+import { Activity, ArrowUpRight, Calendar, ImageUp, Plus, Save, Shield, Swords, Trophy, Upload, Users, Code, AlertCircle, History } from 'lucide-react';
 import { DatabaseService } from '@/lib/db';
 import { getCompetitionTemplate } from '@/lib/competition/templates';
 import { LeagueService } from '@/lib/league/service';
@@ -11,6 +11,7 @@ import SafeImage from '@/components/SafeImage';
 import { uploadImageAsset } from '@/lib/image-upload';
 import { TeamRosterManagement } from '@/components/teams/TeamRosterManagement';
 import { CompetitionRulesSettings } from '@/components/competition/CompetitionRulesSettings';
+import { ResultAuditDrawer } from '@/components/competition/ResultAuditDrawer';
 
 type TabKey = 'overview' | 'standings' | 'fixtures' | 'teams' | 'settings' | 'integrations';
 
@@ -57,6 +58,13 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
   const [awayMemberId, setAwayMemberId] = useState('');
   const [roundName, setRoundName] = useState('Matchday 1');
   const [scheduledAt, setScheduledAt] = useState('');
+
+  const [auditDrawerFixture, setAuditDrawerFixture] = useState<{
+    fixture: Fixture;
+    title: string;
+    homeScore: number;
+    awayScore: number;
+  } | null>(null);
 
   const [settingsName, setSettingsName] = useState(leaderboard.name);
   const [settingsDescription, setSettingsDescription] = useState(leaderboard.description || '');
@@ -448,6 +456,14 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
                     awayName={away?.name || 'Away'}
                     existingResult={existingResult || null}
                     onSaveResult={handleSaveResult}
+                    onOpenHistory={(f, hName, aName, hScore, aScore) => {
+                      setAuditDrawerFixture({
+                        fixture: f,
+                        title: `${hName} vs ${aName}`,
+                        homeScore: hScore,
+                        awayScore: aScore,
+                      });
+                    }}
                     disabled={saving}
                   />
                 );
@@ -616,6 +632,21 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
           </div>
         </div>
       )}
+
+      {auditDrawerFixture && (
+        <ResultAuditDrawer
+          isOpen={true}
+          onClose={() => setAuditDrawerFixture(null)}
+          leaderboardId={leaderboard.id}
+          entityType="fixture_result"
+          entityId={auditDrawerFixture.fixture.id}
+          title={auditDrawerFixture.title}
+          currentHomeScore={auditDrawerFixture.homeScore}
+          currentAwayScore={auditDrawerFixture.awayScore}
+          canManage={true}
+          onResultUpdated={() => void loadLeagueData()}
+        />
+      )}
     </div>
   );
 }
@@ -626,10 +657,11 @@ interface FixtureCardProps {
   awayName: string;
   existingResult: { home_score: number; away_score: number } | null;
   onSaveResult: (fixtureId: string, homeScore: number, awayScore: number) => Promise<void>;
+  onOpenHistory: (fixture: Fixture, homeName: string, awayName: string, homeScore: number, awayScore: number) => void;
   disabled: boolean;
 }
 
-function FixtureCard({ fixture, homeName, awayName, existingResult, onSaveResult, disabled }: FixtureCardProps) {
+function FixtureCard({ fixture, homeName, awayName, existingResult, onSaveResult, onOpenHistory, disabled }: FixtureCardProps) {
   const [homeScore, setHomeScore] = useState(existingResult?.home_score ?? 0);
   const [awayScore, setAwayScore] = useState(existingResult?.away_score ?? 0);
 
@@ -643,8 +675,19 @@ function FixtureCard({ fixture, homeName, awayName, existingResult, onSaveResult
             {fixture.scheduled_at ? new Date(fixture.scheduled_at).toLocaleString() : 'No kickoff scheduled'}
           </div>
         </div>
-        <div className="rounded-lg border border-white/5 px-2 py-1 text-[11px] uppercase tracking-widest text-neutral-400">
-          {fixture.status}
+        <div className="flex items-center gap-2">
+          <div className="rounded-lg border border-white/5 px-2 py-1 text-[11px] uppercase tracking-widest text-neutral-400">
+            {fixture.status}
+          </div>
+          <button
+            type="button"
+            onClick={() => onOpenHistory(fixture, homeName, awayName, homeScore, awayScore)}
+            className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-neutral-900 px-2.5 py-1 text-xs font-medium text-neutral-300 hover:border-violet-500/40 hover:text-white transition-colors"
+            title="View trustworthy result audit trail and correction history"
+          >
+            <History className="h-3.5 w-3.5 text-violet-400" />
+            History
+          </button>
         </div>
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-3">

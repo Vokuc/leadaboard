@@ -198,7 +198,15 @@ export default function LeaguePublicView({ leaderboard, competitionConfig }: Lea
             ) : (
               recentResults.slice(0, 8).map((item) => (
                 <div key={item.fixture.id} className="rounded-xl border border-white/5 bg-black/25 px-3 py-3">
-                  <div className="font-semibold text-white">{item.homeMember?.name} {item.result?.home_score} - {item.result?.away_score} {item.awayMember?.name}</div>
+                  <div className="flex items-center justify-between">
+                    <div className="font-semibold text-white">{item.homeMember?.name} {item.result?.home_score} - {item.result?.away_score} {item.awayMember?.name}</div>
+                    {item.result?.status === 'disputed' && (
+                      <span className="rounded bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-400 border border-amber-500/20">Under Dispute</span>
+                    )}
+                    {item.result?.status === 'voided' && (
+                      <span className="rounded bg-red-500/10 px-2 py-0.5 text-[10px] font-bold text-red-400 border border-red-500/20">Voided</span>
+                    )}
+                  </div>
                   <div className="mt-1 flex items-center gap-2 text-[11px] text-neutral-500">
                     <Calendar className="h-3.5 w-3.5" />
                     {item.fixture.round_name || 'Fixture'}
