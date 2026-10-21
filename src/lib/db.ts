@@ -13,7 +13,11 @@ import {
   TeamMember,
   TeamWithRoster,
   TeamRosterRole,
-  CompetitionConfig
+  CompetitionConfig,
+  ParticipantProfile,
+  ParticipantClaim,
+  ParticipantCorrection,
+  ParticipantTeamHistory
 } from '../types';
 import { CompetitionRulesService } from '@/lib/competition/rules/service';
 import { validateScoreAdjustment } from '@/lib/competition/rules/validation';
@@ -503,6 +507,38 @@ class LocalDb {
 
   setActivityLogs(logs: ActivityLog[]): void {
     this.set('activity_logs', logs);
+  }
+
+  getParticipantProfiles(): ParticipantProfile[] {
+    return this.get<ParticipantProfile[]>('participant_profiles', []);
+  }
+
+  setParticipantProfiles(profiles: ParticipantProfile[]): void {
+    this.set('participant_profiles', profiles);
+  }
+
+  getParticipantClaims(): ParticipantClaim[] {
+    return this.get<ParticipantClaim[]>('participant_claims', []);
+  }
+
+  setParticipantClaims(claims: ParticipantClaim[]): void {
+    this.set('participant_claims', claims);
+  }
+
+  getParticipantCorrections(): ParticipantCorrection[] {
+    return this.get<ParticipantCorrection[]>('participant_corrections', []);
+  }
+
+  setParticipantCorrections(corrections: ParticipantCorrection[]): void {
+    this.set('participant_corrections', corrections);
+  }
+
+  getParticipantTeamHistory(): ParticipantTeamHistory[] {
+    return this.get<ParticipantTeamHistory[]>('participant_team_history', []);
+  }
+
+  setParticipantTeamHistory(history: ParticipantTeamHistory[]): void {
+    this.set('participant_team_history', history);
   }
 }
 
@@ -1600,6 +1636,28 @@ export const DatabaseService = {
     });
     mockDb.setMembers(updatedMembers);
 
+    // Record team history affiliation
+    const teamHistoryEntry: ParticipantTeamHistory = {
+      id: `pth-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      user_id: member.user_id || null,
+      member_id: memberId,
+      leaderboard_id: leaderboardId,
+      team_id: teamId,
+      team_name: team.name,
+      role,
+      jersey_number: jerseyNumber ?? null,
+      joined_at: new Date().toISOString(),
+      left_at: null,
+      created_at: new Date().toISOString(),
+    };
+    if (isSupabaseConfigured && supabase) {
+      await supabase.from('participant_team_history').insert([teamHistoryEntry]);
+    } else {
+      const hist = mockDb.getParticipantTeamHistory();
+      hist.push(teamHistoryEntry);
+      mockDb.setParticipantTeamHistory(hist);
+    }
+
     await this.addActivityLog(leaderboardId, `Added ${member.name} to team "${team.name}" as ${role}`);
     return newRosterEntry;
   },
@@ -1668,6 +1726,13 @@ export const DatabaseService = {
         .update({ team_id: null, team: null })
         .eq('id', memberId);
 
+      await supabase
+        .from('participant_team_history')
+        .update({ left_at: new Date().toISOString() })
+        .eq('team_id', teamId)
+        .eq('member_id', memberId)
+        .is('left_at', null);
+
       if (team && member) {
         await this.addActivityLog(leaderboardId, `Removed ${member.name} from team "${team.name}"`);
       }
@@ -1679,6 +1744,14 @@ export const DatabaseService = {
 
     const currentMembers = mockDb.getMembers();
     mockDb.setMembers(currentMembers.map(m => m.id === memberId ? { ...m, team_id: null, team: null } : m));
+
+    // Close out team history in mock
+    const hist = mockDb.getParticipantTeamHistory();
+    const active = hist.find((h) => h.team_id === teamId && h.member_id === memberId && !h.left_at);
+    if (active) {
+      active.left_at = new Date().toISOString();
+      mockDb.setParticipantTeamHistory(hist);
+    }
 
     if (team && member) {
       await this.addActivityLog(leaderboardId, `Removed ${member.name} from team "${team.name}"`);
@@ -1918,18 +1991,18 @@ export const DatabaseService = {
         .eq('leaderboard_id', leaderboardId);
       if (error) throw error;
 
-      const rawRankings: Ranking[] = (data || []).map((row: any) => ({
-        member_id: row.member_id,
-        leaderboard_id: row.leaderboard_id,
-        player_name: row.player_name,
-        player_email: row.player_email,
-        avatar_url: row.avatar_url,
-        team: row.team,
-        notes: row.notes,
-        is_active: row.is_active,
+      const rawRankings: Ranking[] = ((data || []) as Record<string, unknown>[]).map((row) => ({
+        member_id: String(row.member_id || ''),
+        leaderboard_id: String(row.leaderboard_id || ''),
+        player_name: String(row.player_name || ''),
+        player_email: (row.player_email as string) || null,
+        avatar_url: (row.avatar_url as string) || null,
+        team: (row.team as string) || null,
+        notes: (row.notes as string) || null,
+        is_active: Boolean(row.is_active),
         total_points: Number(row.total_points) || 0,
-        last_score_at: row.last_score_at,
-        joined_at: row.created_at || row.last_score_at,
+        last_score_at: String(row.last_score_at || ''),
+        joined_at: String(row.created_at || row.last_score_at || ''),
       }));
 
       const rankingOrder = rules.ranking_order || 'desc';
@@ -2016,5 +2089,58 @@ export const DatabaseService = {
     return mockDb.getScoreEvents()
       .filter(e => e.member_id === memberId)
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  },
+
+  async getParticipantTeamHistory(memberIdOrUserId: string): Promise<ParticipantTeamHistory[]> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('participant_team_history')
+        .select('*')
+        .or(`member_id.eq.${memberIdOrUserId},user_id.eq.${memberIdOrUserId}`)
+        .order('joined_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as ParticipantTeamHistory[];
+    }
+    return mockDb.getParticipantTeamHistory()
+      .filter((h) => h.member_id === memberIdOrUserId || h.user_id === memberIdOrUserId)
+      .sort((a, b) => new Date(b.joined_at).getTime() - new Date(a.joined_at).getTime());
+  },
+
+  async getParticipantCorrections(userId: string): Promise<ParticipantCorrection[]> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('participant_corrections')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as ParticipantCorrection[];
+    }
+    return mockDb.getParticipantCorrections()
+      .filter((c) => c.user_id === userId)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  },
+
+  async getFixtures(leaderboardId: string): Promise<Array<Record<string, unknown>>> {
+    if (isSupabaseConfigured && supabase) {
+      const { data } = await supabase
+        .from('fixtures')
+        .select('*')
+        .eq('leaderboard_id', leaderboardId);
+      const { data: compFixtures } = await supabase
+        .from('competition_fixtures')
+        .select('*')
+        .eq('leaderboard_id', leaderboardId);
+      const combined = [
+        ...((data || []) as Array<Record<string, unknown>>),
+        ...((compFixtures || []) as Array<Record<string, unknown>>),
+      ];
+      return combined;
+    }
+    const state = typeof window !== 'undefined' ? (JSON.parse(localStorage.getItem('lb_mock_league_state') || '{"fixtures":[]}') as { fixtures: Array<Record<string, unknown>> }) : { fixtures: [] };
+    const leagueFix = (state.fixtures || []).filter((f) => f.leaderboard_id === leaderboardId);
+    const compFix = mockDb.get<Array<Record<string, unknown>>>('competition_fixtures', []).filter((f) => f.leaderboard_id === leaderboardId);
+    const combined = [...leagueFix, ...compFix.filter((cf) => !leagueFix.some((lf) => lf.id === cf.id))];
+    return combined;
   }
 };

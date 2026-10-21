@@ -24,7 +24,8 @@ import {
   ArchiveRestore,
   BookOpen,
   GraduationCap,
-  CreditCard
+  CreditCard,
+  Shield
 } from 'lucide-react';
 import Link from 'next/link';
 import HelpModal from '@/components/HelpModal';
@@ -217,8 +218,14 @@ export default function DashboardPage() {
 
         <div className="flex items-center gap-4">
           <Link
+            href="/dashboard/passport"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-violet-500/30 bg-violet-500/10 text-violet-200 text-xs font-semibold hover:bg-violet-500/20"
+          >
+            <Shield className="w-3.5 h-3.5 text-violet-400" /> Passport
+          </Link>
+          <Link
             href="/dashboard/billing"
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-violet-500/30 bg-violet-500/10 text-violet-200 text-xs font-semibold hover:bg-violet-500/20"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-neutral-800 bg-neutral-900/60 text-neutral-300 text-xs font-semibold hover:bg-neutral-800"
           >
             <CreditCard className="w-3.5 h-3.5" /> Billing
           </Link>

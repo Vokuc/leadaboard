@@ -76,6 +76,7 @@ export interface Leaderboard {
   competition_type: CompetitionType;
   cover_image_url: string | null;
   status: LeaderboardStatus;
+  is_verified?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -147,6 +148,7 @@ export interface LeaderboardMember {
   team_id?: string | null;
   notes: string | null;
   is_active: boolean;
+  metadata?: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -802,5 +804,173 @@ export interface EventDayOfflineAction {
   awayScore?: number;
   reason?: string;
   timestamp: string;
+}
+
+// ==========================================
+// Era 3 Prompt 1: Participant Profiles & Competition Passport
+// ==========================================
+
+export interface ParticipantProfilePrivacy {
+  is_public: boolean;
+  show_email: boolean;
+  show_unverified_results: boolean;
+  show_stats: boolean;
+  show_match_history: boolean;
+  show_teams: boolean;
+  show_trophy_case: boolean;
+}
+
+export interface ParticipantProfile {
+  id: string;
+  user_id: string;
+  username: string;
+  display_name: string;
+  bio: string | null;
+  avatar_url: string | null;
+  location: string | null;
+  headline: string | null;
+  social_links: {
+    twitter?: string;
+    discord?: string;
+    github?: string;
+    website?: string;
+  };
+  privacy_settings: ParticipantProfilePrivacy;
+  pinned_competition_ids: string[];
+  hidden_entity_ids: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export type ParticipantClaimStatus = 'pending' | 'approved' | 'rejected' | 'verified';
+export type ParticipantClaimVerificationMethod = 'email_match' | 'token' | 'organizer_approved';
+
+export interface ParticipantClaim {
+  id: string;
+  leaderboard_id: string;
+  member_id: string;
+  user_id: string;
+  claim_token: string | null;
+  status: ParticipantClaimStatus;
+  verification_method: ParticipantClaimVerificationMethod;
+  claim_notes: string | null;
+  rejection_reason: string | null;
+  verified_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ParticipantCorrectionType = 'wrongly_linked' | 'wrong_score' | 'wrong_team' | 'duplicate_profile' | 'remove_from_passport';
+export type ParticipantCorrectionStatus = 'pending' | 'approved' | 'rejected' | 'resolved';
+
+export interface ParticipantCorrection {
+  id: string;
+  user_id: string;
+  leaderboard_id: string;
+  entity_type: 'membership_link' | 'fixture_result' | 'tournament_match' | 'score_event';
+  entity_id: string;
+  correction_type: ParticipantCorrectionType;
+  reason: string;
+  status: ParticipantCorrectionStatus;
+  resolution_notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ParticipantTeamHistory {
+  id: string;
+  user_id: string | null;
+  member_id: string;
+  leaderboard_id: string;
+  team_id: string;
+  team_name: string;
+  role: string;
+  jersey_number: number | null;
+  joined_at: string;
+  left_at: string | null;
+  created_at: string;
+}
+
+export interface PassportCompetitionEntry {
+  leaderboard_id: string;
+  competition_id?: string;
+  competition_name: string;
+  slug: string;
+  competition_type: CompetitionType;
+  engine_type: CompetitionEngine;
+  season_name: string | null;
+  member_id: string;
+  member_name: string;
+  team_id: string | null;
+  team_name: string | null;
+  role: string;
+  rank: number | null;
+  total_participants: number;
+  points: number;
+  matches_played: number;
+  matches_won: number;
+  matches_drawn: number;
+  matches_lost: number;
+  podium_finish: 1 | 2 | 3 | null;
+  is_verified: boolean;
+  verification_badge?: string;
+  verification_reason: string;
+  joined_at: string;
+}
+
+export interface PassportMatchRecord {
+  match_id: string;
+  fixture_id?: string;
+  leaderboard_id: string;
+  competition_name: string;
+  slug: string;
+  engine: CompetitionEngine;
+  round_name: string;
+  opponent_name: string;
+  opponent_avatar_url: string | null;
+  team_name: string | null;
+  home_score: number | null;
+  away_score: number | null;
+  is_home: boolean;
+  outcome: 'win' | 'loss' | 'draw' | 'pending';
+  scheduled_at: string | null;
+  venue_name: string | null;
+  is_verified: boolean;
+  verification_badge: 'verified' | 'unverified';
+  is_hidden: boolean;
+}
+
+export interface PassportCareerOverview {
+  total_competitions: number;
+  verified_competitions: number;
+  unverified_competitions: number;
+  total_matches: number;
+  matches_won: number;
+  total_wins?: number;
+  verified_wins?: number;
+  matches_drawn: number;
+  matches_lost: number;
+  win_percentage: number;
+  win_rate?: number;
+  first_place_finishes: number;
+  gold_finishes?: number;
+  second_place_finishes: number;
+  silver_finishes?: number;
+  third_place_finishes: number;
+  bronze_finishes?: number;
+  highest_rank_achieved?: number | null;
+  active_streak?: number;
+  total_points_scored: number;
+  active_teams: number;
+}
+
+export interface CompetitionPassportData {
+  profile: ParticipantProfile;
+  account_email?: string | null;
+  overview: PassportCareerOverview;
+  competitions: PassportCompetitionEntry[];
+  matches: PassportMatchRecord[];
+  teams: ParticipantTeamHistory[];
+  is_owner: boolean;
 }
 
