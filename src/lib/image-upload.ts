@@ -5,7 +5,7 @@ import { isSupabaseConfigured, supabase } from '@/lib/db';
 export const MAX_IMAGE_UPLOAD_SIZE_BYTES = 2 * 1024 * 1024;
 const LEADERBOARD_MEDIA_BUCKET = 'leaderboard-media';
 
-type UploadImageKind = 'leaderboard-cover' | 'player-avatar';
+type UploadImageKind = 'leaderboard-cover' | 'player-avatar' | 'team-logo';
 
 function validateImageFile(file: File): void {
   if (!file.type.startsWith('image/')) {

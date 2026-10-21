@@ -8,8 +8,15 @@ import {
   ScoreEvent, 
   ActivityLog, 
   Ranking,
-  LeaderboardAdmin
+  LeaderboardAdmin,
+  Team,
+  TeamMember,
+  TeamWithRoster,
+  TeamRosterRole
 } from '../types';
+import { CompetitionRulesService } from '@/lib/competition/rules/service';
+import { validateScoreAdjustment } from '@/lib/competition/rules/validation';
+import { evaluatePointsRankings } from '@/lib/competition/rules/evaluator';
 
 // Detect environment keys
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -36,7 +43,7 @@ const DEFAULT_PROFILE: Profile = {
   updated_at: new Date().toISOString(),
 };
 
-const DEFAULT_LEADERBOARDS: Leaderboard[] = [
+export const DEFAULT_LEADERBOARDS: Leaderboard[] = [
   {
     id: 'lb-gaming-1',
     owner_id: SEED_CREATOR_ID,
@@ -116,26 +123,236 @@ const DEFAULT_SCORING_RULES: ScoringRule[] = [
   { id: 'rule-s3', leaderboard_id: 'lb-sports-1', event_name: 'Podium Finish', points: 75, description: 'Finished in the top 3 overall positions in a club race', created_at: new Date().toISOString() }
 ];
 
-const DEFAULT_MEMBERS: LeaderboardMember[] = [
+export function generateShortCode(name: string): string {
+  const clean = name.trim().replace(/[^a-zA-Z0-9\s]/g, '');
+  const words = clean.split(/\s+/).filter(Boolean);
+  if (words.length > 1) {
+    const acronym = words.map(w => w[0]).join('').toUpperCase();
+    return acronym.slice(0, 4);
+  }
+  if (clean.length <= 4) {
+    return clean.toUpperCase() || 'TEAM';
+  }
+  return clean.slice(0, 4).toUpperCase();
+}
+
+export const DEFAULT_TEAMS: Team[] = [
+  // Gaming Teams
+  {
+    id: 'team-g1',
+    leaderboard_id: 'lb-gaming-1',
+    name: 'Team Rogue',
+    short_code: 'TR',
+    logo_url: null,
+    created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'team-g2',
+    leaderboard_id: 'lb-gaming-1',
+    name: 'Team Apex',
+    short_code: 'TA',
+    logo_url: null,
+    created_at: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  // Workplace Teams
+  {
+    id: 'team-w1',
+    leaderboard_id: 'lb-workplace-1',
+    name: 'Sales - NA',
+    short_code: 'SNA',
+    logo_url: null,
+    created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'team-w2',
+    leaderboard_id: 'lb-workplace-1',
+    name: 'Sales - Support',
+    short_code: 'SSUP',
+    logo_url: null,
+    created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  // Sports Teams
+  {
+    id: 'team-s1',
+    leaderboard_id: 'lb-sports-1',
+    name: 'Sprinters Club',
+    short_code: 'SC',
+    logo_url: null,
+    created_at: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'team-s2',
+    leaderboard_id: 'lb-sports-1',
+    name: 'Trail Blazers',
+    short_code: 'TB',
+    logo_url: null,
+    created_at: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+];
+
+export const DEFAULT_TEAM_MEMBERS: TeamMember[] = [
+  // Team Rogue (Gaming)
+  {
+    id: 'tm-g1',
+    team_id: 'team-g1',
+    leaderboard_id: 'lb-gaming-1',
+    member_id: 'mem-g1',
+    role: 'captain',
+    jersey_number: 1,
+    created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'tm-g2',
+    team_id: 'team-g1',
+    leaderboard_id: 'lb-gaming-1',
+    member_id: 'mem-g2',
+    role: 'player',
+    jersey_number: 7,
+    created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  // Team Apex (Gaming)
+  {
+    id: 'tm-g3',
+    team_id: 'team-g2',
+    leaderboard_id: 'lb-gaming-1',
+    member_id: 'mem-g3',
+    role: 'captain',
+    jersey_number: 10,
+    created_at: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'tm-g4',
+    team_id: 'team-g2',
+    leaderboard_id: 'lb-gaming-1',
+    member_id: 'mem-g4',
+    role: 'substitute',
+    jersey_number: 12,
+    created_at: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  // Workplace
+  {
+    id: 'tm-w1',
+    team_id: 'team-w1',
+    leaderboard_id: 'lb-workplace-1',
+    member_id: 'mem-w2',
+    role: 'captain',
+    jersey_number: 1,
+    created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'tm-w2',
+    team_id: 'team-w1',
+    leaderboard_id: 'lb-workplace-1',
+    member_id: 'mem-w1',
+    role: 'player',
+    jersey_number: null,
+    created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'tm-w3',
+    team_id: 'team-w1',
+    leaderboard_id: 'lb-workplace-1',
+    member_id: 'mem-w3',
+    role: 'player',
+    jersey_number: null,
+    created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'tm-w4',
+    team_id: 'team-w1',
+    leaderboard_id: 'lb-workplace-1',
+    member_id: 'mem-w4',
+    role: 'player',
+    jersey_number: null,
+    created_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'tm-w5',
+    team_id: 'team-w2',
+    leaderboard_id: 'lb-workplace-1',
+    member_id: 'mem-w5',
+    role: 'captain',
+    jersey_number: null,
+    created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  // Sports
+  {
+    id: 'tm-s1',
+    team_id: 'team-s1',
+    leaderboard_id: 'lb-sports-1',
+    member_id: 'mem-s1',
+    role: 'captain',
+    jersey_number: 9,
+    created_at: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'tm-s2',
+    team_id: 'team-s1',
+    leaderboard_id: 'lb-sports-1',
+    member_id: 'mem-s2',
+    role: 'player',
+    jersey_number: 11,
+    created_at: new Date(Date.now() - 19 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 19 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'tm-s3',
+    team_id: 'team-s2',
+    leaderboard_id: 'lb-sports-1',
+    member_id: 'mem-s3',
+    role: 'captain',
+    jersey_number: 3,
+    created_at: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'tm-s4',
+    team_id: 'team-s2',
+    leaderboard_id: 'lb-sports-1',
+    member_id: 'mem-s4',
+    role: 'player',
+    jersey_number: 4,
+    created_at: new Date(Date.now() - 17 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 17 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+];
+
+export const DEFAULT_MEMBERS: LeaderboardMember[] = [
   // Gaming Members
-  { id: 'mem-g1', leaderboard_id: 'lb-gaming-1', name: 'NinjaCoder', email: 'ninja@gaming.com', avatar_url: 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=100&q=80', team: 'Team Rogue', notes: 'Top fragger', is_active: true, created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
-  { id: 'mem-g2', leaderboard_id: 'lb-gaming-1', name: 'CyberKnight', email: 'knight@gaming.com', avatar_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=100&q=80', team: 'Team Rogue', notes: 'Tank specialist', is_active: true, created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
-  { id: 'mem-g3', leaderboard_id: 'lb-gaming-1', name: 'PxlQueen', email: 'pxl@gaming.com', avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80', team: 'Team Apex', notes: 'Support strategist', is_active: true, created_at: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
-  { id: 'mem-g4', leaderboard_id: 'lb-gaming-1', name: 'ShadowRunner', email: 'shadow@gaming.com', avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80', team: 'Team Apex', notes: 'Stealth DPS', is_active: true, created_at: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
-  { id: 'mem-g5', leaderboard_id: 'lb-gaming-1', name: 'L33tGamer', email: 'l33t@gaming.com', avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100&q=80', team: null, notes: 'Freelancer', is_active: true, created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
+  { id: 'mem-g1', leaderboard_id: 'lb-gaming-1', name: 'NinjaCoder', email: 'ninja@gaming.com', avatar_url: 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=100&q=80', team: 'Team Rogue', team_id: 'team-g1', notes: 'Top fragger', is_active: true, created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
+  { id: 'mem-g2', leaderboard_id: 'lb-gaming-1', name: 'CyberKnight', email: 'knight@gaming.com', avatar_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=100&q=80', team: 'Team Rogue', team_id: 'team-g1', notes: 'Tank specialist', is_active: true, created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
+  { id: 'mem-g3', leaderboard_id: 'lb-gaming-1', name: 'PxlQueen', email: 'pxl@gaming.com', avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80', team: 'Team Apex', team_id: 'team-g2', notes: 'Support strategist', is_active: true, created_at: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
+  { id: 'mem-g4', leaderboard_id: 'lb-gaming-1', name: 'ShadowRunner', email: 'shadow@gaming.com', avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80', team: 'Team Apex', team_id: 'team-g2', notes: 'Stealth DPS', is_active: true, created_at: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
+  { id: 'mem-g5', leaderboard_id: 'lb-gaming-1', name: 'L33tGamer', email: 'l33t@gaming.com', avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100&q=80', team: null, team_id: null, notes: 'Freelancer', is_active: true, created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
 
   // Workplace Members
-  { id: 'mem-w1', leaderboard_id: 'lb-workplace-1', name: 'Sarah Jenkins', email: 'sjenkins@company.com', avatar_url: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=100&q=80', team: 'Sales - NA', notes: 'SDR MVP', is_active: true, created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
-  { id: 'mem-w2', leaderboard_id: 'lb-workplace-1', name: 'Michael Scott', email: 'mscott@company.com', avatar_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=100&q=80', team: 'Sales - NA', notes: 'Regional Director', is_active: true, created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
-  { id: 'mem-w3', leaderboard_id: 'lb-workplace-1', name: 'Dwight Schrute', email: 'dschrute@company.com', avatar_url: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=100&q=80', team: 'Sales - NA', notes: 'Assistant Regional Manager', is_active: true, created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
-  { id: 'mem-w4', leaderboard_id: 'lb-workplace-1', name: 'Jim Halpert', email: 'jhalpert@company.com', avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80', team: 'Sales - NA', notes: 'Senior Representative', is_active: true, created_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
-  { id: 'mem-w5', leaderboard_id: 'lb-workplace-1', name: 'Pam Beesly', email: 'pbeesly@company.com', avatar_url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=100&q=80', team: 'Sales - Support', notes: 'Admin coordinator', is_active: true, created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
+  { id: 'mem-w1', leaderboard_id: 'lb-workplace-1', name: 'Sarah Jenkins', email: 'sjenkins@company.com', avatar_url: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=100&q=80', team: 'Sales - NA', team_id: 'team-w1', notes: 'SDR MVP', is_active: true, created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
+  { id: 'mem-w2', leaderboard_id: 'lb-workplace-1', name: 'Michael Scott', email: 'mscott@company.com', avatar_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=100&q=80', team: 'Sales - NA', team_id: 'team-w1', notes: 'Regional Director', is_active: true, created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
+  { id: 'mem-w3', leaderboard_id: 'lb-workplace-1', name: 'Dwight Schrute', email: 'dschrute@company.com', avatar_url: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=100&q=80', team: 'Sales - NA', team_id: 'team-w1', notes: 'Assistant Regional Manager', is_active: true, created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
+  { id: 'mem-w4', leaderboard_id: 'lb-workplace-1', name: 'Jim Halpert', email: 'jhalpert@company.com', avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80', team: 'Sales - NA', team_id: 'team-w1', notes: 'Senior Representative', is_active: true, created_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
+  { id: 'mem-w5', leaderboard_id: 'lb-workplace-1', name: 'Pam Beesly', email: 'pbeesly@company.com', avatar_url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=100&q=80', team: 'Sales - Support', team_id: 'team-w2', notes: 'Admin coordinator', is_active: true, created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
 
   // Sports Members
-  { id: 'mem-s1', leaderboard_id: 'lb-sports-1', name: 'John Runner', email: 'john@sports.com', avatar_url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=100&q=80', team: 'Sprinters Club', notes: null, is_active: true, created_at: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
-  { id: 'mem-s2', leaderboard_id: 'lb-sports-1', name: 'Alice Smith', email: 'alice@sports.com', avatar_url: 'https://images.unsplash.com/photo-1534751516642-a131fed10495?auto=format&fit=crop&w=100&q=80', team: 'Sprinters Club', notes: 'Marathon trainee', is_active: true, created_at: new Date(Date.now() - 19 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
-  { id: 'mem-s3', leaderboard_id: 'lb-sports-1', name: 'Bob Athletic', email: 'bob@sports.com', avatar_url: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=100&q=80', team: 'Trail Blazers', notes: null, is_active: true, created_at: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
-  { id: 'mem-s4', leaderboard_id: 'lb-sports-1', name: 'Emma Jogger', email: 'emma@sports.com', avatar_url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=100&q=80', team: 'Trail Blazers', notes: 'Runs in the mornings', is_active: true, created_at: new Date(Date.now() - 17 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() }
+  { id: 'mem-s1', leaderboard_id: 'lb-sports-1', name: 'John Runner', email: 'john@sports.com', avatar_url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=100&q=80', team: 'Sprinters Club', team_id: 'team-s1', notes: null, is_active: true, created_at: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
+  { id: 'mem-s2', leaderboard_id: 'lb-sports-1', name: 'Alice Smith', email: 'alice@sports.com', avatar_url: 'https://images.unsplash.com/photo-1534751516642-a131fed10495?auto=format&fit=crop&w=100&q=80', team: 'Sprinters Club', team_id: 'team-s1', notes: 'Marathon trainee', is_active: true, created_at: new Date(Date.now() - 19 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
+  { id: 'mem-s3', leaderboard_id: 'lb-sports-1', name: 'Bob Athletic', email: 'bob@sports.com', avatar_url: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=100&q=80', team: 'Trail Blazers', team_id: 'team-s2', notes: null, is_active: true, created_at: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
+  { id: 'mem-s4', leaderboard_id: 'lb-sports-1', name: 'Emma Jogger', email: 'emma@sports.com', avatar_url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=100&q=80', team: 'Trail Blazers', team_id: 'team-s2', notes: 'Runs in the mornings', is_active: true, created_at: new Date(Date.now() - 17 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() }
 ];
 
 const DEFAULT_SCORE_EVENTS: ScoreEvent[] = [
@@ -206,6 +423,8 @@ class LocalDb {
       this.set('leaderboards', DEFAULT_LEADERBOARDS);
       this.set('seasons', DEFAULT_SEASONS);
       this.set('scoring_rules', DEFAULT_SCORING_RULES);
+      this.set('teams', DEFAULT_TEAMS);
+      this.set('team_members', DEFAULT_TEAM_MEMBERS);
       this.set('members', DEFAULT_MEMBERS);
       this.set('score_events', DEFAULT_SCORE_EVENTS);
       this.set('activity_logs', DEFAULT_ACTIVITY_LOGS);
@@ -245,6 +464,22 @@ class LocalDb {
     this.set('scoring_rules', sr);
   }
 
+  getTeams(): Team[] {
+    return this.get<Team[]>('teams', DEFAULT_TEAMS);
+  }
+
+  setTeams(t: Team[]): void {
+    this.set('teams', t);
+  }
+
+  getTeamMembers(): TeamMember[] {
+    return this.get<TeamMember[]>('team_members', DEFAULT_TEAM_MEMBERS);
+  }
+
+  setTeamMembers(tm: TeamMember[]): void {
+    this.set('team_members', tm);
+  }
+
   getMembers(): LeaderboardMember[] {
     return this.get<LeaderboardMember[]>('members', DEFAULT_MEMBERS);
   }
@@ -270,7 +505,7 @@ class LocalDb {
   }
 }
 
-const mockDb = new LocalDb();
+export const mockDb = new LocalDb();
 
 // ==========================================
 // UNIFIED DATABASE SERVICE EXPORT
@@ -346,7 +581,7 @@ export const DatabaseService = {
         .select('*, profile:profiles(*)')
         .eq('leaderboard_id', leaderboardId);
       if (error) throw error;
-      return (data || []).map((la: any) => ({
+      return (data || []).map((la: LeaderboardAdmin) => ({
         leaderboard_id: la.leaderboard_id,
         user_id: la.user_id,
         created_at: la.created_at,
@@ -490,6 +725,20 @@ export const DatabaseService = {
     return member?.leaderboard_id || null;
   },
 
+  async getLeaderboardIdFromTeam(teamId: string): Promise<string | null> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('teams')
+        .select('leaderboard_id')
+        .eq('id', teamId)
+        .maybeSingle();
+      if (error) return null;
+      return data?.leaderboard_id || null;
+    }
+    const team = mockDb.getTeams().find(t => t.id === teamId);
+    return team?.leaderboard_id || null;
+  },
+
 
   // Leaderboards
   async getLeaderboards(): Promise<Leaderboard[]> {
@@ -545,7 +794,11 @@ export const DatabaseService = {
     return found || null;
   },
 
-  async createLeaderboard(lb: Omit<Leaderboard, 'id' | 'owner_id' | 'created_at' | 'updated_at' | 'status'>, rules: Omit<ScoringRule, 'id' | 'leaderboard_id' | 'created_at'>[], season: Omit<Season, 'id' | 'leaderboard_id' | 'created_at'> | null): Promise<Leaderboard> {
+  async createLeaderboard(
+    lb: Omit<Leaderboard, 'id' | 'owner_id' | 'created_at' | 'updated_at' | 'status'>,
+    rules: Omit<ScoringRule, 'id' | 'leaderboard_id' | 'created_at'>[] = [],
+    season: Omit<Season, 'id' | 'leaderboard_id' | 'created_at'> | null = null
+  ): Promise<Leaderboard> {
     const profile = await this.getCurrentProfile();
     const owner_id = profile?.id;
     
@@ -782,13 +1035,54 @@ export const DatabaseService = {
     await this.requireAdminPermission(leaderboardId);
     const avatar = member.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(member.name)}`;
     
+    // Resolve team & team_id
+    let resolvedTeamId = member.team_id || null;
+    let resolvedTeamName = member.team?.trim() || null;
+
+    if (resolvedTeamId) {
+      const team = await this.getTeam(resolvedTeamId);
+      if (team && team.leaderboard_id === leaderboardId) {
+        resolvedTeamName = team.name;
+      } else {
+        resolvedTeamId = null;
+      }
+    } else if (resolvedTeamName) {
+      const teams = await this.getTeams(leaderboardId);
+      const matched = teams.find(t => t.name.toLowerCase() === resolvedTeamName!.toLowerCase());
+      if (matched) {
+        resolvedTeamId = matched.id;
+        resolvedTeamName = matched.name;
+      }
+    }
+
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase
         .from('leaderboard_members')
-        .insert([{ ...member, avatar_url: avatar, leaderboard_id: leaderboardId, is_active: true }])
+        .insert([{ 
+          ...member, 
+          avatar_url: avatar, 
+          leaderboard_id: leaderboardId, 
+          team: resolvedTeamName,
+          team_id: resolvedTeamId,
+          is_active: true 
+        }])
         .select()
         .single();
       if (error) throw error;
+
+      if (resolvedTeamId) {
+        await supabase
+          .from('team_members')
+          .insert([{
+            team_id: resolvedTeamId,
+            leaderboard_id: leaderboardId,
+            member_id: data.id,
+            role: 'player'
+          }])
+          .select()
+          .maybeSingle();
+      }
+
       return data;
     }
 
@@ -799,16 +1093,35 @@ export const DatabaseService = {
       throw new Error(`A player named "${member.name}" already exists on this leaderboard.`);
     }
 
+    const newMemberId = `mem-${Math.random().toString(36).substr(2, 9)}`;
     const newMember: LeaderboardMember = {
       ...member,
       avatar_url: avatar,
-      id: `mem-${Math.random().toString(36).substr(2, 9)}`,
+      id: newMemberId,
       leaderboard_id: leaderboardId,
+      team: resolvedTeamName,
+      team_id: resolvedTeamId,
       is_active: true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
     mockDb.setMembers([...currentMembers, newMember]);
+
+    if (resolvedTeamId) {
+      const currentRoster = mockDb.getTeamMembers();
+      mockDb.setTeamMembers([...currentRoster, {
+        id: `tm-${Math.random().toString(36).substr(2, 9)}`,
+        team_id: resolvedTeamId,
+        leaderboard_id: leaderboardId,
+        member_id: newMemberId,
+        role: 'player',
+        jersey_number: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        member: newMember,
+      }]);
+    }
+
     return newMember;
   },
 
@@ -817,10 +1130,74 @@ export const DatabaseService = {
     if (!leaderboardId) throw new Error('Player not found.');
     await this.requireAdminPermission(leaderboardId);
 
+    let resolvedUpdates = { ...updates };
+    if ('team_id' in updates || 'team' in updates) {
+      let nextTeamId = updates.team_id !== undefined ? updates.team_id : null;
+      let nextTeamName = updates.team !== undefined ? updates.team?.trim() || null : undefined;
+
+      if (nextTeamId) {
+        const team = await this.getTeam(nextTeamId);
+        if (team && team.leaderboard_id === leaderboardId) {
+          nextTeamName = team.name;
+        } else {
+          nextTeamId = null;
+        }
+      } else if (nextTeamName) {
+        const teams = await this.getTeams(leaderboardId);
+        const matched = teams.find(t => t.name.toLowerCase() === nextTeamName!.toLowerCase());
+        if (matched) {
+          nextTeamId = matched.id;
+          nextTeamName = matched.name;
+        }
+      }
+
+      resolvedUpdates = {
+        ...resolvedUpdates,
+        team_id: nextTeamId,
+        team: nextTeamName !== undefined ? nextTeamName : null,
+      };
+
+      if (isSupabaseConfigured && supabase) {
+        await supabase
+          .from('team_members')
+          .delete()
+          .eq('leaderboard_id', leaderboardId)
+          .eq('member_id', id);
+
+        if (nextTeamId) {
+          await supabase
+            .from('team_members')
+            .insert([{
+              team_id: nextTeamId,
+              leaderboard_id: leaderboardId,
+              member_id: id,
+              role: 'player'
+            }]);
+        }
+      } else {
+        const roster = mockDb.getTeamMembers().filter(tm => !(tm.leaderboard_id === leaderboardId && tm.member_id === id));
+        if (nextTeamId) {
+          const m = mockDb.getMembers().find(mem => mem.id === id);
+          roster.push({
+            id: `tm-${Math.random().toString(36).substr(2, 9)}`,
+            team_id: nextTeamId,
+            leaderboard_id: leaderboardId,
+            member_id: id,
+            role: 'player',
+            jersey_number: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            member: m,
+          });
+        }
+        mockDb.setTeamMembers(roster);
+      }
+    }
+
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase
         .from('leaderboard_members')
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update({ ...resolvedUpdates, updated_at: new Date().toISOString() })
         .eq('id', id)
         .select()
         .single();
@@ -834,7 +1211,7 @@ export const DatabaseService = {
 
     const updated = {
       ...currentMembers[idx],
-      ...updates,
+      ...resolvedUpdates,
       updated_at: new Date().toISOString()
     };
     currentMembers[idx] = updated;
@@ -848,6 +1225,7 @@ export const DatabaseService = {
     await this.requireAdminPermission(leaderboardId);
 
     if (isSupabaseConfigured && supabase) {
+      await supabase.from('team_members').delete().eq('member_id', id);
       const { error } = await supabase.from('leaderboard_members').delete().eq('id', id);
       if (error) throw error;
       return;
@@ -856,55 +1234,597 @@ export const DatabaseService = {
     // Cascading deletes manually in local storage
     const currentMembers = mockDb.getMembers();
     const currentEvents = mockDb.getScoreEvents();
+    const currentRoster = mockDb.getTeamMembers();
     
     mockDb.setMembers(currentMembers.filter(m => m.id !== id));
     mockDb.setScoreEvents(currentEvents.filter(ev => ev.member_id !== id));
+    mockDb.setTeamMembers(currentRoster.filter(tm => tm.member_id !== id));
   },
 
-  // Score Events
-  async addScoreEvent(leaderboardId: string, memberId: string, event: Omit<ScoreEvent, 'id' | 'leaderboard_id' | 'member_id' | 'created_at'>): Promise<ScoreEvent> {
-    await this.requireAdminPermission(leaderboardId);
-    const timestamp = new Date().toISOString();
-    
+  // ==========================================
+  // TEAMS & ROSTERS
+  // ==========================================
+  async getTeams(leaderboardId: string): Promise<Team[]> {
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase
-        .from('score_events')
-        .insert([{ ...event, leaderboard_id: leaderboardId, member_id: memberId }])
+        .from('teams')
+        .select('*')
+        .eq('leaderboard_id', leaderboardId)
+        .order('name', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    }
+    return mockDb.getTeams()
+      .filter(t => t.leaderboard_id === leaderboardId)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  },
+
+  async getTeam(teamId: string): Promise<Team | null> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('teams')
+        .select('*')
+        .eq('id', teamId)
+        .maybeSingle();
+      if (error) throw error;
+      return data || null;
+    }
+    const found = mockDb.getTeams().find(t => t.id === teamId);
+    return found || null;
+  },
+
+  async createTeam(
+    leaderboardId: string, 
+    input: { name: string; short_code?: string | null; logo_url?: string | null }
+  ): Promise<Team> {
+    await this.requireAdminPermission(leaderboardId);
+    const name = input.name.trim();
+    if (!name) {
+      throw new Error('Team name is required.');
+    }
+    const short_code = input.short_code?.trim() || generateShortCode(name);
+
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('teams')
+        .insert([{
+          leaderboard_id: leaderboardId,
+          name,
+          short_code,
+          logo_url: input.logo_url || null,
+        }])
         .select()
+        .single();
+      if (error) {
+        if (error.code === '23505') {
+          throw new Error(`A team named "${name}" already exists in this competition.`);
+        }
+        throw error;
+      }
+      await this.addActivityLog(leaderboardId, `Created team "${name}" (${short_code})`);
+      return data;
+    }
+
+    const currentTeams = mockDb.getTeams();
+    const exists = currentTeams.some(
+      t => t.leaderboard_id === leaderboardId && t.name.toLowerCase() === name.toLowerCase()
+    );
+    if (exists) {
+      throw new Error(`A team named "${name}" already exists in this competition.`);
+    }
+
+    const newTeam: Team = {
+      id: `team-${Math.random().toString(36).substr(2, 9)}`,
+      leaderboard_id: leaderboardId,
+      name,
+      short_code,
+      logo_url: input.logo_url || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    mockDb.setTeams([...currentTeams, newTeam]);
+    await this.addActivityLog(leaderboardId, `Created team "${name}" (${short_code})`);
+    return newTeam;
+  },
+
+  async updateTeam(
+    teamId: string, 
+    updates: Partial<Pick<Team, 'name' | 'short_code' | 'logo_url'>>
+  ): Promise<Team> {
+    const leaderboardId = await this.getLeaderboardIdFromTeam(teamId);
+    if (!leaderboardId) throw new Error('Team not found.');
+    await this.requireAdminPermission(leaderboardId);
+
+    const name = updates.name !== undefined ? updates.name.trim() : undefined;
+    if (name === '') {
+      throw new Error('Team name cannot be empty.');
+    }
+
+    if (isSupabaseConfigured && supabase) {
+      const payload: Partial<Team> & { updated_at: string } = { ...updates, updated_at: new Date().toISOString() };
+      if (name !== undefined) payload.name = name;
+      
+      const { data, error } = await supabase
+        .from('teams')
+        .update(payload)
+        .eq('id', teamId)
+        .select()
+        .single();
+      if (error) {
+        if (error.code === '23505') {
+          throw new Error(`A team named "${name}" already exists in this competition.`);
+        }
+        throw error;
+      }
+
+      // Sync member legacy team text if name changed
+      if (name !== undefined) {
+        await supabase
+          .from('leaderboard_members')
+          .update({ team: name })
+          .eq('team_id', teamId);
+      }
+
+      await this.addActivityLog(leaderboardId, `Updated team "${data.name}"`);
+      return data;
+    }
+
+    const currentTeams = mockDb.getTeams();
+    const idx = currentTeams.findIndex(t => t.id === teamId);
+    if (idx === -1) throw new Error('Team not found');
+
+    if (name !== undefined && name.toLowerCase() !== currentTeams[idx].name.toLowerCase()) {
+      const exists = currentTeams.some(
+        t => t.leaderboard_id === leaderboardId && t.id !== teamId && t.name.toLowerCase() === name.toLowerCase()
+      );
+      if (exists) {
+        throw new Error(`A team named "${name}" already exists in this competition.`);
+      }
+    }
+
+    const updatedTeam: Team = {
+      ...currentTeams[idx],
+      ...updates,
+      ...(name !== undefined ? { name } : {}),
+      updated_at: new Date().toISOString(),
+    };
+    currentTeams[idx] = updatedTeam;
+    mockDb.setTeams(currentTeams);
+
+    // Sync member legacy team text
+    if (name !== undefined) {
+      const members = mockDb.getMembers();
+      let changed = false;
+      const updatedMembers = members.map(m => {
+        if (m.team_id === teamId) {
+          changed = true;
+          return { ...m, team: name, updated_at: new Date().toISOString() };
+        }
+        return m;
+      });
+      if (changed) {
+        mockDb.setMembers(updatedMembers);
+      }
+    }
+
+    await this.addActivityLog(leaderboardId, `Updated team "${updatedTeam.name}"`);
+    return updatedTeam;
+  },
+
+  async deleteTeam(teamId: string): Promise<void> {
+    const leaderboardId = await this.getLeaderboardIdFromTeam(teamId);
+    if (!leaderboardId) throw new Error('Team not found.');
+    await this.requireAdminPermission(leaderboardId);
+
+    const team = await this.getTeam(teamId);
+
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('teams').delete().eq('id', teamId);
+      if (error) throw error;
+      if (team) {
+        await this.addActivityLog(leaderboardId, `Deleted team "${team.name}"`);
+      }
+      return;
+    }
+
+    const currentTeams = mockDb.getTeams();
+    mockDb.setTeams(currentTeams.filter(t => t.id !== teamId));
+
+    // Cascade remove from team_members and unassign from members
+    const currentRoster = mockDb.getTeamMembers();
+    mockDb.setTeamMembers(currentRoster.filter(tm => tm.team_id !== teamId));
+
+    const currentMembers = mockDb.getMembers();
+    mockDb.setMembers(currentMembers.map(m => m.team_id === teamId ? { ...m, team_id: null } : m));
+
+    if (team) {
+      await this.addActivityLog(leaderboardId, `Deleted team "${team.name}"`);
+    }
+  },
+
+  async getTeamMembers(teamId: string): Promise<TeamMember[]> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('team_members')
+        .select('*, member:leaderboard_members(*)')
+        .eq('team_id', teamId)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return ((data || []) as unknown as Array<TeamMember & { member: LeaderboardMember }>).map((row) => ({
+        id: row.id,
+        team_id: row.team_id,
+        leaderboard_id: row.leaderboard_id,
+        member_id: row.member_id,
+        role: row.role,
+        jersey_number: row.jersey_number,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        member: row.member,
+      }));
+    }
+
+    const allMembers = mockDb.getMembers();
+    return mockDb.getTeamMembers()
+      .filter(tm => tm.team_id === teamId)
+      .map(tm => ({
+        ...tm,
+        member: allMembers.find(m => m.id === tm.member_id),
+      }));
+  },
+
+  async addTeamMember(
+    teamId: string, 
+    memberId: string, 
+    role: TeamRosterRole = 'player', 
+    jerseyNumber?: number | null
+  ): Promise<TeamMember> {
+    const leaderboardId = await this.getLeaderboardIdFromTeam(teamId);
+    if (!leaderboardId) throw new Error('Team not found.');
+    await this.requireAdminPermission(leaderboardId);
+
+    const team = await this.getTeam(teamId);
+    if (!team) throw new Error('Team not found.');
+
+    // Check member
+    const memberLeaderboardId = await this.getLeaderboardIdFromMember(memberId);
+    if (!memberLeaderboardId || memberLeaderboardId !== leaderboardId) {
+      throw new Error('Participant does not belong to this competition.');
+    }
+
+    // Check if participant is already assigned in this competition
+    if (isSupabaseConfigured && supabase) {
+      const { data: existing } = await supabase
+        .from('team_members')
+        .select('id, team_id')
+        .eq('leaderboard_id', leaderboardId)
+        .eq('member_id', memberId)
+        .maybeSingle();
+
+      if (existing) {
+        if (existing.team_id === teamId) {
+          throw new Error('Participant is already a member of this team roster.');
+        } else {
+          throw new Error('Participant is already assigned to another team in this competition.');
+        }
+      }
+
+      const { data, error } = await supabase
+        .from('team_members')
+        .insert([{
+          team_id: teamId,
+          leaderboard_id: leaderboardId,
+          member_id: memberId,
+          role,
+          jersey_number: jerseyNumber ?? null,
+        }])
+        .select('*, member:leaderboard_members(*)')
+        .single();
+      if (error) throw error;
+
+      // Sync member's team_id and legacy team name
+      await supabase
+        .from('leaderboard_members')
+        .update({ team_id: teamId, team: team.name })
+        .eq('id', memberId);
+
+      const memberName = data?.member?.name || 'Participant';
+      await this.addActivityLog(leaderboardId, `Added ${memberName} to team "${team.name}" as ${role}`);
+      return data;
+    }
+
+    const currentRoster = mockDb.getTeamMembers();
+    const existing = currentRoster.find(tm => tm.leaderboard_id === leaderboardId && tm.member_id === memberId);
+    if (existing) {
+      if (existing.team_id === teamId) {
+        throw new Error('Participant is already a member of this team roster.');
+      } else {
+        throw new Error('Participant is already assigned to another team in this competition.');
+      }
+    }
+
+    const allMembers = mockDb.getMembers();
+    const member = allMembers.find(m => m.id === memberId);
+    if (!member) throw new Error('Participant not found.');
+
+    const newRosterEntry: TeamMember = {
+      id: `tm-${Math.random().toString(36).substr(2, 9)}`,
+      team_id: teamId,
+      leaderboard_id: leaderboardId,
+      member_id: memberId,
+      role,
+      jersey_number: jerseyNumber ?? null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      member,
+    };
+
+    mockDb.setTeamMembers([...currentRoster, newRosterEntry]);
+
+    // Sync member's team_id and legacy team name
+    const updatedMembers = allMembers.map(m => {
+      if (m.id === memberId) {
+        return { ...m, team_id: teamId, team: team.name, updated_at: new Date().toISOString() };
+      }
+      return m;
+    });
+    mockDb.setMembers(updatedMembers);
+
+    await this.addActivityLog(leaderboardId, `Added ${member.name} to team "${team.name}" as ${role}`);
+    return newRosterEntry;
+  },
+
+  async updateTeamMemberRole(
+    teamId: string, 
+    memberId: string, 
+    role: TeamRosterRole, 
+    jerseyNumber?: number | null
+  ): Promise<TeamMember> {
+    const leaderboardId = await this.getLeaderboardIdFromTeam(teamId);
+    if (!leaderboardId) throw new Error('Team not found.');
+    await this.requireAdminPermission(leaderboardId);
+
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('team_members')
+        .update({
+          role,
+          jersey_number: jerseyNumber !== undefined ? jerseyNumber : null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('team_id', teamId)
+        .eq('member_id', memberId)
+        .select('*, member:leaderboard_members(*)')
         .single();
       if (error) throw error;
       return data;
     }
 
-    // Local storage flow
-    const newEvent: ScoreEvent = {
-      ...event,
-      id: `ev-${Math.random().toString(36).substr(2, 9)}`,
-      leaderboard_id: leaderboardId,
-      member_id: memberId,
-      created_at: timestamp
+    const currentRoster = mockDb.getTeamMembers();
+    const idx = currentRoster.findIndex(tm => tm.team_id === teamId && tm.member_id === memberId);
+    if (idx === -1) throw new Error('Roster entry not found');
+
+    const updated: TeamMember = {
+      ...currentRoster[idx],
+      role,
+      jersey_number: jerseyNumber !== undefined ? jerseyNumber : currentRoster[idx].jersey_number,
+      updated_at: new Date().toISOString(),
     };
+    currentRoster[idx] = updated;
+    mockDb.setTeamMembers(currentRoster);
 
-    const currentEvents = mockDb.getScoreEvents();
-    mockDb.setScoreEvents([...currentEvents, newEvent]);
+    const member = mockDb.getMembers().find(m => m.id === memberId);
+    return { ...updated, member };
+  },
 
-    // Handle immutable activity log trigger manually in mock mode
-    const currentLogs = mockDb.getActivityLogs();
-    const members = mockDb.getMembers();
-    const player = members.find(m => m.id === memberId);
-    const pName = player ? player.name : 'Unknown Player';
-    const ptsStr = event.points >= 0 ? `+${event.points}` : `${event.points}`;
-    const logMessage = `${pName} score adjusted by ${ptsStr} points: ${event.reason}`;
+  async removeTeamMember(teamId: string, memberId: string): Promise<void> {
+    const leaderboardId = await this.getLeaderboardIdFromTeam(teamId);
+    if (!leaderboardId) throw new Error('Team not found.');
+    await this.requireAdminPermission(leaderboardId);
 
-    const newLog: ActivityLog = {
-      id: `log-${Math.random().toString(36).substr(2, 9)}`,
-      leaderboard_id: leaderboardId,
-      message: logMessage,
-      created_at: timestamp
+    const team = await this.getTeam(teamId);
+    const member = (await this.getMembers(leaderboardId)).find(m => m.id === memberId);
+
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase
+        .from('team_members')
+        .delete()
+        .eq('team_id', teamId)
+        .eq('member_id', memberId);
+      if (error) throw error;
+
+      await supabase
+        .from('leaderboard_members')
+        .update({ team_id: null, team: null })
+        .eq('id', memberId);
+
+      if (team && member) {
+        await this.addActivityLog(leaderboardId, `Removed ${member.name} from team "${team.name}"`);
+      }
+      return;
+    }
+
+    const currentRoster = mockDb.getTeamMembers();
+    mockDb.setTeamMembers(currentRoster.filter(tm => !(tm.team_id === teamId && tm.member_id === memberId)));
+
+    const currentMembers = mockDb.getMembers();
+    mockDb.setMembers(currentMembers.map(m => m.id === memberId ? { ...m, team_id: null, team: null } : m));
+
+    if (team && member) {
+      await this.addActivityLog(leaderboardId, `Removed ${member.name} from team "${team.name}"`);
+    }
+  },
+
+  async getTeamWithRoster(teamId: string): Promise<TeamWithRoster | null> {
+    const team = await this.getTeam(teamId);
+    if (!team) return null;
+    const members = await this.getTeamMembers(teamId);
+    const validMembers = members.filter((m): m is TeamMember & { member: LeaderboardMember } => !!m.member);
+    return {
+      ...team,
+      members: validMembers,
+      member_count: validMembers.length,
     };
-    mockDb.setActivityLogs([newLog, ...currentLogs]);
+  },
 
-    return newEvent;
+  async getTeamsWithRosters(leaderboardId: string): Promise<TeamWithRoster[]> {
+    const teams = await this.getTeams(leaderboardId);
+    if (teams.length === 0) return [];
+
+    let allRoster: TeamMember[] = [];
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('team_members')
+        .select('*, member:leaderboard_members(*)')
+        .eq('leaderboard_id', leaderboardId);
+      if (!error && data) {
+        allRoster = ((data || []) as unknown as Array<TeamMember & { member: LeaderboardMember }>).map((row) => ({
+          id: row.id,
+          team_id: row.team_id,
+          leaderboard_id: row.leaderboard_id,
+          member_id: row.member_id,
+          role: row.role,
+          jersey_number: row.jersey_number,
+          created_at: row.created_at,
+          updated_at: row.updated_at,
+          member: row.member,
+        }));
+      }
+    } else {
+      const members = mockDb.getMembers().filter(m => m.leaderboard_id === leaderboardId);
+      allRoster = mockDb.getTeamMembers()
+        .filter(tm => tm.leaderboard_id === leaderboardId)
+        .map(tm => ({
+          ...tm,
+          member: members.find(m => m.id === tm.member_id),
+        }));
+    }
+
+    return teams.map(team => {
+      const members = allRoster
+        .filter(tm => tm.team_id === team.id && !!tm.member)
+        .map(tm => tm as TeamMember & { member: LeaderboardMember });
+      return {
+        ...team,
+        members,
+        member_count: members.length,
+      };
+    });
+  },
+
+  async backfillTeams(leaderboardId: string): Promise<{ createdTeams: number; linkedMembers: number }> {
+    await this.requireAdminPermission(leaderboardId);
+    const members = await this.getMembers(leaderboardId);
+    const existingTeams = await this.getTeams(leaderboardId);
+
+    const teamMap = new Map<string, Team>();
+    for (const t of existingTeams) {
+      teamMap.set(t.name.toLowerCase().trim(), t);
+    }
+
+    let createdTeams = 0;
+    let linkedMembers = 0;
+
+    for (const member of members) {
+      const rawName = member.team?.trim();
+      if (!rawName) continue;
+
+      let team = teamMap.get(rawName.toLowerCase());
+      if (!team) {
+        const short_code = generateShortCode(rawName);
+        team = await this.createTeam(leaderboardId, {
+          name: rawName,
+          short_code,
+        });
+        teamMap.set(rawName.toLowerCase(), team);
+        createdTeams++;
+      }
+
+      // If member doesn't have team_id set or it differs
+      if (member.team_id !== team.id) {
+        await this.updateMember(member.id, {
+          team_id: team.id,
+          team: team.name,
+        });
+        linkedMembers++;
+      }
+    }
+
+    return { createdTeams, linkedMembers };
+  },
+
+  // Score Events
+  async addScoreEvent(leaderboardId: string, memberId: string, event: Omit<ScoreEvent, 'id' | 'leaderboard_id' | 'member_id' | 'created_at'>): Promise<ScoreEvent> {
+    await this.requireAdminPermission(leaderboardId);
+    
+    // Validate score adjustment against competition rules
+    const rules = await CompetitionRulesService.getRules(leaderboardId);
+    const validation = validateScoreAdjustment(rules, { points: event.points, reason: event.reason });
+    if (!validation.valid) {
+      throw new Error(validation.errors.join(' '));
+    }
+
+    const timestamp = new Date().toISOString();
+    
+    let createdEvent: ScoreEvent;
+    let participantName = 'Unknown Player';
+
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('score_events')
+        .insert([{ ...event, leaderboard_id: leaderboardId, member_id: memberId }])
+        .select('*, leaderboard_members(name)')
+        .single();
+      if (error) throw error;
+      createdEvent = data as ScoreEvent;
+      participantName = (data.leaderboard_members as { name?: string })?.name || 'Unknown Player';
+    } else {
+      const newEvent: ScoreEvent = {
+        ...event,
+        id: `ev-${Math.random().toString(36).substr(2, 9)}`,
+        leaderboard_id: leaderboardId,
+        member_id: memberId,
+        created_at: timestamp
+      };
+
+      const currentEvents = mockDb.getScoreEvents();
+      mockDb.setScoreEvents([...currentEvents, newEvent]);
+
+      const members = mockDb.getMembers();
+      const player = members.find(m => m.id === memberId);
+      participantName = player ? player.name : 'Unknown Player';
+      const ptsStr = event.points >= 0 ? `+${event.points}` : `${event.points}`;
+      const logMessage = `${participantName} score adjusted by ${ptsStr} points: ${event.reason}`;
+      await this.logActivity(leaderboardId, logMessage);
+
+      createdEvent = newEvent;
+    }
+
+    // Log initial result submission to immutable audit trail
+    try {
+      const { ResultAuditService } = await import('@/lib/competition/audit/service');
+      const profile = await this.getCurrentProfile();
+      await ResultAuditService.logAuditEntry({
+        leaderboard_id: leaderboardId,
+        entity_type: 'score_event',
+        entity_id: createdEvent.id,
+        previous_payload: null,
+        proposed_payload: { points: event.points, reason: event.reason },
+        actor_id: profile?.id || null,
+        actor_email: profile?.email || null,
+        actor_name: profile?.full_name || 'Admin',
+        actor_role: profile?.role === 'super_admin' ? 'owner' : 'admin',
+        participant_id: memberId,
+        participant_name: participantName,
+        action: 'submit',
+        status: 'approved',
+        reason: event.reason || 'Initial score submission',
+        evidence_urls: [],
+      });
+    } catch (auditErr) {
+      console.warn('Could not record initial audit entry for score event:', auditErr);
+    }
+
+    return createdEvent;
   },
 
   // Activity Logs
@@ -921,8 +1841,45 @@ export const DatabaseService = {
     return mockDb.getActivityLogs().filter(log => log.leaderboard_id === leaderboardId);
   },
 
-  // Dynamic Rankings logic (ordered by sum points descending, then tie-breaker: last_score_at ascending)
+  async addActivityLog(leaderboardId: string, message: string): Promise<ActivityLog> {
+    return this.logActivity(leaderboardId, message);
+  },
+
+  async logActivity(leaderboardId: string, message: string): Promise<ActivityLog> {
+    const timestamp = new Date().toISOString();
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('activity_logs')
+        .insert([{ leaderboard_id: leaderboardId, message, created_at: timestamp }])
+        .select()
+        .single();
+      if (error) {
+        console.error('Failed to insert activity log:', error);
+        return {
+          id: `log-${Date.now()}`,
+          leaderboard_id: leaderboardId,
+          message,
+          created_at: timestamp,
+        };
+      }
+      return data;
+    }
+
+    const newLog: ActivityLog = {
+      id: `log-${Math.random().toString(36).substr(2, 9)}`,
+      leaderboard_id: leaderboardId,
+      message,
+      created_at: timestamp,
+    };
+    const currentLogs = mockDb.getActivityLogs();
+    mockDb.setActivityLogs([newLog, ...currentLogs]);
+    return newLog;
+  },
+
+  // Dynamic Rankings logic using configurable competition rules
   async getRankings(leaderboardId: string): Promise<Ranking[]> {
+    const rules = await CompetitionRulesService.getRules(leaderboardId);
+
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase
         .from('leaderboard_rankings')
@@ -930,52 +1887,89 @@ export const DatabaseService = {
         .eq('leaderboard_id', leaderboardId);
       if (error) throw error;
 
-      // PostgreSQL View returns ungrouped items, let's sort them appropriately
-      return (data || []).sort((a, b) => {
-        if (b.total_points !== a.total_points) {
-          return b.total_points - a.total_points;
+      const rawRankings: Ranking[] = (data || []).map((row: any) => ({
+        member_id: row.member_id,
+        leaderboard_id: row.leaderboard_id,
+        player_name: row.player_name,
+        player_email: row.player_email,
+        avatar_url: row.avatar_url,
+        team: row.team,
+        notes: row.notes,
+        is_active: row.is_active,
+        total_points: Number(row.total_points) || 0,
+        last_score_at: row.last_score_at,
+        joined_at: row.created_at || row.last_score_at,
+      }));
+
+      const rankingOrder = rules.ranking_order || 'desc';
+      const tieBreakers = rules.tie_breakers && rules.tie_breakers.length > 0
+        ? rules.tie_breakers
+        : [
+            { type: 'points' as const, label: 'Points', direction: rankingOrder },
+            { type: 'earliest_score' as const, label: 'Earliest Achieved', direction: 'asc' as const },
+            { type: 'alphabetical' as const, label: 'Alphabetical', direction: 'asc' as const },
+          ];
+
+      const compareRanks = (a: Ranking, b: Ranking): { diff: number; reason?: string } => {
+        for (const rule of tieBreakers) {
+          if (rule.type === 'points') {
+            if (a.total_points !== b.total_points) {
+              const dir = rule.direction || rankingOrder;
+              const diff = dir === 'asc' ? a.total_points - b.total_points : b.total_points - a.total_points;
+              return { diff, reason: `Points (${a.total_points} vs ${b.total_points})` };
+            }
+            continue;
+          }
+          if (rule.type === 'earliest_score') {
+            const timeA = new Date(a.last_score_at).getTime();
+            const timeB = new Date(b.last_score_at).getTime();
+            if (timeA !== timeB) {
+              const dir = rule.direction || 'asc';
+              const diff = dir === 'asc' ? timeA - timeB : timeB - timeA;
+              return { diff, reason: 'Earlier score achievement' };
+            }
+            continue;
+          }
+          if (rule.type === 'latest_score') {
+            const timeA = new Date(a.last_score_at).getTime();
+            const timeB = new Date(b.last_score_at).getTime();
+            if (timeA !== timeB) {
+              const dir = rule.direction || 'desc';
+              const diff = dir === 'desc' ? timeB - timeA : timeA - timeB;
+              return { diff, reason: 'Latest score achievement' };
+            }
+            continue;
+          }
+          if (rule.type === 'alphabetical') {
+            const comp = a.player_name.localeCompare(b.player_name);
+            if (comp !== 0) {
+              const dir = rule.direction || 'asc';
+              const diff = dir === 'desc' ? -comp : comp;
+              return { diff, reason: 'Alphabetical order' };
+            }
+            continue;
+          }
         }
-        return new Date(a.last_score_at).getTime() - new Date(b.last_score_at).getTime();
+        return { diff: a.player_name.localeCompare(b.player_name), reason: 'Alphabetical order' };
+      };
+
+      rawRankings.sort((a, b) => compareRanks(a, b).diff);
+      rawRankings.forEach((r, idx) => {
+        r.position = idx + 1;
+        if (idx > 0) {
+          r.tie_break_explanation = compareRanks(rawRankings[idx - 1], r).reason;
+        } else {
+          r.tie_break_explanation = 'Leader';
+        }
       });
+
+      return rawRankings;
     }
 
-    // Local Storage logic replicating views
+    // Local Storage logic replicating views with rules
     const members = mockDb.getMembers().filter(m => m.leaderboard_id === leaderboardId);
     const events = mockDb.getScoreEvents().filter(e => e.leaderboard_id === leaderboardId);
-
-    const rankings: Ranking[] = members.map(m => {
-      const playerEvents = events.filter(e => e.member_id === m.id);
-      const total_points = playerEvents.reduce((sum, e) => sum + e.points, 0);
-      
-      let last_score_at = m.created_at;
-      if (playerEvents.length > 0) {
-        // Find latest event timestamp
-        const times = playerEvents.map(e => new Date(e.created_at).getTime());
-        last_score_at = new Date(Math.max(...times)).toISOString();
-      }
-
-      return {
-        member_id: m.id,
-        leaderboard_id: m.leaderboard_id,
-        player_name: m.name,
-        player_email: m.email,
-        avatar_url: m.avatar_url,
-        team: m.team,
-        notes: m.notes,
-        is_active: m.is_active,
-        total_points,
-        last_score_at,
-        joined_at: m.created_at
-      };
-    });
-
-    // Sort: Points DESC, last score time ASC (earlier score achieved wins)
-    return rankings.sort((a, b) => {
-      if (b.total_points !== a.total_points) {
-        return b.total_points - a.total_points;
-      }
-      return new Date(a.last_score_at).getTime() - new Date(b.last_score_at).getTime();
-    });
+    return evaluatePointsRankings(members, events, rules);
   },
 
   async getPlayerHistory(memberId: string): Promise<ScoreEvent[]> {

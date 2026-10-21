@@ -90,11 +90,44 @@ CREATE TABLE IF NOT EXISTS public.leaderboard_members (
   email TEXT,
   avatar_url TEXT,
   team TEXT,
+  team_id UUID,
   notes TEXT,
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(leaderboard_id, name)
+);
+
+-- 5b. Teams Table
+CREATE TABLE IF NOT EXISTS public.teams (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  short_code TEXT,
+  logo_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (leaderboard_id, name)
+);
+
+ALTER TABLE public.leaderboard_members
+  DROP CONSTRAINT IF EXISTS fk_leaderboard_members_team_id;
+ALTER TABLE public.leaderboard_members
+  ADD CONSTRAINT fk_leaderboard_members_team_id
+  FOREIGN KEY (team_id) REFERENCES public.teams(id) ON DELETE SET NULL;
+
+-- 5c. Team Members (Rosters) Table
+CREATE TABLE IF NOT EXISTS public.team_members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  team_id UUID NOT NULL REFERENCES public.teams(id) ON DELETE CASCADE,
+  leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  member_id UUID NOT NULL REFERENCES public.leaderboard_members(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('captain', 'player', 'substitute')) DEFAULT 'player',
+  jersey_number INTEGER,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (leaderboard_id, member_id),
+  UNIQUE (team_id, member_id)
 );
 
 -- 6. Score Events (Score updates log)
@@ -424,7 +457,6 @@ CREATE POLICY "Authenticated users can delete leaderboard media" ON storage.obje
     AND owner_id = (SELECT auth.uid()::text)
   );
 
-
 -- ==========================================
 -- LEADERBOARD DYNAMIC RANKING VIEW
 -- ==========================================
@@ -718,3 +750,173 @@ CREATE POLICY "Owners and admins can manage tournament advancements" ON public.t
 
 ALTER PUBLICATION supabase_realtime ADD TABLE public.tournament_matches;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.tournament_match_results;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.fixtures;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.fixture_results;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.teams;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.team_members;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.competition_rules;
+
+-- Teams and Team Members Policies
+ALTER TABLE public.teams ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.team_members ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can view teams for accessible leaderboards" ON public.teams;
+CREATE POLICY "Anyone can view teams for accessible leaderboards" ON public.teams
+  FOR SELECT USING (public.can_view_leaderboard(leaderboard_id, auth.uid()));
+
+DROP POLICY IF EXISTS "Owners and admins can manage teams" ON public.teams;
+CREATE POLICY "Owners and admins can manage teams" ON public.teams
+  FOR ALL USING (public.can_manage_leaderboard(leaderboard_id, auth.uid()));
+
+DROP POLICY IF EXISTS "Anyone can view team members for accessible leaderboards" ON public.team_members;
+CREATE POLICY "Anyone can view team members for accessible leaderboards" ON public.team_members
+  FOR SELECT USING (public.can_view_leaderboard(leaderboard_id, auth.uid()));
+
+DROP POLICY IF EXISTS "Owners and admins can manage team members" ON public.team_members;
+CREATE POLICY "Owners and admins can manage team members" ON public.team_members
+  FOR ALL USING (public.can_manage_leaderboard(leaderboard_id, auth.uid()));
+
+-- Competition Rules Table and Policies
+CREATE TABLE IF NOT EXISTS public.competition_rules (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  version INTEGER NOT NULL DEFAULT 1,
+  engine TEXT NOT NULL CHECK (engine IN ('simple_points', 'league_table', 'tournament')),
+  ranking_order TEXT NOT NULL DEFAULT 'desc' CHECK (ranking_order IN ('asc', 'desc')),
+  primary_metric TEXT NOT NULL DEFAULT 'points',
+  points_for_win DOUBLE PRECISION NOT NULL DEFAULT 3,
+  points_for_draw DOUBLE PRECISION NOT NULL DEFAULT 1,
+  points_for_loss DOUBLE PRECISION NOT NULL DEFAULT 0,
+  allow_draws BOOLEAN NOT NULL DEFAULT TRUE,
+  allow_negative_points BOOLEAN NOT NULL DEFAULT TRUE,
+  min_points_per_event DOUBLE PRECISION,
+  max_points_per_event DOUBLE PRECISION,
+  walkover_win_score DOUBLE PRECISION NOT NULL DEFAULT 3,
+  walkover_loss_score DOUBLE PRECISION NOT NULL DEFAULT 0,
+  tie_breakers JSONB NOT NULL DEFAULT '[]'::jsonb,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (leaderboard_id, version)
+);
+
+ALTER TABLE public.competition_rules ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can view competition rules for accessible leaderboards" ON public.competition_rules;
+CREATE POLICY "Anyone can view competition rules for accessible leaderboards" ON public.competition_rules
+  FOR SELECT USING (public.can_view_leaderboard(leaderboard_id, auth.uid()));
+
+DROP POLICY IF EXISTS "Owners and admins can manage competition rules" ON public.competition_rules;
+CREATE POLICY "Owners and admins can manage competition rules" ON public.competition_rules
+  FOR ALL USING (public.can_manage_leaderboard(leaderboard_id, auth.uid()));
+
+-- Result Audit Log (Append-only Result Revisions & Dispute Workflow)
+CREATE TABLE IF NOT EXISTS public.result_audit_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('score_event', 'fixture_result', 'tournament_match')),
+  entity_id TEXT NOT NULL,
+  previous_payload JSONB,
+  proposed_payload JSONB NOT NULL,
+  actor_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  actor_email TEXT,
+  actor_name TEXT,
+  actor_role TEXT NOT NULL DEFAULT 'admin' CHECK (actor_role IN ('owner', 'admin', 'referee', 'participant', 'system')),
+  participant_id UUID,
+  participant_name TEXT,
+  action TEXT NOT NULL CHECK (action IN ('submit', 'correct', 'dispute', 'approve', 'reject', 'void')),
+  status TEXT NOT NULL CHECK (status IN ('submitted', 'confirmed', 'disputed', 'approved', 'rejected', 'voided')) DEFAULT 'approved',
+  reason TEXT NOT NULL,
+  evidence_urls JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.fixture_results 
+  ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'approved' 
+  CHECK (status IN ('submitted', 'confirmed', 'disputed', 'approved', 'rejected', 'voided'));
+
+ALTER TABLE public.score_events 
+  ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'approved' 
+  CHECK (status IN ('submitted', 'confirmed', 'disputed', 'approved', 'rejected', 'voided'));
+
+ALTER TABLE public.tournament_match_results 
+  ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'approved' 
+  CHECK (status IN ('submitted', 'confirmed', 'disputed', 'approved', 'rejected', 'voided'));
+
+CREATE INDEX IF NOT EXISTS idx_result_audit_log_lb ON public.result_audit_log(leaderboard_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_result_audit_log_entity ON public.result_audit_log(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_result_audit_log_status ON public.result_audit_log(leaderboard_id, status);
+
+ALTER TABLE public.result_audit_log ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can view result audit log for accessible leaderboards" ON public.result_audit_log;
+CREATE POLICY "Anyone can view result audit log for accessible leaderboards" ON public.result_audit_log
+  FOR SELECT USING (public.can_view_leaderboard(leaderboard_id, auth.uid()));
+
+DROP POLICY IF EXISTS "Authorized users can insert result audit log" ON public.result_audit_log;
+CREATE POLICY "Authorized users can insert result audit log" ON public.result_audit_log
+  FOR INSERT WITH CHECK (
+    public.can_manage_leaderboard(leaderboard_id, auth.uid()) OR
+    auth.uid() IS NOT NULL
+  );
+
+CREATE OR REPLACE FUNCTION public.prevent_result_audit_log_mutation()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RAISE EXCEPTION 'Result audit log records are immutable and cannot be updated or deleted.';
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_prevent_result_audit_log_mutation ON public.result_audit_log;
+CREATE TRIGGER trg_prevent_result_audit_log_mutation
+  BEFORE UPDATE OR DELETE ON public.result_audit_log
+  FOR EACH ROW
+  EXECUTE FUNCTION public.prevent_result_audit_log_mutation();
+
+ALTER PUBLICATION supabase_realtime ADD TABLE public.result_audit_log;
+
+-- ============================================================================
+-- 31. Operational Competition Lifecycle & Multi-Stage Pathways
+-- ============================================================================
+ALTER TABLE public.competition_configs
+  ADD COLUMN IF NOT EXISTS operational_status TEXT NOT NULL DEFAULT 'draft';
+
+ALTER TABLE public.competition_configs
+  DROP CONSTRAINT IF EXISTS competition_configs_operational_status_check;
+
+ALTER TABLE public.competition_configs
+  ADD CONSTRAINT competition_configs_operational_status_check
+  CHECK (operational_status IN ('draft', 'registration_open', 'scheduled', 'in_progress', 'under_review', 'completed', 'cancelled'));
+
+ALTER TABLE public.tournaments
+  DROP CONSTRAINT IF EXISTS tournaments_state_check;
+
+ALTER TABLE public.tournaments
+  ADD CONSTRAINT tournaments_state_check
+  CHECK (state IN ('draft', 'registration_open', 'scheduled', 'in_progress', 'under_review', 'completed', 'cancelled'));
+
+CREATE TABLE IF NOT EXISTS public.competition_pathways (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  source_leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  destination_leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  stage_order INTEGER NOT NULL DEFAULT 1,
+  qualifier_count INTEGER NOT NULL CHECK (qualifier_count >= 1),
+  tie_handling TEXT NOT NULL CHECK (tie_handling IN ('standard_rules', 'playoff', 'manual_approval', 'random')) DEFAULT 'standard_rules',
+  status TEXT NOT NULL CHECK (status IN ('configured', 'previewed', 'committed', 'cancelled')) DEFAULT 'configured',
+  committed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (source_leaderboard_id, destination_leaderboard_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_competition_pathways_source ON public.competition_pathways(source_leaderboard_id);
+CREATE INDEX IF NOT EXISTS idx_competition_pathways_dest ON public.competition_pathways(destination_leaderboard_id);
+CREATE INDEX IF NOT EXISTS idx_competition_pathways_status ON public.competition_pathways(status);
+
+ALTER TABLE public.competition_pathways ENABLE ROW LEVEL SECURITY;
+
+
+

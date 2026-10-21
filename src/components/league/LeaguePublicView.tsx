@@ -1,10 +1,13 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Activity, Calendar, Trophy } from 'lucide-react';
 import SafeImage from '@/components/SafeImage';
+import { isSupabaseConfigured, supabase } from '@/lib/db';
 import { LeagueService } from '@/lib/league/service';
-import { CompetitionConfig, CompetitionStatistic, Leaderboard, LeagueStandingRow } from '@/types';
+import { CompetitionConfig, CompetitionRules, CompetitionStatistic, Leaderboard, LeagueStandingRow } from '@/types';
+import { CompetitionRulesService } from '@/lib/competition/rules/service';
+import { RulesExplainerCard } from '@/components/competition/RulesExplainerCard';
 
 interface LeaguePublicViewProps {
   leaderboard: Leaderboard;
@@ -24,39 +27,82 @@ export default function LeaguePublicView({ leaderboard, competitionConfig }: Lea
   const [statistics, setStatistics] = useState<CompetitionStatistic[]>([]);
   const [standings, setStandings] = useState<LeagueStandingRow[]>([]);
   const [recentResults, setRecentResults] = useState<Array<Awaited<ReturnType<typeof LeagueService.getRecentResults>>[number]>>([]);
+  const [rules, setRules] = useState<CompetitionRules | null>(null);
+
+  const loadData = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+    }
+    try {
+      const [nextStatistics, nextStandings, nextRecentResults, nextRules] = await Promise.all([
+        LeagueService.getCompetitionStatistics(leaderboard.id),
+        LeagueService.getLeagueStandings(leaderboard.id),
+        LeagueService.getRecentResults(leaderboard.id),
+        CompetitionRulesService.getRules(leaderboard.id),
+      ]);
+
+      setStatistics(nextStatistics.filter((item) => item.is_enabled).sort((a, b) => a.display_order - b.display_order));
+      setStandings(nextStandings);
+      setRecentResults(nextRecentResults);
+      setRules(nextRules);
+    } catch (err) {
+      console.error('Error loading league data:', err);
+    } finally {
+      if (!silent) {
+        setLoading(false);
+      }
+    }
+  }, [leaderboard.id]);
 
   useEffect(() => {
-    let mounted = true;
+    queueMicrotask(() => {
+      void loadData();
+    });
+  }, [loadData]);
 
-    const load = async () => {
-      setLoading(true);
-      try {
-        const [nextStatistics, nextStandings, nextRecentResults] = await Promise.all([
-          LeagueService.getCompetitionStatistics(leaderboard.id),
-          LeagueService.getLeagueStandings(leaderboard.id),
-          LeagueService.getRecentResults(leaderboard.id),
-        ]);
+  // Real-time updates for live fixtures & results
+  useEffect(() => {
+    if (isSupabaseConfigured && supabase) {
+      const channel = supabase
+        .channel(`public:league:${leaderboard.id}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'fixtures', filter: `leaderboard_id=eq.${leaderboard.id}` },
+          () => {
+            void loadData(true);
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'fixture_results' },
+          () => {
+            void loadData(true);
+          }
+        )
+        .subscribe();
 
-        if (!mounted) {
-          return;
-        }
+      return () => {
+        channel.unsubscribe();
+      };
+    }
 
-        setStatistics(nextStatistics.filter((item) => item.is_enabled).sort((a, b) => a.display_order - b.display_order));
-        setStandings(nextStandings);
-        setRecentResults(nextRecentResults);
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+    // Demo Mode: Binds to storage updates across browser tabs
+    const handleStorageUpdate = (event: StorageEvent) => {
+      if (event.key && event.key.startsWith('leaderboardos_')) {
+        void loadData(true);
       }
     };
 
-    void load();
+    window.addEventListener('storage', handleStorageUpdate);
+    const interval = window.setInterval(() => {
+      void loadData(true);
+    }, 3000);
 
     return () => {
-      mounted = false;
+      window.removeEventListener('storage', handleStorageUpdate);
+      window.clearInterval(interval);
     };
-  }, [leaderboard.id]);
+  }, [leaderboard.id, loadData]);
 
   const topTeam = standings[0]?.name || 'No standings yet';
   const visibleColumns = useMemo(() => statistics.slice(0, 8), [statistics]);
@@ -111,7 +157,14 @@ export default function LeaguePublicView({ leaderboard, competitionConfig }: Lea
                     />
                     <div>
                       <div className="font-bold text-white">{row.name}</div>
-                      {row.team && <div className="text-[11px] text-neutral-500">{row.team}</div>}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {row.team && <span className="text-[11px] text-neutral-500">{row.team}</span>}
+                        {row.tie_break_explanation && row.position > 1 && (
+                          <span className="text-[10px] text-violet-400 font-mono bg-violet-500/10 border border-violet-500/20 px-1.5 py-0.2 rounded" title={`Tie-break explanation: ${row.tie_break_explanation}`}>
+                            {row.tie_break_explanation}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </td>
@@ -123,6 +176,10 @@ export default function LeaguePublicView({ leaderboard, competitionConfig }: Lea
           </tbody>
         </table>
       </div>
+
+      {rules && (
+        <RulesExplainerCard rules={rules} />
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
         <div className="glass rounded-2xl p-6">
@@ -141,7 +198,15 @@ export default function LeaguePublicView({ leaderboard, competitionConfig }: Lea
             ) : (
               recentResults.slice(0, 8).map((item) => (
                 <div key={item.fixture.id} className="rounded-xl border border-white/5 bg-black/25 px-3 py-3">
-                  <div className="font-semibold text-white">{item.homeMember?.name} {item.result?.home_score} - {item.result?.away_score} {item.awayMember?.name}</div>
+                  <div className="flex items-center justify-between">
+                    <div className="font-semibold text-white">{item.homeMember?.name} {item.result?.home_score} - {item.result?.away_score} {item.awayMember?.name}</div>
+                    {item.result?.status === 'disputed' && (
+                      <span className="rounded bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-400 border border-amber-500/20">Under Dispute</span>
+                    )}
+                    {item.result?.status === 'voided' && (
+                      <span className="rounded bg-red-500/10 px-2 py-0.5 text-[10px] font-bold text-red-400 border border-red-500/20">Voided</span>
+                    )}
+                  </div>
                   <div className="mt-1 flex items-center gap-2 text-[11px] text-neutral-500">
                     <Calendar className="h-3.5 w-3.5" />
                     {item.fixture.round_name || 'Fixture'}

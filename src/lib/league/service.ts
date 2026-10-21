@@ -15,7 +15,9 @@ import {
 } from '@/types';
 import { DatabaseService, isSupabaseConfigured, supabase } from '@/lib/db';
 import { COMPETITION_TEMPLATES, getCompetitionTemplate, getStatisticDefinition } from '@/lib/competition/templates';
-import { buildLeagueStandings } from '@/lib/league/standings';
+import { CompetitionRulesService } from '@/lib/competition/rules/service';
+import { validateFixtureResult } from '@/lib/competition/rules/validation';
+import { evaluateLeagueStandings } from '@/lib/competition/rules/evaluator';
 
 interface CreateLeagueCompetitionInput {
   name: string;
@@ -56,6 +58,8 @@ interface SaveFixtureResultInput {
   fixtureId: string;
   homeScore: number;
   awayScore: number;
+  reason?: string;
+  evidenceUrls?: string[];
 }
 
 interface LocalLeagueState {
@@ -126,8 +130,8 @@ function makeUuid(): string {
   return crypto.randomUUID();
 }
 
-function mapCompetitionStatistics(leaderboardId: string, statisticKeys: string[], standingsColumnKeys: string[]): CompetitionStatistic[] {
-  const combined = Array.from(new Set([...standingsColumnKeys, ...statisticKeys]));
+function mapCompetitionStatistics(leaderboardId: string, statisticKeys?: string[], standingsColumnKeys?: string[]): CompetitionStatistic[] {
+  const combined = Array.from(new Set([...(standingsColumnKeys || []), ...(statisticKeys || [])]));
 
   return combined.map((statisticKey, index) => {
     const definition = getStatisticDefinition(statisticKey);
@@ -145,8 +149,8 @@ function mapCompetitionStatistics(leaderboardId: string, statisticKeys: string[]
   });
 }
 
-function mapRankingRules(leaderboardId: string, rankingRules: CreateLeagueCompetitionInput['rankingRules']): CompetitionRankingRule[] {
-  return rankingRules.map((rule, index) => ({
+function mapRankingRules(leaderboardId: string, rankingRules?: CreateLeagueCompetitionInput['rankingRules']): CompetitionRankingRule[] {
+  return (rankingRules || []).map((rule, index) => ({
     id: makeUuid(),
     leaderboard_id: leaderboardId,
     criterion_type: rule.criterion_type,
@@ -505,13 +509,32 @@ export const LeagueService = {
       throw new Error('Fixture not found.');
     }
     await DatabaseService.requireAdminPermission(leaderboardId);
+
+    // Validate fixture result with competition rules
+    const rules = await CompetitionRulesService.getRules(leaderboardId);
+    const validation = validateFixtureResult(rules, { homeScore: input.homeScore, awayScore: input.awayScore }, false);
+    if (!validation.valid) {
+      throw new Error(validation.errors.join(' '));
+    }
+
     const timestamp = new Date().toISOString();
+
+    let previousResult: FixtureResult | null = null;
+    if (isSupabaseConfigured && supabase) {
+      const { data: cur } = await supabase.from('fixture_results').select('*').eq('fixture_id', input.fixtureId).maybeSingle();
+      if (cur) previousResult = cur as FixtureResult;
+    } else {
+      const curState = getLocalLeagueState();
+      const cur = curState.fixtureResults.find((item) => item.fixture_id === input.fixtureId);
+      if (cur) previousResult = { ...cur };
+    }
 
     if (isSupabaseConfigured && supabase) {
       const { error: resultError } = await supabase.from('fixture_results').upsert({
         fixture_id: input.fixtureId,
         home_score: input.homeScore,
         away_score: input.awayScore,
+        status: 'approved',
         updated_at: timestamp,
       });
 
@@ -527,57 +550,126 @@ export const LeagueService = {
       if (fixtureError) {
         throw fixtureError;
       }
+    } else {
+      const state = getLocalLeagueState();
+      const fixtureIndex = state.fixtures.findIndex((item) => item.id === input.fixtureId);
+      if (fixtureIndex === -1) {
+        throw new Error('Fixture not found.');
+      }
 
-      return;
-    }
-
-    const state = getLocalLeagueState();
-    const fixtureIndex = state.fixtures.findIndex((item) => item.id === input.fixtureId);
-    if (fixtureIndex === -1) {
-      throw new Error('Fixture not found.');
-    }
-
-    state.fixtures[fixtureIndex] = {
-      ...state.fixtures[fixtureIndex],
-      status: 'completed',
-      updated_at: timestamp,
-    };
-
-    const resultIndex = state.fixtureResults.findIndex((item) => item.fixture_id === input.fixtureId);
-    if (resultIndex >= 0) {
-      state.fixtureResults[resultIndex] = {
-        ...state.fixtureResults[resultIndex],
-        home_score: input.homeScore,
-        away_score: input.awayScore,
+      state.fixtures[fixtureIndex] = {
+        ...state.fixtures[fixtureIndex],
+        status: 'completed',
         updated_at: timestamp,
       };
-    } else {
-      state.fixtureResults.push({
-        fixture_id: input.fixtureId,
-        home_score: input.homeScore,
-        away_score: input.awayScore,
-        created_at: timestamp,
-        updated_at: timestamp,
-      });
+
+      const resultIndex = state.fixtureResults.findIndex((item) => item.fixture_id === input.fixtureId);
+      if (resultIndex >= 0) {
+        state.fixtureResults[resultIndex] = {
+          ...state.fixtureResults[resultIndex],
+          home_score: input.homeScore,
+          away_score: input.awayScore,
+          updated_at: timestamp,
+        };
+      } else {
+        state.fixtureResults.push({
+          fixture_id: input.fixtureId,
+          home_score: input.homeScore,
+          away_score: input.awayScore,
+          created_at: timestamp,
+          updated_at: timestamp,
+        });
+      }
+
+      setLocalLeagueState(state);
     }
 
-    setLocalLeagueState(state);
+    // Emit activity log for completed fixture
+    try {
+      let homeMemberId = '';
+      let awayMemberId = '';
+      let roundName: string | null = null;
+
+      if (isSupabaseConfigured && supabase) {
+        const { data: fix } = await supabase
+          .from('fixtures')
+          .select('home_member_id, away_member_id, round_name')
+          .eq('id', input.fixtureId)
+          .maybeSingle();
+        if (fix) {
+          homeMemberId = fix.home_member_id;
+          awayMemberId = fix.away_member_id;
+          roundName = fix.round_name;
+        }
+      } else {
+        const state = getLocalLeagueState();
+        const fix = state.fixtures.find((item) => item.id === input.fixtureId);
+        if (fix) {
+          homeMemberId = fix.home_member_id;
+          awayMemberId = fix.away_member_id;
+          roundName = fix.round_name;
+        }
+      }
+
+      if (homeMemberId && awayMemberId) {
+        const members = await DatabaseService.getMembers(leaderboardId);
+        const home = members.find((m) => m.id === homeMemberId);
+        const away = members.find((m) => m.id === awayMemberId);
+        const roundStr = roundName ? `[${roundName}] ` : '';
+        const homeName = home?.name || 'Home';
+        const awayName = away?.name || 'Away';
+        const msg = `${roundStr}${homeName} ${input.homeScore} - ${input.awayScore} ${awayName}`;
+        await DatabaseService.addActivityLog(leaderboardId, msg);
+      }
+    } catch (logErr) {
+      console.error('Failed to log fixture activity:', logErr);
+    }
+
+    // Record immutable result audit entry
+    try {
+      const { ResultAuditService } = await import('@/lib/competition/audit/service');
+      const profile = await DatabaseService.getCurrentProfile();
+      await ResultAuditService.logAuditEntry({
+        leaderboard_id: leaderboardId,
+        entity_type: 'fixture_result',
+        entity_id: input.fixtureId,
+        previous_payload: previousResult ? {
+          home_score: previousResult.home_score,
+          away_score: previousResult.away_score,
+        } : null,
+        proposed_payload: {
+          home_score: input.homeScore,
+          away_score: input.awayScore,
+        },
+        actor_id: profile?.id || null,
+        actor_email: profile?.email || null,
+        actor_name: profile?.full_name || 'Admin',
+        actor_role: profile?.role === 'super_admin' ? 'owner' : 'admin',
+        action: previousResult ? 'correct' : 'submit',
+        status: 'approved',
+        reason: input.reason || (previousResult ? 'Match result updated' : 'Initial match result recorded'),
+        evidence_urls: input.evidenceUrls || [],
+      });
+    } catch (auditErr) {
+      console.warn('Could not record audit entry for fixture result:', auditErr);
+    }
   },
 
   async getLeagueStandings(leaderboardId: string): Promise<LeagueStandingRow[]> {
-    const { members, config, settings, statistics, rankingRules, fixtures, results } = await getLeaguePieces(leaderboardId);
-    if (!config || !settings) {
+    const { members, config, statistics, fixtures, results } = await getLeaguePieces(leaderboardId);
+    if (!config) {
       return [];
     }
 
+    const rules = await CompetitionRulesService.getRules(leaderboardId);
     const template = getCompetitionTemplate(config.template_key);
-    return buildLeagueStandings({
+
+    return evaluateLeagueStandings({
       members: members.filter((member) => member.is_active),
       fixtures,
       results,
-      leagueSettings: settings,
+      rules,
       competitionStatistics: statistics,
-      rankingRules,
       scoredStatKey: template.scored_stat_key,
       allowedStatKey: template.allowed_stat_key,
     });
@@ -639,5 +731,13 @@ export const LeagueService = {
     state.leagueSettings[index] = updated;
     setLocalLeagueState(state);
     return updated;
+  },
+
+  getLocalLeagueState() {
+    return getLocalLeagueState();
+  },
+
+  setLocalLeagueState(state: LocalLeagueState) {
+    setLocalLeagueState(state);
   },
 };

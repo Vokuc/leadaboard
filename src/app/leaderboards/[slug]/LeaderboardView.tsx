@@ -475,6 +475,27 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
           <span className="text-[10px] font-bold text-violet-400 uppercase tracking-widest bg-violet-500/10 px-2 py-0.5 rounded border border-violet-500/20">
             {displayCategoryLabel(leaderboard.competition_type)}
           </span>
+          {competitionConfig?.operational_status && (
+            <span
+              className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border ${
+                competitionConfig.operational_status === 'registration_open'
+                  ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                  : competitionConfig.operational_status === 'scheduled'
+                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                    : competitionConfig.operational_status === 'in_progress'
+                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                      : competitionConfig.operational_status === 'under_review'
+                        ? 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                        : competitionConfig.operational_status === 'completed'
+                          ? 'bg-neutral-800 text-neutral-300 border-neutral-700'
+                          : competitionConfig.operational_status === 'cancelled'
+                            ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                            : 'bg-neutral-800 text-neutral-400 border-neutral-700'
+              }`}
+            >
+              {competitionConfig.operational_status.replace('_', ' ')}
+            </span>
+          )}
           {season && (
             <span className="text-xs text-neutral-600 flex items-center gap-1">
               <Calendar className="w-3.5 h-3.5" /> {season.name}

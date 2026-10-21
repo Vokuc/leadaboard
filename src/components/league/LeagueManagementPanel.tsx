@@ -2,13 +2,18 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Activity, ArrowUpRight, Calendar, ImageUp, Plus, Save, Shield, Swords, Trophy, Upload, Users, Code, AlertCircle } from 'lucide-react';
+import { Activity, ArrowUpRight, Calendar, ImageUp, Plus, Save, Shield, Swords, Trophy, Upload, Users, Code, AlertCircle, History, Workflow } from 'lucide-react';
 import { DatabaseService } from '@/lib/db';
 import { getCompetitionTemplate } from '@/lib/competition/templates';
 import { LeagueService } from '@/lib/league/service';
-import { CompetitionConfig, CompetitionStatistic, Fixture, Leaderboard, LeaderboardMember, LeagueSettings, LeagueStandingRow } from '@/types';
+import { CompetitionLifecycleService } from '@/lib/competition/lifecycle/service';
+import { CompetitionPathwayService } from '@/lib/competition/pathway/service';
+import { CompetitionConfig, CompetitionStatistic, Fixture, Leaderboard, LeaderboardMember, LeagueSettings, LeagueStandingRow, CompetitionOperationalStatus, CompetitionPathway } from '@/types';
 import SafeImage from '@/components/SafeImage';
 import { uploadImageAsset } from '@/lib/image-upload';
+import { TeamRosterManagement } from '@/components/teams/TeamRosterManagement';
+import { CompetitionRulesSettings } from '@/components/competition/CompetitionRulesSettings';
+import { ResultAuditDrawer } from '@/components/competition/ResultAuditDrawer';
 
 type TabKey = 'overview' | 'standings' | 'fixtures' | 'teams' | 'settings' | 'integrations';
 
@@ -56,6 +61,13 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
   const [roundName, setRoundName] = useState('Matchday 1');
   const [scheduledAt, setScheduledAt] = useState('');
 
+  const [auditDrawerFixture, setAuditDrawerFixture] = useState<{
+    fixture: Fixture;
+    title: string;
+    homeScore: number;
+    awayScore: number;
+  } | null>(null);
+
   const [settingsName, setSettingsName] = useState(leaderboard.name);
   const [settingsDescription, setSettingsDescription] = useState(leaderboard.description || '');
   const [settingsVisibility, setSettingsVisibility] = useState(leaderboard.visibility);
@@ -64,6 +76,9 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
   const [pointsForDraw, setPointsForDraw] = useState(1);
   const [pointsForLoss, setPointsForLoss] = useState(0);
   const [seasonName, setSeasonName] = useState('Season 1');
+  const [operationalStatus, setOperationalStatus] = useState<CompetitionOperationalStatus>('draft');
+  const [initialOpStatus, setInitialOpStatus] = useState<CompetitionOperationalStatus>('draft');
+  const [pathways, setPathways] = useState<CompetitionPathway[]>([]);
 
   const template = useMemo(() => getCompetitionTemplate(competitionConfig.template_key), [competitionConfig.template_key]);
   const enabledColumns = useMemo(() => statistics.filter((item) => item.is_enabled).sort((a, b) => a.display_order - b.display_order), [statistics]);
@@ -71,13 +86,24 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
   const loadLeagueData = useCallback(async () => {
     setLoading(true);
     try {
-      const [nextMembers, nextStatistics, nextStandings, nextFixtures, nextRecentResults, nextLeagueSettings] = await Promise.all([
+      const [
+        nextMembers,
+        nextStatistics,
+        nextStandings,
+        nextFixtures,
+        nextRecentResults,
+        nextLeagueSettings,
+        nextOpStatus,
+        nextPathways,
+      ] = await Promise.all([
         DatabaseService.getMembers(leaderboard.id),
         LeagueService.getCompetitionStatistics(leaderboard.id),
         LeagueService.getLeagueStandings(leaderboard.id),
         LeagueService.getFixtures(leaderboard.id),
         LeagueService.getRecentResults(leaderboard.id),
         LeagueService.getLeagueSettings(leaderboard.id),
+        CompetitionLifecycleService.getOperationalStatus(leaderboard.id),
+        CompetitionPathwayService.getPathwaysForLeaderboard(leaderboard.id),
       ]);
 
       setMembers(nextMembers);
@@ -86,6 +112,9 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
       setFixtures(nextFixtures);
       setRecentResults(nextRecentResults);
       setLeagueSettings(nextLeagueSettings);
+      setOperationalStatus(nextOpStatus);
+      setInitialOpStatus(nextOpStatus);
+      setPathways(nextPathways);
       setHomeMemberId((current) => current || nextMembers[0]?.id || '');
       setAwayMemberId((current) => current || nextMembers[1]?.id || nextMembers[0]?.id || '');
 
@@ -244,6 +273,13 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
         points_for_loss: pointsForLoss,
       });
 
+      if (operationalStatus !== initialOpStatus) {
+        await CompetitionLifecycleService.updateOperationalStatus({
+          leaderboardId: leaderboard.id,
+          targetStatus: operationalStatus,
+        });
+      }
+
       onLeaderboardUpdated(updatedLeaderboard);
       setToast('League settings saved.');
       await loadLeagueData();
@@ -337,6 +373,29 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
           </div>
 
           <div className="space-y-6">
+            {pathways.length > 0 && (
+              <div className="glass rounded-2xl p-6 border-violet-500/20 bg-violet-950/10">
+                <div className="flex items-center gap-2 text-sm font-bold text-violet-300">
+                  <Workflow className="h-4 w-4" /> Connected Stage Pathways
+                </div>
+                <div className="mt-3 space-y-2">
+                  {pathways.map((p) => (
+                    <div key={p.id} className="p-3 rounded-xl bg-neutral-900 border border-white/5 text-xs flex items-center justify-between">
+                      <div>
+                        <div className="font-semibold text-white">{p.name}</div>
+                        <div className="text-neutral-400 text-[11px] mt-0.5">Top {p.qualifier_count} advance to playoff bracket</div>
+                      </div>
+                      <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${
+                        p.status === 'committed' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-neutral-800 text-neutral-400 border-neutral-700'
+                      }`}>
+                        {p.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="glass rounded-2xl p-6">
               <div className="flex items-center gap-2 text-sm font-bold text-white">
                 <Shield className="h-4 w-4 text-emerald-400" /> League Rules
@@ -446,6 +505,14 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
                     awayName={away?.name || 'Away'}
                     existingResult={existingResult || null}
                     onSaveResult={handleSaveResult}
+                    onOpenHistory={(f, hName, aName, hScore, aScore) => {
+                      setAuditDrawerFixture({
+                        fixture: f,
+                        title: `${hName} vs ${aName}`,
+                        homeScore: hScore,
+                        awayScore: aScore,
+                      });
+                    }}
                     disabled={saving}
                   />
                 );
@@ -456,8 +523,18 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
       )}
 
       {activeTab === 'teams' && (
-        <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-          <form onSubmit={handleAddTeam} className="glass rounded-2xl p-6 space-y-4">
+        <div className="space-y-8">
+          <TeamRosterManagement
+            leaderboardId={leaderboard.id}
+            onChanged={() => void loadLeagueData()}
+          />
+
+          <div className="pt-6 border-t border-white/5">
+            <div className="mb-4 text-xs font-bold uppercase tracking-wider text-neutral-400">
+              Direct {competitionConfig.entity_type === 'team' ? 'Team / Club' : 'Competitor'} Registration
+            </div>
+            <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+              <form onSubmit={handleAddTeam} className="glass rounded-2xl p-6 space-y-4">
             <div className="flex items-center gap-2 text-sm font-bold text-white">
               <Users className="h-4 w-4 text-violet-400" /> Add {competitionConfig.entity_type === 'team' ? 'Team' : 'Competitor'}
             </div>
@@ -528,47 +605,53 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
             </div>
           </div>
         </div>
+        </div>
+        </div>
       )}
 
       {activeTab === 'settings' && (
-        <form onSubmit={handleSaveSettings} className="glass rounded-2xl p-6 space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <input value={settingsName} onChange={(event) => setSettingsName(event.target.value)} placeholder="League name" className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
-            <input value={seasonName} onChange={(event) => setSeasonName(event.target.value)} placeholder="Season name" className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
-            <select value={settingsVisibility} onChange={(event) => setSettingsVisibility(event.target.value as Leaderboard['visibility'])} className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white">
-              <option value="public">Public</option>
-              <option value="private">Private</option>
-            </select>
-            <input value={settingsCover} onChange={(event) => setSettingsCover(event.target.value)} placeholder="Cover image URL" className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
-          </div>
-          <textarea value={settingsDescription} onChange={(event) => setSettingsDescription(event.target.value)} rows={4} placeholder="Description" className="w-full rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
-
-          <div className="grid gap-4 md:grid-cols-3">
-            <input type="number" value={pointsForWin} onChange={(event) => setPointsForWin(Number(event.target.value) || 0)} placeholder="Points for win" className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
-            <input type="number" value={pointsForDraw} onChange={(event) => setPointsForDraw(Number(event.target.value) || 0)} placeholder="Points for draw" className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
-            <input type="number" value={pointsForLoss} onChange={(event) => setPointsForLoss(Number(event.target.value) || 0)} placeholder="Points for loss" className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
-          </div>
-
-          <div className="rounded-xl border border-white/5 bg-black/20 p-4 text-xs text-neutral-300">
-            <div className="font-bold text-white">Ranking criteria</div>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {template.ranking_rules.map((rule, index) => (
-                <span key={`${rule.label}-${index}`} className="rounded-lg border border-violet-500/20 bg-violet-500/10 px-2 py-1 text-[11px] text-violet-200">
-                  {index + 1}. {rule.label}
-                </span>
-              ))}
+        <div className="space-y-6">
+          <form onSubmit={handleSaveSettings} className="glass rounded-2xl p-6 space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <input value={settingsName} onChange={(event) => setSettingsName(event.target.value)} placeholder="League name" className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
+              <input value={seasonName} onChange={(event) => setSeasonName(event.target.value)} placeholder="Season name" className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
+              <select value={settingsVisibility} onChange={(event) => setSettingsVisibility(event.target.value as Leaderboard['visibility'])} className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white">
+                <option value="public">Public</option>
+                <option value="private">Private</option>
+              </select>
+              <select value={operationalStatus} onChange={(event) => setOperationalStatus(event.target.value as CompetitionOperationalStatus)} className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white">
+                <option value="draft">Draft</option>
+                <option value="registration_open">Registration Open</option>
+                <option value="scheduled">Scheduled</option>
+                <option value="in_progress">In Progress</option>
+                <option value="under_review">Under Review</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+              <input value={settingsCover} onChange={(event) => setSettingsCover(event.target.value)} placeholder="Cover image URL" className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white md:col-span-2" />
             </div>
-          </div>
+            <textarea value={settingsDescription} onChange={(event) => setSettingsDescription(event.target.value)} rows={4} placeholder="Description" className="w-full rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
 
-          <div className="flex items-center justify-between">
-            <Link href={`/leaderboards/${leaderboard.slug}`} target="_blank" className="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-white">
-              <ArrowUpRight className="h-4 w-4" /> Open public league page
-            </Link>
-            <button disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
-              <Save className="h-4 w-4" /> Save settings
-            </button>
+            <div className="flex items-center justify-between pt-2">
+              <Link href={`/leaderboards/${leaderboard.slug}`} target="_blank" className="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-white">
+                <ArrowUpRight className="h-4 w-4" /> Open public league page
+              </Link>
+              <button disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                <Save className="h-4 w-4" /> Save settings
+              </button>
+            </div>
+          </form>
+
+          <div className="glass rounded-2xl p-6 shadow-xl border border-white/5">
+            <CompetitionRulesSettings
+              leaderboardId={leaderboard.id}
+              engine="league_table"
+              onSaved={() => {
+                void loadLeagueData();
+              }}
+            />
           </div>
-        </form>
+        </div>
       )}
 
       {activeTab === 'integrations' && (
@@ -607,6 +690,21 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
           </div>
         </div>
       )}
+
+      {auditDrawerFixture && (
+        <ResultAuditDrawer
+          isOpen={true}
+          onClose={() => setAuditDrawerFixture(null)}
+          leaderboardId={leaderboard.id}
+          entityType="fixture_result"
+          entityId={auditDrawerFixture.fixture.id}
+          title={auditDrawerFixture.title}
+          currentHomeScore={auditDrawerFixture.homeScore}
+          currentAwayScore={auditDrawerFixture.awayScore}
+          canManage={true}
+          onResultUpdated={() => void loadLeagueData()}
+        />
+      )}
     </div>
   );
 }
@@ -617,10 +715,11 @@ interface FixtureCardProps {
   awayName: string;
   existingResult: { home_score: number; away_score: number } | null;
   onSaveResult: (fixtureId: string, homeScore: number, awayScore: number) => Promise<void>;
+  onOpenHistory: (fixture: Fixture, homeName: string, awayName: string, homeScore: number, awayScore: number) => void;
   disabled: boolean;
 }
 
-function FixtureCard({ fixture, homeName, awayName, existingResult, onSaveResult, disabled }: FixtureCardProps) {
+function FixtureCard({ fixture, homeName, awayName, existingResult, onSaveResult, onOpenHistory, disabled }: FixtureCardProps) {
   const [homeScore, setHomeScore] = useState(existingResult?.home_score ?? 0);
   const [awayScore, setAwayScore] = useState(existingResult?.away_score ?? 0);
 
@@ -634,8 +733,19 @@ function FixtureCard({ fixture, homeName, awayName, existingResult, onSaveResult
             {fixture.scheduled_at ? new Date(fixture.scheduled_at).toLocaleString() : 'No kickoff scheduled'}
           </div>
         </div>
-        <div className="rounded-lg border border-white/5 px-2 py-1 text-[11px] uppercase tracking-widest text-neutral-400">
-          {fixture.status}
+        <div className="flex items-center gap-2">
+          <div className="rounded-lg border border-white/5 px-2 py-1 text-[11px] uppercase tracking-widest text-neutral-400">
+            {fixture.status}
+          </div>
+          <button
+            type="button"
+            onClick={() => onOpenHistory(fixture, homeName, awayName, homeScore, awayScore)}
+            className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-neutral-900 px-2.5 py-1 text-xs font-medium text-neutral-300 hover:border-violet-500/40 hover:text-white transition-colors"
+            title="View trustworthy result audit trail and correction history"
+          >
+            <History className="h-3.5 w-3.5 text-violet-400" />
+            History
+          </button>
         </div>
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-3">

@@ -22,10 +22,30 @@ export type StatisticCalculationType =
   | 'win_percentage'
   | 'average_points'
   | 'kill_death_ratio';
-export type RankingCriterionType = 'statistic' | 'alphabetical';
+export type RankingCriterionType = 'statistic' | 'alphabetical' | 'head_to_head';
+export type TieBreakerCriterionType =
+  | 'points'
+  | 'goal_difference'
+  | 'goals_for'
+  | 'goals_against'
+  | 'head_to_head'
+  | 'statistic'
+  | 'earliest_score'
+  | 'latest_score'
+  | 'event_count'
+  | 'alphabetical'
+  | 'random';
 export type RankingDirection = 'asc' | 'desc';
 export type FixtureStatus = 'scheduled' | 'live' | 'completed';
-export type TournamentState = 'draft' | 'registration_open' | 'in_progress' | 'completed' | 'cancelled';
+export type CompetitionOperationalStatus = 
+  | 'draft' 
+  | 'registration_open' 
+  | 'scheduled' 
+  | 'in_progress' 
+  | 'under_review' 
+  | 'completed' 
+  | 'cancelled';
+export type TournamentState = CompetitionOperationalStatus;
 export type TournamentMatchState = 'scheduled' | 'live' | 'completed' | 'cancelled' | 'walkover' | 'bye';
 export type TournamentFormat = 'single_elimination';
 export type TournamentSeedingMode = 'random' | 'manual' | 'league_standings';
@@ -86,6 +106,35 @@ export interface ScoringRule {
   created_at: string;
 }
 
+export type TeamRosterRole = 'captain' | 'player' | 'substitute';
+
+export interface Team {
+  id: string;
+  leaderboard_id: string;
+  name: string;
+  short_code: string | null;
+  logo_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TeamMember {
+  id: string;
+  team_id: string;
+  leaderboard_id: string;
+  member_id: string;
+  role: TeamRosterRole;
+  jersey_number?: number | null;
+  created_at: string;
+  updated_at: string;
+  member?: LeaderboardMember;
+}
+
+export interface TeamWithRoster extends Team {
+  members: Array<TeamMember & { member: LeaderboardMember }>;
+  member_count: number;
+}
+
 export interface LeaderboardMember {
   id: string;
   leaderboard_id: string;
@@ -93,10 +142,63 @@ export interface LeaderboardMember {
   email: string | null;
   avatar_url: string | null;
   team: string | null;
+  team_id?: string | null;
   notes: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export type ResultEntityType = 'score_event' | 'fixture_result' | 'tournament_match';
+export type ResultAuditAction = 'submit' | 'correct' | 'dispute' | 'approve' | 'reject' | 'void';
+export type ResultStatus = 'submitted' | 'confirmed' | 'disputed' | 'approved' | 'rejected' | 'voided';
+export type ResultActorRole = 'owner' | 'admin' | 'referee' | 'participant' | 'system';
+
+export interface ResultAuditEntry {
+  id: string;
+  leaderboard_id: string;
+  entity_type: ResultEntityType;
+  entity_id: string;
+  previous_payload: Record<string, unknown> | null;
+  proposed_payload: Record<string, unknown>;
+  actor_id: string | null;
+  actor_email: string | null;
+  actor_name: string | null;
+  actor_role: ResultActorRole;
+  participant_id?: string | null;
+  participant_name?: string | null;
+  action: ResultAuditAction;
+  status: ResultStatus;
+  reason: string;
+  evidence_urls: string[];
+  created_at: string;
+}
+
+export interface CorrectResultInput {
+  entityType: ResultEntityType;
+  entityId: string;
+  leaderboardId: string;
+  newPayload: Record<string, unknown>;
+  reason: string;
+  evidenceUrls?: string[];
+  forceDownstreamReset?: boolean;
+}
+
+export interface DisputeResultInput {
+  entityType: ResultEntityType;
+  entityId: string;
+  leaderboardId: string;
+  reason: string;
+  evidenceUrls?: string[];
+}
+
+export interface ResolveDisputeInput {
+  leaderboardId: string;
+  entityType: ResultEntityType;
+  entityId: string;
+  decision: 'approve' | 'reject';
+  resolutionReason: string;
+  auditEntryId?: string;
 }
 
 export interface ScoreEvent {
@@ -106,6 +208,7 @@ export interface ScoreEvent {
   rule_id: string | null;
   points: number;
   reason: string;
+  status?: ResultStatus;
   created_at: string;
 }
 
@@ -128,6 +231,41 @@ export interface Ranking {
   total_points: number;
   last_score_at: string;
   joined_at: string;
+  position?: number;
+  tie_break_explanation?: string;
+}
+
+export interface TieBreakerRule {
+  type: TieBreakerCriterionType;
+  statistic_key?: string | null;
+  direction?: RankingDirection;
+  label: string;
+}
+
+export interface PointsRuleConfig {
+  points_for_win: number;
+  points_for_draw: number;
+  points_for_loss: number;
+  allow_draws: boolean;
+  allow_negative_points: boolean;
+  min_points_per_event?: number | null;
+  max_points_per_event?: number | null;
+  walkover_win_score?: number;
+  walkover_loss_score?: number;
+}
+
+export interface CompetitionRules {
+  id: string;
+  leaderboard_id: string;
+  version: number;
+  engine: CompetitionEngine;
+  ranking_order: RankingDirection;
+  primary_metric: string;
+  points_config: PointsRuleConfig;
+  tie_breakers: TieBreakerRule[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CompetitionConfig {
@@ -135,8 +273,76 @@ export interface CompetitionConfig {
   engine_type: CompetitionEngine;
   template_key: CompetitionTemplateKey;
   entity_type: CompetitionEntityType;
+  operational_status?: CompetitionOperationalStatus;
   created_at: string;
   updated_at: string;
+}
+
+export type PathwayTieHandling = 'standard_rules' | 'playoff' | 'manual_approval' | 'random';
+export type PathwayStatus = 'configured' | 'previewed' | 'committed' | 'cancelled';
+
+export interface CompetitionPathway {
+  id: string;
+  source_leaderboard_id: string;
+  destination_leaderboard_id: string;
+  name: string;
+  stage_order: number;
+  qualifier_count: number;
+  tie_handling: PathwayTieHandling;
+  status: PathwayStatus;
+  committed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreatePathwayInput {
+  sourceLeaderboardId: string;
+  destinationLeaderboardId: string;
+  name: string;
+  stageOrder?: number;
+  qualifierCount: number;
+  tieHandling?: PathwayTieHandling;
+}
+
+export interface QualificationPreviewRow {
+  rank: number;
+  memberId: string;
+  name: string;
+  team: string | null;
+  avatarUrl: string | null;
+  points: number;
+  stats: Record<string, number>;
+  seedIndex: number;
+  isQualified: boolean;
+  isCutoffTie: boolean;
+}
+
+export interface BracketMatchupPreview {
+  matchIndex: number;
+  homeSeed: number | null;
+  homeParticipantName: string | null;
+  awaySeed: number | null;
+  awayParticipantName: string | null;
+}
+
+export interface QualificationPreview {
+  sourceLeaderboardId: string;
+  destinationLeaderboardId: string;
+  qualifiers: QualificationPreviewRow[];
+  bracketPlacementPreview: BracketMatchupPreview[];
+  hasUnresolvedTies: boolean;
+  unresolvedTieMembers: string[];
+  canCommit: boolean;
+  warnings: string[];
+}
+
+export interface CommitQualificationInput {
+  pathwayId?: string;
+  sourceLeaderboardId?: string;
+  destinationLeaderboardId?: string;
+  qualifierCount?: number;
+  tieHandling?: PathwayTieHandling;
+  forceReset?: boolean;
 }
 
 export interface StatisticsRegistryItem {
@@ -205,6 +411,7 @@ export interface FixtureResult {
   fixture_id: string;
   home_score: number;
   away_score: number;
+  status?: ResultStatus;
   created_at: string;
   updated_at: string;
 }
@@ -218,6 +425,7 @@ export interface LeagueStandingRow {
   is_active: boolean;
   stats: Record<string, number>;
   position: number;
+  tie_break_explanation?: string;
 }
 
 export interface CompetitionTemplate {
@@ -294,6 +502,7 @@ export interface TournamentMatchResult {
   match_id: string;
   home_score: number;
   away_score: number;
+  status?: ResultStatus;
   created_at: string;
   updated_at: string;
 }
