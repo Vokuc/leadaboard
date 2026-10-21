@@ -818,6 +818,7 @@ export interface ParticipantProfilePrivacy {
   show_match_history: boolean;
   show_teams: boolean;
   show_trophy_case: boolean;
+  show_ratings?: boolean;
 }
 
 export interface ParticipantProfile {
@@ -971,6 +972,135 @@ export interface CompetitionPassportData {
   competitions: PassportCompetitionEntry[];
   matches: PassportMatchRecord[];
   teams: ParticipantTeamHistory[];
+  achievements?: ParticipantAchievement[];
+  ratings?: CompetitionRating[];
+  rating_history?: RatingHistoryEntry[];
   is_owner: boolean;
 }
+
+// ==========================================
+// ACHIEVEMENTS & RATINGS ENGINE TYPES
+// ==========================================
+
+export type AchievementCategory = 'participation' | 'victory' | 'streak' | 'milestone' | 'mastery';
+export type AchievementRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+
+export interface AchievementCriteria {
+  type:
+    | 'first_competition'
+    | 'first_win'
+    | 'champion'
+    | 'win_streak'
+    | 'matches_count'
+    | 'competitions_count'
+    | 'clean_sheet'
+    | 'podium_count'
+    | 'custom';
+  min_streak?: number;
+  min_matches?: number;
+  min_competitions?: number;
+  min_podiums?: number;
+  custom_field?: string;
+  custom_value?: unknown;
+}
+
+export interface AchievementDefinition {
+  id: string; // Key slug e.g. 'first_win', 'champion', 'win_streak_3'
+  name: string;
+  description: string;
+  category: AchievementCategory;
+  badge_icon: string;
+  badge_color: string;
+  rarity: AchievementRarity;
+  points_reward: number;
+  criteria: AchievementCriteria;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ParticipantAchievement {
+  id: string;
+  achievement_id: string;
+  user_id: string;
+  member_id?: string | null;
+  leaderboard_id?: string | null;
+  awarded_at: string;
+  provenance: {
+    match_id?: string;
+    fixture_id?: string;
+    competition_name?: string;
+    score_summary?: string;
+    opponent_name?: string;
+    triggered_by?: string;
+    notes?: string;
+  };
+  is_revoked: boolean;
+  revoked_at?: string | null;
+  revocation_reason?: string | null;
+  revocation_audit_id?: string | null;
+  created_at: string;
+  updated_at: string;
+  achievement?: AchievementDefinition;
+}
+
+export type RatingEntityType = 'individual' | 'team';
+export type RatingSystem = 'elo' | 'glicko2';
+
+export interface RatingScope {
+  competition_type: string;
+  game_type?: string | null;
+  season_id?: string | null;
+  region?: string | null;
+  entity_type: RatingEntityType;
+}
+
+export interface CompetitionRating {
+  id: string;
+  entity_type: RatingEntityType;
+  entity_id: string; // user_id or team_id
+  scope_key: string;
+  competition_type: string;
+  game_type?: string | null;
+  season_id?: string | null;
+  region?: string | null;
+  rating_system: RatingSystem;
+  current_rating: number;
+  peak_rating: number;
+  lowest_rating: number;
+  matches_played: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  last_match_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type RatingHistoryStatus = 'applied' | 'rolled_back' | 'recalculated';
+
+export interface RatingHistoryEntry {
+  id: string;
+  rating_id?: string;
+  scope_key: string;
+  entity_type: RatingEntityType;
+  entity_id: string;
+  opponent_id?: string | null;
+  opponent_name?: string | null;
+  leaderboard_id: string;
+  competition_name?: string | null;
+  match_id: string;
+  previous_rating: number;
+  new_rating: number;
+  rating_change: number;
+  k_factor: number;
+  expected_score: number;
+  actual_score: number; // 1 (win), 0.5 (draw), 0 (loss)
+  is_verified: boolean;
+  status: RatingHistoryStatus;
+  reason?: string | null;
+  reversal_reason?: string | null;
+  created_at: string;
+}
+
 

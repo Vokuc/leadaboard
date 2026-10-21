@@ -13,6 +13,9 @@ import {
   PassportCareerOverview,
   PassportCompetitionEntry,
   PassportMatchRecord,
+  ParticipantAchievement,
+  CompetitionRating,
+  RatingHistoryEntry,
 } from '@/types';
 import { DatabaseService, isSupabaseConfigured, supabase, mockDb } from '@/lib/db';
 import { LeagueService } from '@/lib/league/service';
@@ -810,6 +813,9 @@ export const CompetitionPassportService = {
         competitions: [],
         matches: [],
         teams: [],
+        achievements: [],
+        ratings: [],
+        rating_history: [],
       };
     }
 
@@ -1218,6 +1224,21 @@ export const CompetitionPassportService = {
     const baseUser = await DatabaseService.getCurrentProfile();
     const accountEmail = (profile.privacy_settings.show_email || isOwner) ? (baseUser?.email || null) : null;
 
+    // 8. Fetch earned achievements respecting privacy
+    let earnedAchievements: ParticipantAchievement[] = [];
+    if (isOwner || profile.privacy_settings.show_trophy_case !== false) {
+      const allAchievements = await DatabaseService.getParticipantAchievements(profile.user_id, isOwner);
+      earnedAchievements = isOwner ? allAchievements : allAchievements.filter((a) => !a.is_revoked);
+    }
+
+    // 9. Fetch competitive ratings and update history respecting privacy
+    let competitiveRatings: CompetitionRating[] = [];
+    let ratingHistory: RatingHistoryEntry[] = [];
+    if (isOwner || profile.privacy_settings.show_ratings !== false) {
+      competitiveRatings = await DatabaseService.getCompetitionRatings(profile.user_id, 'individual');
+      ratingHistory = await DatabaseService.getRatingHistory(profile.user_id);
+    }
+
     return {
       profile,
       account_email: accountEmail,
@@ -1225,6 +1246,9 @@ export const CompetitionPassportService = {
       competitions: visibleCompetitions,
       matches: visibleMatches,
       teams: teamHistory,
+      achievements: earnedAchievements,
+      ratings: competitiveRatings,
+      rating_history: ratingHistory,
       is_owner: isOwner,
     };
   },

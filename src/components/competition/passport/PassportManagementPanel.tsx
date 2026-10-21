@@ -8,8 +8,12 @@ import {
   LeaderboardMember,
   Leaderboard,
   ParticipantCorrectionType,
+  ParticipantAchievement,
+  CompetitionRating,
 } from '@/types';
 import { CompetitionPassportService } from '@/lib/competition/passport/service';
+import { AchievementService } from '@/lib/competition/achievements/service';
+import { CompetitionRatingsService } from '@/lib/competition/ratings/service';
 import { useAuth } from '@/context/AuthContext';
 import {
   User,
@@ -22,11 +26,13 @@ import {
   Save,
   Link2,
   Globe,
+  Medal,
+  RefreshCw,
 } from 'lucide-react';
 
 export const PassportManagementPanel: React.FC = () => {
   const { profile: authProfile } = useAuth();
-  const [activeTab, setActiveTab] = useState<'profile' | 'privacy' | 'claims' | 'disputes'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'privacy' | 'achievements' | 'claims' | 'disputes'>('profile');
 
   const [passportProfile, setPassportProfile] = useState<ParticipantProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -52,6 +58,13 @@ export const PassportManagementPanel: React.FC = () => {
   const [showStats, setShowStats] = useState(true);
   const [showMatchHistory, setShowMatchHistory] = useState(true);
   const [showTeams, setShowTeams] = useState(true);
+  const [showTrophyCase, setShowTrophyCase] = useState(true);
+  const [showRatings, setShowRatings] = useState(true);
+
+  // Achievements & Ratings states
+  const [userAchievements, setUserAchievements] = useState<ParticipantAchievement[]>([]);
+  const [userRatings, setUserRatings] = useState<CompetitionRating[]>([]);
+  const [syncingAchievements, setSyncingAchievements] = useState(false);
 
   // Claims states
   const [claims, setClaims] = useState<ParticipantClaim[]>([]);
@@ -104,6 +117,14 @@ export const PassportManagementPanel: React.FC = () => {
       setShowStats(p.privacy_settings.show_stats);
       setShowMatchHistory(p.privacy_settings.show_match_history);
       setShowTeams(p.privacy_settings.show_teams);
+      setShowTrophyCase(p.privacy_settings.show_trophy_case ?? true);
+      setShowRatings(p.privacy_settings.show_ratings ?? true);
+
+      // Load achievements & ratings
+      const achs = await AchievementService.getParticipantAchievements(authProfile.id, true);
+      setUserAchievements(achs);
+      const rts = await CompetitionRatingsService.getRatingsForEntity(authProfile.id, 'individual');
+      setUserRatings(rts);
 
       // Load claims
       const userClaims = await CompetitionPassportService.getClaimsForUser(authProfile.id);
@@ -175,7 +196,8 @@ export const PassportManagementPanel: React.FC = () => {
             show_stats: showStats,
             show_match_history: showMatchHistory,
             show_teams: showTeams,
-            show_trophy_case: passportProfile.privacy_settings.show_trophy_case,
+            show_trophy_case: showTrophyCase,
+            show_ratings: showRatings,
           },
         },
         authProfile.id
@@ -380,6 +402,17 @@ export const PassportManagementPanel: React.FC = () => {
         >
           <Shield className="w-4 h-4 text-emerald-400" />
           Privacy Controls
+        </button>
+        <button
+          onClick={() => setActiveTab('achievements')}
+          className={`px-4 py-2.5 font-bold rounded-t-xl transition cursor-pointer flex items-center gap-2 ${
+            activeTab === 'achievements'
+              ? 'bg-neutral-900 border-t-2 border-violet-500 text-white'
+              : 'text-neutral-400 hover:text-white'
+          }`}
+        >
+          <Medal className="w-4 h-4 text-purple-400" />
+          Achievements & Ratings ({userAchievements.filter((a) => !a.is_revoked).length})
         </button>
         <button
           onClick={() => setActiveTab('claims')}
@@ -649,6 +682,36 @@ export const PassportManagementPanel: React.FC = () => {
                 className="w-5 h-5 accent-violet-600 rounded cursor-pointer"
               />
             </label>
+
+            <label className="flex items-center justify-between p-4 rounded-2xl bg-neutral-950 border border-white/5 cursor-pointer">
+              <div>
+                <span className="font-bold text-sm text-white block">Show Trophy Case & Badges</span>
+                <span className="text-xs text-neutral-400">
+                  Display earned achievements, milestone badges, and tournament trophies on your public passport
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={showTrophyCase}
+                onChange={(e) => setShowTrophyCase(e.target.checked)}
+                className="w-5 h-5 accent-violet-600 rounded cursor-pointer"
+              />
+            </label>
+
+            <label className="flex items-center justify-between p-4 rounded-2xl bg-neutral-950 border border-white/5 cursor-pointer">
+              <div>
+                <span className="font-bold text-sm text-white block">Show Competitive Elo Ratings</span>
+                <span className="text-xs text-neutral-400">
+                  Display your calculated Elo rating and match performance ledger in verified competitions
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={showRatings}
+                onChange={(e) => setShowRatings(e.target.checked)}
+                className="w-5 h-5 accent-violet-600 rounded cursor-pointer"
+              />
+            </label>
           </div>
 
           {/* Hidden entities */}
@@ -688,6 +751,121 @@ export const PassportManagementPanel: React.FC = () => {
               <Save className="w-4 h-4" />
               {saving ? 'Updating...' : 'Save Privacy Settings'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Achievements & Ratings Management */}
+      {activeTab === 'achievements' && (
+        <div className="space-y-6">
+          {/* Header Action Card */}
+          <div className="p-6 rounded-3xl border border-white/10 bg-neutral-900/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Medal className="w-5 h-5 text-purple-400" />
+                Achievement Sync & Competitive Ratings
+              </h3>
+              <p className="text-xs text-neutral-400 mt-1 max-w-xl">
+                Achievements are evaluated authoritatively from your verified matches and standings. Trigger an automatic scan at any time to unlock newly earned badges.
+              </p>
+            </div>
+            <button
+              onClick={async () => {
+                if (!authProfile) return;
+                setSyncingAchievements(true);
+                try {
+                  const newlyAwarded = await AchievementService.evaluateParticipantAchievements(authProfile.id);
+                  if (newlyAwarded.length > 0) {
+                    showToast(`Unlocked ${newlyAwarded.length} new achievement${newlyAwarded.length > 1 ? 's' : ''}!`);
+                  } else {
+                    showToast('All achievements are current with your match history.');
+                  }
+                  const updatedAchs = await AchievementService.getParticipantAchievements(authProfile.id, true);
+                  setUserAchievements(updatedAchs);
+                  const updatedRts = await CompetitionRatingsService.getRatingsForEntity(authProfile.id, 'individual');
+                  setUserRatings(updatedRts);
+                } catch (err: unknown) {
+                  const msg = err instanceof Error ? err.message : 'Sync failed.';
+                  showToast(msg, 'error');
+                } finally {
+                  setSyncingAchievements(false);
+                }
+              }}
+              disabled={syncingAchievements}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition cursor-pointer shrink-0 disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${syncingAchievements ? 'animate-spin' : ''}`} />
+              {syncingAchievements ? 'Scanning History...' : 'Evaluate & Sync Badges'}
+            </button>
+          </div>
+
+          {/* Quick Metrics */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="p-5 rounded-2xl bg-neutral-900/40 border border-white/5">
+              <span className="text-xs text-neutral-400 font-medium">Earned Badges</span>
+              <div className="text-3xl font-black text-white mt-1">
+                {userAchievements.filter((a) => !a.is_revoked).length}
+              </div>
+            </div>
+            <div className="p-5 rounded-2xl bg-neutral-900/40 border border-white/5">
+              <span className="text-xs text-neutral-400 font-medium">Total Badge Points</span>
+              <div className="text-3xl font-black text-purple-400 mt-1">
+                {userAchievements
+                  .filter((a) => !a.is_revoked)
+                  .reduce((acc, a) => acc + (a.achievement?.points_reward || 50), 0)}
+              </div>
+            </div>
+            <div className="p-5 rounded-2xl bg-neutral-900/40 border border-white/5">
+              <span className="text-xs text-neutral-400 font-medium">Active Elo Ratings</span>
+              <div className="text-3xl font-black text-emerald-400 mt-1">
+                {userRatings.length}
+              </div>
+            </div>
+          </div>
+
+          {/* Earned Badges Showcase */}
+          <div className="p-6 rounded-3xl border border-white/10 bg-neutral-900/60 space-y-4">
+            <h4 className="font-bold text-sm text-white">Your Earned Achievements</h4>
+            {userAchievements.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {userAchievements.map((award) => (
+                  <div
+                    key={award.id}
+                    className={`p-4 rounded-2xl border flex items-start gap-3 ${
+                      award.is_revoked
+                        ? 'bg-red-950/10 border-red-500/20 opacity-60'
+                        : 'bg-neutral-950 border-white/5'
+                    }`}
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-xl flex items-center justify-center shrink-0">
+                      {award.achievement?.badge_icon || '🏆'}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={`font-bold text-xs text-white truncate ${award.is_revoked ? 'line-through' : ''}`}>
+                          {award.achievement?.name || award.achievement_id}
+                        </span>
+                        <span className="text-[10px] font-mono text-purple-300 font-bold">
+                          +{award.achievement?.points_reward ?? 50} pts
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-neutral-400 mt-0.5 line-clamp-1">
+                        {award.achievement?.description}
+                      </p>
+                      {award.is_revoked && (
+                        <div className="text-[10px] text-red-400 font-semibold mt-1">
+                          Revoked: {award.revocation_reason}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-neutral-400 py-4 text-center">
+                No achievements recorded yet. Click &quot;Evaluate &amp; Sync Badges&quot; above to scan your history.
+              </p>
+            )}
           </div>
         </div>
       )}
