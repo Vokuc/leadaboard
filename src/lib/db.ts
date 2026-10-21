@@ -13,7 +13,17 @@ import {
   TeamMember,
   TeamWithRoster,
   TeamRosterRole,
-  CompetitionConfig
+  CompetitionConfig,
+  CompetitionRegistrationConfig,
+  ParticipantProfile,
+  ParticipantClaim,
+  ParticipantCorrection,
+  ParticipantTeamHistory,
+  AchievementDefinition,
+  ParticipantAchievement,
+  CompetitionRating,
+  RatingHistoryEntry,
+  RatingEntityType
 } from '../types';
 import { CompetitionRulesService } from '@/lib/competition/rules/service';
 import { validateScoreAdjustment } from '@/lib/competition/rules/validation';
@@ -34,7 +44,7 @@ export const supabase = isSupabaseConfigured
 
 const SEED_CREATOR_ID = 'creator-user-id';
 
-const DEFAULT_PROFILE: Profile = {
+export const DEFAULT_PROFILE: Profile = {
   id: SEED_CREATOR_ID,
   email: 'creator@leaderboardos.com',
   full_name: 'Alex Mercer',
@@ -86,7 +96,7 @@ export const DEFAULT_LEADERBOARDS: Leaderboard[] = [
   }
 ];
 
-const DEFAULT_SEASONS: Season[] = [
+export const DEFAULT_SEASONS: Season[] = [
   {
     id: 'season-gaming-1',
     leaderboard_id: 'lb-gaming-1',
@@ -396,6 +406,242 @@ const DEFAULT_ACTIVITY_LOGS: ActivityLog[] = [
   { id: 'log-6', leaderboard_id: 'lb-workplace-1', message: 'Dwight Schrute score adjusted by +50 points: Upsell Landed', created_at: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString() }
 ];
 
+export const DEFAULT_COMPETITION_CONFIGS: CompetitionConfig[] = [
+  {
+    leaderboard_id: 'lb-gaming-1',
+    engine_type: 'tournament',
+    template_key: 'esports',
+    entity_type: 'individual',
+    operational_status: 'registration_open',
+    participation_type: 'online',
+    location_name: 'Online (Twitch & Discord)',
+    entry_fee: 0,
+    currency: 'USD',
+    rules_summary: 'Single-elimination FPS tournament bracket with seeding based on seasonal score.',
+    is_featured: true,
+    created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    leaderboard_id: 'lb-workplace-1',
+    engine_type: 'simple_points',
+    template_key: 'custom',
+    entity_type: 'team',
+    operational_status: 'in_progress',
+    participation_type: 'online',
+    location_name: 'Global Enterprise HQ',
+    entry_fee: 0,
+    currency: 'USD',
+    rules_summary: 'Enterprise quarterly sales performance and qualified account bookings.',
+    is_featured: false,
+    created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    leaderboard_id: 'lb-sports-1',
+    engine_type: 'league_table',
+    template_key: 'football',
+    entity_type: 'individual',
+    operational_status: 'in_progress',
+    participation_type: 'in_person',
+    location_name: 'Sunset Athletic Track, Bay Area',
+    entry_fee: 10,
+    currency: 'USD',
+    rules_summary: 'Weekly circuit running league with 3-1-0 standings and age-graded tie breakers.',
+    is_featured: true,
+    created_at: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+];
+
+export const DEFAULT_REGISTRATION_CONFIGS: CompetitionRegistrationConfig[] = [
+  {
+    id: 'reg-cfg-gaming-1',
+    leaderboard_id: 'lb-gaming-1',
+    is_enabled: true,
+    capacity: 16,
+    opens_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    closes_at: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
+    require_approval: false,
+    allow_waitlist: true,
+    allow_team_registration: false,
+    eligibility_rules: { min_age: 16, notes: 'Open community tournament' },
+    created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'reg-cfg-workplace-1',
+    leaderboard_id: 'lb-workplace-1',
+    is_enabled: true,
+    capacity: 20,
+    opens_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+    closes_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    require_approval: true,
+    allow_waitlist: true,
+    allow_team_registration: true,
+    eligibility_rules: { allowed_domains: ['company.com'], notes: 'Verified company employees only' },
+    created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'reg-cfg-sports-1',
+    leaderboard_id: 'lb-sports-1',
+    is_enabled: true,
+    capacity: 10,
+    opens_at: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+    closes_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+    require_approval: true,
+    allow_waitlist: true,
+    allow_team_registration: false,
+    eligibility_rules: { notes: 'Club membership or guest day pass required' },
+    created_at: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+];
+
+export const DEFAULT_ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
+  {
+    id: 'first_competition',
+    name: 'Debutant',
+    description: 'Completed your first competitive tournament or league match.',
+    category: 'participation',
+    badge_icon: 'award',
+    badge_color: '#38bdf8',
+    rarity: 'common',
+    points_reward: 10,
+    criteria: { type: 'first_competition' },
+    is_active: true,
+    created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'first_win',
+    name: 'First Blood',
+    description: 'Claimed your first victory in official or community competition.',
+    category: 'victory',
+    badge_icon: 'trophy',
+    badge_color: '#10b981',
+    rarity: 'common',
+    points_reward: 15,
+    criteria: { type: 'first_win' },
+    is_active: true,
+    created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'champion',
+    name: 'Undisputed Champion',
+    description: 'Finished in 1st place in an official competition or tournament.',
+    category: 'mastery',
+    badge_icon: 'crown',
+    badge_color: '#f59e0b',
+    rarity: 'legendary',
+    points_reward: 100,
+    criteria: { type: 'champion' },
+    is_active: true,
+    created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'win_streak_3',
+    name: 'On Fire',
+    description: 'Won 3 competitive matches in a row.',
+    category: 'streak',
+    badge_icon: 'flame',
+    badge_color: '#ec4899',
+    rarity: 'rare',
+    points_reward: 30,
+    criteria: { type: 'win_streak', min_streak: 3 },
+    is_active: true,
+    created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'win_streak_5',
+    name: 'Unstoppable',
+    description: 'Won 5 competitive matches in a row.',
+    category: 'streak',
+    badge_icon: 'zap',
+    badge_color: '#8b5cf6',
+    rarity: 'epic',
+    points_reward: 60,
+    criteria: { type: 'win_streak', min_streak: 5 },
+    is_active: true,
+    created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'matches_10',
+    name: 'Veteran Contender',
+    description: 'Competed in 10 or more competitive matches.',
+    category: 'milestone',
+    badge_icon: 'shield',
+    badge_color: '#6366f1',
+    rarity: 'uncommon',
+    points_reward: 25,
+    criteria: { type: 'matches_count', min_matches: 10 },
+    is_active: true,
+    created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'matches_25',
+    name: 'Seasoned Gladiator',
+    description: 'Competed in 25 or more competitive matches.',
+    category: 'milestone',
+    badge_icon: 'star',
+    badge_color: '#d946ef',
+    rarity: 'rare',
+    points_reward: 50,
+    criteria: { type: 'matches_count', min_matches: 25 },
+    is_active: true,
+    created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'competitions_5',
+    name: 'Cross-Arena Veteran',
+    description: 'Competed across 5 or more distinct competitions.',
+    category: 'milestone',
+    badge_icon: 'globe',
+    badge_color: '#06b6d4',
+    rarity: 'epic',
+    points_reward: 75,
+    criteria: { type: 'competitions_count', min_competitions: 5 },
+    is_active: true,
+    created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'clean_sheet',
+    name: 'Iron Defense',
+    description: 'Won a match while conceding zero points or goals.',
+    category: 'mastery',
+    badge_icon: 'shield-check',
+    badge_color: '#14b8a6',
+    rarity: 'rare',
+    points_reward: 35,
+    criteria: { type: 'clean_sheet' },
+    is_active: true,
+    created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'podium_triple',
+    name: 'Podium Regular',
+    description: 'Finished in the top 3 on the podium in 3 distinct competitions.',
+    category: 'mastery',
+    badge_icon: 'medal',
+    badge_color: '#eab308',
+    rarity: 'epic',
+    points_reward: 80,
+    criteria: { type: 'podium_count', min_podiums: 3 },
+    is_active: true,
+    created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+];
+
 // LocalStorage Helper
 class LocalDb {
   public get<T>(key: string, defaults: T): T {
@@ -504,6 +750,70 @@ class LocalDb {
   setActivityLogs(logs: ActivityLog[]): void {
     this.set('activity_logs', logs);
   }
+
+  getParticipantProfiles(): ParticipantProfile[] {
+    return this.get<ParticipantProfile[]>('participant_profiles', []);
+  }
+
+  setParticipantProfiles(profiles: ParticipantProfile[]): void {
+    this.set('participant_profiles', profiles);
+  }
+
+  getParticipantClaims(): ParticipantClaim[] {
+    return this.get<ParticipantClaim[]>('participant_claims', []);
+  }
+
+  setParticipantClaims(claims: ParticipantClaim[]): void {
+    this.set('participant_claims', claims);
+  }
+
+  getParticipantCorrections(): ParticipantCorrection[] {
+    return this.get<ParticipantCorrection[]>('participant_corrections', []);
+  }
+
+  setParticipantCorrections(corrections: ParticipantCorrection[]): void {
+    this.set('participant_corrections', corrections);
+  }
+
+  getParticipantTeamHistory(): ParticipantTeamHistory[] {
+    return this.get<ParticipantTeamHistory[]>('participant_team_history', []);
+  }
+
+  setParticipantTeamHistory(history: ParticipantTeamHistory[]): void {
+    this.set('participant_team_history', history);
+  }
+
+  getAchievementDefinitions(): AchievementDefinition[] {
+    return this.get<AchievementDefinition[]>('achievement_definitions', DEFAULT_ACHIEVEMENT_DEFINITIONS);
+  }
+
+  setAchievementDefinitions(defs: AchievementDefinition[]): void {
+    this.set('achievement_definitions', defs);
+  }
+
+  getParticipantAchievements(): ParticipantAchievement[] {
+    return this.get<ParticipantAchievement[]>('participant_achievements', []);
+  }
+
+  setParticipantAchievements(achievements: ParticipantAchievement[]): void {
+    this.set('participant_achievements', achievements);
+  }
+
+  getCompetitionRatings(): CompetitionRating[] {
+    return this.get<CompetitionRating[]>('competition_ratings', []);
+  }
+
+  setCompetitionRatings(ratings: CompetitionRating[]): void {
+    this.set('competition_ratings', ratings);
+  }
+
+  getRatingHistory(): RatingHistoryEntry[] {
+    return this.get<RatingHistoryEntry[]>('rating_history', []);
+  }
+
+  setRatingHistory(history: RatingHistoryEntry[]): void {
+    this.set('rating_history', history);
+  }
 }
 
 export const mockDb = new LocalDb();
@@ -532,6 +842,25 @@ export const DatabaseService = {
       return data;
     }
     return mockDb.getProfile();
+  },
+
+  async getProfile(id: string): Promise<Profile | null> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+      if (error) return null;
+      return data;
+    }
+    const current = mockDb.getProfile();
+    if (current && current.id === id) return current;
+    // Check if user has an entry in profile mock
+    const allUsers = mockDb.get<Profile[]>('mock_all_profiles', []);
+    const found = allUsers.find((p) => p.id === id);
+    if (found) return found;
+    return current;
   },
 
   async mockLogin(email: string, fullName: string): Promise<Profile> {
@@ -809,8 +1138,48 @@ export const DatabaseService = {
       if (error) return null;
       return data as CompetitionConfig;
     }
-    const configs = mockDb.get<CompetitionConfig[]>('competition_configs', []);
+    const configs = mockDb.get<CompetitionConfig[]>('competition_configs', DEFAULT_COMPETITION_CONFIGS);
     return configs.find(c => c.leaderboard_id === leaderboardId) || null;
+  },
+
+  async saveCompetitionConfig(config: CompetitionConfig): Promise<CompetitionConfig> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('competition_configs')
+        .upsert(config, { onConflict: 'leaderboard_id' })
+        .select()
+        .single();
+      if (error) throw error;
+      return data as CompetitionConfig;
+    }
+    const configs = mockDb.get<CompetitionConfig[]>('competition_configs', DEFAULT_COMPETITION_CONFIGS);
+    const existingIdx = configs.findIndex(c => c.leaderboard_id === config.leaderboard_id);
+    const updated = { ...config, updated_at: new Date().toISOString() };
+    if (existingIdx >= 0) {
+      configs[existingIdx] = updated;
+    } else {
+      configs.push(updated);
+    }
+    mockDb.set('competition_configs', configs);
+    return updated;
+  },
+
+  async getAllCompetitionConfigs(): Promise<CompetitionConfig[]> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.from('competition_configs').select('*');
+      if (error) return [];
+      return (data || []) as CompetitionConfig[];
+    }
+    return mockDb.get<CompetitionConfig[]>('competition_configs', DEFAULT_COMPETITION_CONFIGS);
+  },
+
+  async getAllRegistrationConfigs(): Promise<CompetitionRegistrationConfig[]> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.from('competition_registration_configs').select('*');
+      if (error) return [];
+      return (data || []) as CompetitionRegistrationConfig[];
+    }
+    return mockDb.get<CompetitionRegistrationConfig[]>('competition_registration_configs', DEFAULT_REGISTRATION_CONFIGS);
   },
 
   async createLeaderboard(
@@ -1600,6 +1969,28 @@ export const DatabaseService = {
     });
     mockDb.setMembers(updatedMembers);
 
+    // Record team history affiliation
+    const teamHistoryEntry: ParticipantTeamHistory = {
+      id: `pth-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      user_id: member.user_id || null,
+      member_id: memberId,
+      leaderboard_id: leaderboardId,
+      team_id: teamId,
+      team_name: team.name,
+      role,
+      jersey_number: jerseyNumber ?? null,
+      joined_at: new Date().toISOString(),
+      left_at: null,
+      created_at: new Date().toISOString(),
+    };
+    if (isSupabaseConfigured && supabase) {
+      await supabase.from('participant_team_history').insert([teamHistoryEntry]);
+    } else {
+      const hist = mockDb.getParticipantTeamHistory();
+      hist.push(teamHistoryEntry);
+      mockDb.setParticipantTeamHistory(hist);
+    }
+
     await this.addActivityLog(leaderboardId, `Added ${member.name} to team "${team.name}" as ${role}`);
     return newRosterEntry;
   },
@@ -1668,6 +2059,13 @@ export const DatabaseService = {
         .update({ team_id: null, team: null })
         .eq('id', memberId);
 
+      await supabase
+        .from('participant_team_history')
+        .update({ left_at: new Date().toISOString() })
+        .eq('team_id', teamId)
+        .eq('member_id', memberId)
+        .is('left_at', null);
+
       if (team && member) {
         await this.addActivityLog(leaderboardId, `Removed ${member.name} from team "${team.name}"`);
       }
@@ -1679,6 +2077,14 @@ export const DatabaseService = {
 
     const currentMembers = mockDb.getMembers();
     mockDb.setMembers(currentMembers.map(m => m.id === memberId ? { ...m, team_id: null, team: null } : m));
+
+    // Close out team history in mock
+    const hist = mockDb.getParticipantTeamHistory();
+    const active = hist.find((h) => h.team_id === teamId && h.member_id === memberId && !h.left_at);
+    if (active) {
+      active.left_at = new Date().toISOString();
+      mockDb.setParticipantTeamHistory(hist);
+    }
 
     if (team && member) {
       await this.addActivityLog(leaderboardId, `Removed ${member.name} from team "${team.name}"`);
@@ -1918,18 +2324,18 @@ export const DatabaseService = {
         .eq('leaderboard_id', leaderboardId);
       if (error) throw error;
 
-      const rawRankings: Ranking[] = (data || []).map((row: any) => ({
-        member_id: row.member_id,
-        leaderboard_id: row.leaderboard_id,
-        player_name: row.player_name,
-        player_email: row.player_email,
-        avatar_url: row.avatar_url,
-        team: row.team,
-        notes: row.notes,
-        is_active: row.is_active,
+      const rawRankings: Ranking[] = ((data || []) as Record<string, unknown>[]).map((row) => ({
+        member_id: String(row.member_id || ''),
+        leaderboard_id: String(row.leaderboard_id || ''),
+        player_name: String(row.player_name || ''),
+        player_email: (row.player_email as string) || null,
+        avatar_url: (row.avatar_url as string) || null,
+        team: (row.team as string) || null,
+        notes: (row.notes as string) || null,
+        is_active: Boolean(row.is_active),
         total_points: Number(row.total_points) || 0,
-        last_score_at: row.last_score_at,
-        joined_at: row.created_at || row.last_score_at,
+        last_score_at: String(row.last_score_at || ''),
+        joined_at: String(row.created_at || row.last_score_at || ''),
       }));
 
       const rankingOrder = rules.ranking_order || 'desc';
@@ -2016,5 +2422,310 @@ export const DatabaseService = {
     return mockDb.getScoreEvents()
       .filter(e => e.member_id === memberId)
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  },
+
+  async getParticipantTeamHistory(memberIdOrUserId: string): Promise<ParticipantTeamHistory[]> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('participant_team_history')
+        .select('*')
+        .or(`member_id.eq.${memberIdOrUserId},user_id.eq.${memberIdOrUserId}`)
+        .order('joined_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as ParticipantTeamHistory[];
+    }
+    return mockDb.getParticipantTeamHistory()
+      .filter((h) => h.member_id === memberIdOrUserId || h.user_id === memberIdOrUserId)
+      .sort((a, b) => new Date(b.joined_at).getTime() - new Date(a.joined_at).getTime());
+  },
+
+  async getParticipantCorrections(userId: string): Promise<ParticipantCorrection[]> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('participant_corrections')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as ParticipantCorrection[];
+    }
+    return mockDb.getParticipantCorrections()
+      .filter((c) => c.user_id === userId)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  },
+
+  async getFixtures(leaderboardId: string): Promise<Array<Record<string, unknown>>> {
+    if (isSupabaseConfigured && supabase) {
+      const { data } = await supabase
+        .from('fixtures')
+        .select('*')
+        .eq('leaderboard_id', leaderboardId);
+      const { data: compFixtures } = await supabase
+        .from('competition_fixtures')
+        .select('*')
+        .eq('leaderboard_id', leaderboardId);
+      const combined = [
+        ...((data || []) as Array<Record<string, unknown>>),
+        ...((compFixtures || []) as Array<Record<string, unknown>>),
+      ];
+      return combined;
+    }
+    const state = typeof window !== 'undefined' ? (JSON.parse(localStorage.getItem('lb_mock_league_state') || '{"fixtures":[]}') as { fixtures: Array<Record<string, unknown>> }) : { fixtures: [] };
+    const leagueFix = (state.fixtures || []).filter((f) => f.leaderboard_id === leaderboardId);
+    const compFix = mockDb.get<Array<Record<string, unknown>>>('competition_fixtures', []).filter((f) => f.leaderboard_id === leaderboardId);
+    const combined = [...leagueFix, ...compFix.filter((cf) => !leagueFix.some((lf) => lf.id === cf.id))];
+    return combined;
+  },
+
+  // ==========================================
+  // ACHIEVEMENTS DATABASE API
+  // ==========================================
+
+  async getAchievementDefinitions(): Promise<AchievementDefinition[]> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('achievement_definitions')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return (data || []) as AchievementDefinition[];
+    }
+    return mockDb.getAchievementDefinitions().filter((d) => d.is_active);
+  },
+
+  async saveAchievementDefinition(def: AchievementDefinition): Promise<AchievementDefinition> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('achievement_definitions')
+        .upsert([def])
+        .select()
+        .single();
+      if (error) throw error;
+      return data as AchievementDefinition;
+    }
+    const current = mockDb.getAchievementDefinitions();
+    const idx = current.findIndex((d) => d.id === def.id);
+    if (idx >= 0) {
+      current[idx] = def;
+    } else {
+      current.push(def);
+    }
+    mockDb.setAchievementDefinitions(current);
+    return def;
+  },
+
+  async getParticipantAchievements(userId: string, includeRevoked = false): Promise<ParticipantAchievement[]> {
+    if (isSupabaseConfigured && supabase) {
+      let query = supabase
+        .from('participant_achievements')
+        .select('*, achievement:achievement_definitions(*)')
+        .eq('user_id', userId)
+        .order('awarded_at', { ascending: false });
+      if (!includeRevoked) {
+        query = query.eq('is_revoked', false);
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data || []) as ParticipantAchievement[];
+    }
+    const defs = mockDb.getAchievementDefinitions();
+    const defMap = new Map(defs.map((d) => [d.id, d]));
+    return mockDb
+      .getParticipantAchievements()
+      .filter((a) => a.user_id === userId && (includeRevoked || !a.is_revoked))
+      .map((a) => ({
+        ...a,
+        achievement: defMap.get(a.achievement_id),
+      }))
+      .sort((a, b) => new Date(b.awarded_at).getTime() - new Date(a.awarded_at).getTime());
+  },
+
+  async awardParticipantAchievement(award: ParticipantAchievement): Promise<ParticipantAchievement> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('participant_achievements')
+        .insert([award])
+        .select('*, achievement:achievement_definitions(*)')
+        .single();
+      if (error) {
+        // Idempotency: if unique constraint conflict, fetch existing active
+        const existing = await supabase
+          .from('participant_achievements')
+          .select('*, achievement:achievement_definitions(*)')
+          .eq('achievement_id', award.achievement_id)
+          .eq('user_id', award.user_id)
+          .maybeSingle();
+        if (existing.data) return existing.data as ParticipantAchievement;
+        throw error;
+      }
+      return data as ParticipantAchievement;
+    }
+
+    const current = mockDb.getParticipantAchievements();
+    const existing = current.find(
+      (a) =>
+        a.achievement_id === award.achievement_id &&
+        a.user_id === award.user_id &&
+        (a.leaderboard_id || null) === (award.leaderboard_id || null) &&
+        !a.is_revoked
+    );
+    if (existing) {
+      const defs = mockDb.getAchievementDefinitions();
+      return { ...existing, achievement: defs.find((d) => d.id === existing.achievement_id) };
+    }
+
+    current.push(award);
+    mockDb.setParticipantAchievements(current);
+    const defs = mockDb.getAchievementDefinitions();
+    return { ...award, achievement: defs.find((d) => d.id === award.achievement_id) };
+  },
+
+  async updateParticipantAchievement(
+    id: string,
+    updates: Partial<ParticipantAchievement>
+  ): Promise<ParticipantAchievement> {
+    const timestamp = new Date().toISOString();
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('participant_achievements')
+        .update({ ...updates, updated_at: timestamp })
+        .eq('id', id)
+        .select('*, achievement:achievement_definitions(*)')
+        .single();
+      if (error) throw error;
+      return data as ParticipantAchievement;
+    }
+    const current = mockDb.getParticipantAchievements();
+    const index = current.findIndex((a) => a.id === id);
+    if (index === -1) throw new Error('Participant achievement not found.');
+    const updated = { ...current[index], ...updates, updated_at: timestamp };
+    current[index] = updated;
+    mockDb.setParticipantAchievements(current);
+    const defs = mockDb.getAchievementDefinitions();
+    return { ...updated, achievement: defs.find((d) => d.id === updated.achievement_id) };
+  },
+
+  // ==========================================
+  // COMPETITION RATINGS DATABASE API
+  // ==========================================
+
+  async getCompetitionRatings(entityId: string, entityType: RatingEntityType = 'individual'): Promise<CompetitionRating[]> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('competition_ratings')
+        .select('*')
+        .eq('entity_id', entityId)
+        .eq('entity_type', entityType)
+        .order('current_rating', { ascending: false });
+      if (error) throw error;
+      return (data || []) as CompetitionRating[];
+    }
+    return mockDb
+      .getCompetitionRatings()
+      .filter((r) => r.entity_id === entityId && r.entity_type === entityType)
+      .sort((a, b) => b.current_rating - a.current_rating);
+  },
+
+  async getRatingByScope(
+    entityId: string,
+    entityType: RatingEntityType,
+    scopeKey: string
+  ): Promise<CompetitionRating | null> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('competition_ratings')
+        .select('*')
+        .eq('entity_id', entityId)
+        .eq('entity_type', entityType)
+        .eq('scope_key', scopeKey)
+        .maybeSingle();
+      if (error) throw error;
+      return data ? (data as CompetitionRating) : null;
+    }
+    const found = mockDb
+      .getCompetitionRatings()
+      .find((r) => r.entity_id === entityId && r.entity_type === entityType && r.scope_key === scopeKey);
+    return found || null;
+  },
+
+  async saveCompetitionRating(rating: CompetitionRating): Promise<CompetitionRating> {
+    const timestamp = new Date().toISOString();
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('competition_ratings')
+        .upsert({ ...rating, updated_at: timestamp }, { onConflict: 'entity_type,entity_id,scope_key' })
+        .select()
+        .single();
+      if (error) throw error;
+      return data as CompetitionRating;
+    }
+
+    const current = mockDb.getCompetitionRatings();
+    const index = current.findIndex(
+      (r) => r.entity_id === rating.entity_id && r.entity_type === rating.entity_type && r.scope_key === rating.scope_key
+    );
+    const updated = { ...rating, updated_at: timestamp };
+    if (index >= 0) {
+      current[index] = updated;
+    } else {
+      current.push(updated);
+    }
+    mockDb.setCompetitionRatings(current);
+    return updated;
+  },
+
+  async getRatingHistory(entityId?: string, scopeKey?: string): Promise<RatingHistoryEntry[]> {
+    if (isSupabaseConfigured && supabase) {
+      let query = supabase.from('rating_history').select('*').order('created_at', { ascending: false });
+      if (entityId) query = query.eq('entity_id', entityId);
+      if (scopeKey) query = query.eq('scope_key', scopeKey);
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data || []) as RatingHistoryEntry[];
+    }
+    return mockDb
+      .getRatingHistory()
+      .filter((h) => (!entityId || h.entity_id === entityId) && (!scopeKey || h.scope_key === scopeKey))
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  },
+
+  async addRatingHistoryEntry(entry: RatingHistoryEntry): Promise<RatingHistoryEntry> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('rating_history')
+        .insert([entry])
+        .select()
+        .single();
+      if (error) throw error;
+      return data as RatingHistoryEntry;
+    }
+    const current = mockDb.getRatingHistory();
+    current.push(entry);
+    mockDb.setRatingHistory(current);
+    return entry;
+  },
+
+  async updateRatingHistoryEntry(
+    id: string,
+    updates: Partial<RatingHistoryEntry>
+  ): Promise<RatingHistoryEntry> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('rating_history')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data as RatingHistoryEntry;
+    }
+    const current = mockDb.getRatingHistory();
+    const index = current.findIndex((h) => h.id === id);
+    if (index === -1) throw new Error('Rating history entry not found.');
+    const updated = { ...current[index], ...updates };
+    current[index] = updated;
+    mockDb.setRatingHistory(current);
+    return updated;
   }
 };

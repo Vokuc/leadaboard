@@ -76,6 +76,7 @@ export interface Leaderboard {
   competition_type: CompetitionType;
   cover_image_url: string | null;
   status: LeaderboardStatus;
+  is_verified?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -147,6 +148,7 @@ export interface LeaderboardMember {
   team_id?: string | null;
   notes: string | null;
   is_active: boolean;
+  metadata?: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -276,6 +278,12 @@ export interface CompetitionConfig {
   template_key: CompetitionTemplateKey;
   entity_type: CompetitionEntityType;
   operational_status?: CompetitionOperationalStatus;
+  participation_type?: 'online' | 'in_person' | 'hybrid' | 'unspecified';
+  location_name?: string | null;
+  entry_fee?: number;
+  currency?: string;
+  rules_summary?: string | null;
+  is_featured?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -803,4 +811,400 @@ export interface EventDayOfflineAction {
   reason?: string;
   timestamp: string;
 }
+
+// ==========================================
+// Era 3 Prompt 1: Participant Profiles & Competition Passport
+// ==========================================
+
+export interface ParticipantProfilePrivacy {
+  is_public: boolean;
+  show_email: boolean;
+  show_unverified_results: boolean;
+  show_stats: boolean;
+  show_match_history: boolean;
+  show_teams: boolean;
+  show_trophy_case: boolean;
+  show_ratings?: boolean;
+}
+
+export interface ParticipantProfile {
+  id: string;
+  user_id: string;
+  username: string;
+  display_name: string;
+  bio: string | null;
+  avatar_url: string | null;
+  location: string | null;
+  headline: string | null;
+  social_links: {
+    twitter?: string;
+    discord?: string;
+    github?: string;
+    website?: string;
+  };
+  privacy_settings: ParticipantProfilePrivacy;
+  pinned_competition_ids: string[];
+  hidden_entity_ids: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export type ParticipantClaimStatus = 'pending' | 'approved' | 'rejected' | 'verified';
+export type ParticipantClaimVerificationMethod = 'email_match' | 'token' | 'organizer_approved';
+
+export interface ParticipantClaim {
+  id: string;
+  leaderboard_id: string;
+  member_id: string;
+  user_id: string;
+  claim_token: string | null;
+  status: ParticipantClaimStatus;
+  verification_method: ParticipantClaimVerificationMethod;
+  claim_notes: string | null;
+  rejection_reason: string | null;
+  verified_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ParticipantCorrectionType = 'wrongly_linked' | 'wrong_score' | 'wrong_team' | 'duplicate_profile' | 'remove_from_passport';
+export type ParticipantCorrectionStatus = 'pending' | 'approved' | 'rejected' | 'resolved';
+
+export interface ParticipantCorrection {
+  id: string;
+  user_id: string;
+  leaderboard_id: string;
+  entity_type: 'membership_link' | 'fixture_result' | 'tournament_match' | 'score_event';
+  entity_id: string;
+  correction_type: ParticipantCorrectionType;
+  reason: string;
+  status: ParticipantCorrectionStatus;
+  resolution_notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ParticipantTeamHistory {
+  id: string;
+  user_id: string | null;
+  member_id: string;
+  leaderboard_id: string;
+  team_id: string;
+  team_name: string;
+  role: string;
+  jersey_number: number | null;
+  joined_at: string;
+  left_at: string | null;
+  created_at: string;
+}
+
+export interface PassportCompetitionEntry {
+  leaderboard_id: string;
+  competition_id?: string;
+  competition_name: string;
+  slug: string;
+  competition_type: CompetitionType;
+  engine_type: CompetitionEngine;
+  season_name: string | null;
+  member_id: string;
+  member_name: string;
+  team_id: string | null;
+  team_name: string | null;
+  role: string;
+  rank: number | null;
+  total_participants: number;
+  points: number;
+  matches_played: number;
+  matches_won: number;
+  matches_drawn: number;
+  matches_lost: number;
+  podium_finish: 1 | 2 | 3 | null;
+  is_verified: boolean;
+  verification_badge?: string;
+  verification_reason: string;
+  joined_at: string;
+}
+
+export interface PassportMatchRecord {
+  match_id: string;
+  fixture_id?: string;
+  leaderboard_id: string;
+  competition_name: string;
+  slug: string;
+  engine: CompetitionEngine;
+  round_name: string;
+  opponent_name: string;
+  opponent_avatar_url: string | null;
+  team_name: string | null;
+  home_score: number | null;
+  away_score: number | null;
+  is_home: boolean;
+  outcome: 'win' | 'loss' | 'draw' | 'pending';
+  scheduled_at: string | null;
+  venue_name: string | null;
+  is_verified: boolean;
+  verification_badge: 'verified' | 'unverified';
+  is_hidden: boolean;
+}
+
+export interface PassportCareerOverview {
+  total_competitions: number;
+  verified_competitions: number;
+  unverified_competitions: number;
+  total_matches: number;
+  matches_won: number;
+  total_wins?: number;
+  verified_wins?: number;
+  matches_drawn: number;
+  matches_lost: number;
+  win_percentage: number;
+  win_rate?: number;
+  first_place_finishes: number;
+  gold_finishes?: number;
+  second_place_finishes: number;
+  silver_finishes?: number;
+  third_place_finishes: number;
+  bronze_finishes?: number;
+  highest_rank_achieved?: number | null;
+  active_streak?: number;
+  total_points_scored: number;
+  active_teams: number;
+}
+
+export interface CompetitionPassportData {
+  profile: ParticipantProfile;
+  account_email?: string | null;
+  overview: PassportCareerOverview;
+  competitions: PassportCompetitionEntry[];
+  matches: PassportMatchRecord[];
+  teams: ParticipantTeamHistory[];
+  achievements?: ParticipantAchievement[];
+  ratings?: CompetitionRating[];
+  rating_history?: RatingHistoryEntry[];
+  is_owner: boolean;
+}
+
+// ==========================================
+// ACHIEVEMENTS & RATINGS ENGINE TYPES
+// ==========================================
+
+export type AchievementCategory = 'participation' | 'victory' | 'streak' | 'milestone' | 'mastery';
+export type AchievementRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+
+export interface AchievementCriteria {
+  type:
+    | 'first_competition'
+    | 'first_win'
+    | 'champion'
+    | 'win_streak'
+    | 'matches_count'
+    | 'competitions_count'
+    | 'clean_sheet'
+    | 'podium_count'
+    | 'custom';
+  min_streak?: number;
+  min_matches?: number;
+  min_competitions?: number;
+  min_podiums?: number;
+  custom_field?: string;
+  custom_value?: unknown;
+}
+
+export interface AchievementDefinition {
+  id: string; // Key slug e.g. 'first_win', 'champion', 'win_streak_3'
+  name: string;
+  description: string;
+  category: AchievementCategory;
+  badge_icon: string;
+  badge_color: string;
+  rarity: AchievementRarity;
+  points_reward: number;
+  criteria: AchievementCriteria;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ParticipantAchievement {
+  id: string;
+  achievement_id: string;
+  user_id: string;
+  member_id?: string | null;
+  leaderboard_id?: string | null;
+  awarded_at: string;
+  provenance: {
+    match_id?: string;
+    fixture_id?: string;
+    competition_name?: string;
+    score_summary?: string;
+    opponent_name?: string;
+    triggered_by?: string;
+    notes?: string;
+  };
+  is_revoked: boolean;
+  revoked_at?: string | null;
+  revocation_reason?: string | null;
+  revocation_audit_id?: string | null;
+  created_at: string;
+  updated_at: string;
+  achievement?: AchievementDefinition;
+}
+
+export type RatingEntityType = 'individual' | 'team';
+export type RatingSystem = 'elo' | 'glicko2';
+
+export interface RatingScope {
+  competition_type: string;
+  game_type?: string | null;
+  season_id?: string | null;
+  region?: string | null;
+  entity_type: RatingEntityType;
+}
+
+export interface CompetitionRating {
+  id: string;
+  entity_type: RatingEntityType;
+  entity_id: string; // user_id or team_id
+  scope_key: string;
+  competition_type: string;
+  game_type?: string | null;
+  season_id?: string | null;
+  region?: string | null;
+  rating_system: RatingSystem;
+  current_rating: number;
+  peak_rating: number;
+  lowest_rating: number;
+  matches_played: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  last_match_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type RatingHistoryStatus = 'applied' | 'rolled_back' | 'recalculated';
+
+export interface RatingHistoryEntry {
+  id: string;
+  rating_id?: string;
+  scope_key: string;
+  entity_type: RatingEntityType;
+  entity_id: string;
+  opponent_id?: string | null;
+  opponent_name?: string | null;
+  leaderboard_id: string;
+  competition_name?: string | null;
+  match_id: string;
+  previous_rating: number;
+  new_rating: number;
+  rating_change: number;
+  k_factor: number;
+  expected_score: number;
+  actual_score: number; // 1 (win), 0.5 (draw), 0 (loss)
+  is_verified: boolean;
+  status: RatingHistoryStatus;
+  reason?: string | null;
+  reversal_reason?: string | null;
+  created_at: string;
+}
+
+// ==========================================
+// COMPETITION MARKETPLACE DISCOVERY (ERA 4 PROMPT 1)
+// ==========================================
+
+export type MarketplaceParticipationType = 'all' | 'online' | 'in_person' | 'hybrid';
+export type MarketplaceRegistrationStatusFilter = 'all' | 'open' | 'approval_required' | 'waitlist' | 'closed' | 'view_only';
+export type MarketplaceSortOption = 'recently_updated' | 'upcoming' | 'popular' | 'newest';
+export type MarketplacePricingFilter = 'all' | 'free' | 'paid';
+export type MarketplaceDateRangeFilter = 'all' | 'upcoming' | 'ongoing' | 'past';
+
+export interface MarketplaceOrganizerInfo {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+}
+
+export interface MarketplaceRegistrationInfo {
+  is_enabled: boolean;
+  status: 'open' | 'approval_required' | 'waitlist' | 'closed' | 'ended' | 'view_only';
+  opens_at: string | null;
+  closes_at: string | null;
+  capacity: number | null;
+  registered_count: number;
+  require_approval: boolean;
+  allow_waitlist: boolean;
+  allow_team_registration: boolean;
+  eligibility_rules?: CompetitionEligibilityRules | null;
+  is_user_registered?: boolean;
+  user_registration_status?: RegistrationStatus | null;
+}
+
+export interface MarketplaceSeasonInfo {
+  id?: string;
+  name: string;
+  start_date: string;
+  end_date: string | null;
+}
+
+export interface MarketplacePricingInfo {
+  is_free: boolean;
+  entry_fee: number;
+  currency: string;
+}
+
+export interface MarketplaceCompetition {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  competition_type: CompetitionType;
+  engine_type: CompetitionEngine;
+  entity_type: CompetitionEntityType;
+  operational_status: CompetitionOperationalStatus;
+  cover_image_url: string | null;
+  created_at: string;
+  updated_at: string;
+  organizer: MarketplaceOrganizerInfo;
+  season: MarketplaceSeasonInfo | null;
+  registration: MarketplaceRegistrationInfo;
+  participation_type: 'online' | 'in_person' | 'hybrid' | 'unspecified';
+  location_name: string | null;
+  pricing: MarketplacePricingInfo;
+  rules_summary: string | null;
+  participant_count: number;
+  is_demo: boolean;
+}
+
+export interface MarketplaceQueryOptions {
+  query?: string;
+  category?: CompetitionType | 'all';
+  engine?: CompetitionEngine | 'all';
+  participation_type?: MarketplaceParticipationType;
+  registration_status?: MarketplaceRegistrationStatusFilter;
+  pricing?: MarketplacePricingFilter;
+  date_range?: MarketplaceDateRangeFilter;
+  organizer_id?: string;
+  sort?: MarketplaceSortOption;
+  page?: number;
+  pageSize?: number;
+  includeDemo?: boolean;
+  currentUserId?: string;
+}
+
+export interface MarketplaceQueryResult {
+  items: MarketplaceCompetition[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  facets: {
+    categories: Record<string, number>;
+    engines: Record<string, number>;
+    participationTypes: Record<string, number>;
+    registrationStatuses: Record<string, number>;
+  };
+}
+
+
 

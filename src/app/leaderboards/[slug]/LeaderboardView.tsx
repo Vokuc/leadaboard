@@ -22,6 +22,7 @@ import {
   Sparkles,
   Copy,
   TrendingUp,
+  ShieldAlert,
 } from 'lucide-react';
 import Link from 'next/link';
 import QRCode from 'qrcode';
@@ -139,6 +140,23 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
       });
     }
   }, [initialData, loadData]);
+
+  // Smooth scroll to registration if register=true query param or hash present
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('register') === 'true' || window.location.hash === '#registration') {
+        setTimeout(() => {
+          const el = document.getElementById('registration');
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 250);
+      }
+    }
+  }, [loading]);
+
+  const isDemo = !isSupabaseConfigured || ['lb-gaming-1', 'lb-workplace-1', 'lb-sports-1'].includes(leaderboard?.id || '');
 
   // ─── Real-Time Subscriptions ────────────────────────────────────────────────
 
@@ -367,7 +385,21 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
             <p className="text-sm text-neutral-400 mt-2 leading-relaxed">{leaderboard.description}</p>
           </div>
 
-          <PublicRegistrationCard leaderboard={leaderboard} onRegistrationUpdated={() => void loadData(true)} />
+          {isDemo && (
+            <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between text-xs text-amber-200">
+              <div className="flex items-center gap-2.5">
+                <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
+                <span><strong>Demo Mode:</strong> This is a sample competition. Registrations and scores are stored locally in your browser.</span>
+              </div>
+              <Link href="/directory" className="underline hover:text-white shrink-0 ml-2">
+                Explore Marketplace &rarr;
+              </Link>
+            </div>
+          )}
+
+          <div id="registration" className="scroll-mt-24">
+            <PublicRegistrationCard leaderboard={leaderboard} onRegistrationUpdated={() => void loadData(true)} />
+          </div>
 
           <LeaguePublicView leaderboard={leaderboard} competitionConfig={competitionConfig} />
         </main>
@@ -422,7 +454,21 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
             <p className="text-sm text-neutral-400 mt-2 leading-relaxed">{leaderboard.description}</p>
           </div>
 
-          <PublicRegistrationCard leaderboard={leaderboard} onRegistrationUpdated={() => void loadData(true)} />
+          {isDemo && (
+            <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between text-xs text-amber-200">
+              <div className="flex items-center gap-2.5">
+                <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
+                <span><strong>Demo Mode:</strong> This is a sample competition. Registrations and scores are stored locally in your browser.</span>
+              </div>
+              <Link href="/directory" className="underline hover:text-white shrink-0 ml-2">
+                Explore Marketplace &rarr;
+              </Link>
+            </div>
+          )}
+
+          <div id="registration" className="scroll-mt-24">
+            <PublicRegistrationCard leaderboard={leaderboard} onRegistrationUpdated={() => void loadData(true)} />
+          </div>
 
           <TournamentPublicView leaderboard={leaderboard} competitionConfig={competitionConfig} />
         </main>
@@ -543,7 +589,21 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
           </div>
         </header>
 
-        <PublicRegistrationCard leaderboard={leaderboard} onRegistrationUpdated={() => void loadData(true)} />
+        {isDemo && (
+          <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between text-xs text-amber-200">
+            <div className="flex items-center gap-2.5">
+              <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
+              <span><strong>Demo Mode:</strong> This is a sample competition. Registrations and scores are stored locally in your browser.</span>
+            </div>
+            <Link href="/directory" className="underline hover:text-white shrink-0 ml-2">
+              Explore Marketplace &rarr;
+            </Link>
+          </div>
+        )}
+
+        <div id="registration" className="scroll-mt-24">
+          <PublicRegistrationCard leaderboard={leaderboard} onRegistrationUpdated={() => void loadData(true)} />
+        </div>
 
         {/* VISUAL PODIUM SECTION (TOP 3) */}
         {rankings.length > 0 && (
