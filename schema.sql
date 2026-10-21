@@ -918,5 +918,190 @@ CREATE INDEX IF NOT EXISTS idx_competition_pathways_status ON public.competition
 
 ALTER TABLE public.competition_pathways ENABLE ROW LEVEL SECURITY;
 
+-- ============================================================================
+-- 32. Competition Scheduler, Venues & Constraints
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.competition_venues (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  court_field TEXT,
+  location TEXT,
+  capacity INTEGER,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
+CREATE INDEX IF NOT EXISTS idx_competition_venues_leaderboard ON public.competition_venues(leaderboard_id);
+
+CREATE TABLE IF NOT EXISTS public.competition_schedule_configs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID NOT NULL UNIQUE REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  timezone TEXT NOT NULL DEFAULT 'UTC',
+  playable_days INTEGER[] NOT NULL DEFAULT '{1,2,3,4,5,6,0}',
+  daily_start_time TEXT NOT NULL DEFAULT '09:00',
+  daily_end_time TEXT NOT NULL DEFAULT '18:00',
+  match_duration_minutes INTEGER NOT NULL DEFAULT 60,
+  buffer_minutes INTEGER NOT NULL DEFAULT 15,
+  rest_interval_minutes INTEGER NOT NULL DEFAULT 120,
+  participant_availability JSONB NOT NULL DEFAULT '[]'::jsonb,
+  auto_assign_venues BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_competition_schedule_configs_leaderboard ON public.competition_schedule_configs(leaderboard_id);
+
+ALTER TABLE public.fixtures
+  ADD COLUMN IF NOT EXISTS scheduled_end_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS venue_id UUID REFERENCES public.competition_venues(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS venue_name TEXT,
+  ADD COLUMN IF NOT EXISTS court_field TEXT,
+  ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'UTC',
+  ADD COLUMN IF NOT EXISTS scheduling_status TEXT NOT NULL DEFAULT 'unscheduled',
+  ADD COLUMN IF NOT EXISTS conflict_reason TEXT;
+
+ALTER TABLE public.tournament_matches
+  ADD COLUMN IF NOT EXISTS scheduled_end_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS venue_id UUID REFERENCES public.competition_venues(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS venue_name TEXT,
+  ADD COLUMN IF NOT EXISTS court_field TEXT,
+  ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'UTC',
+  ADD COLUMN IF NOT EXISTS scheduling_status TEXT NOT NULL DEFAULT 'unscheduled',
+  ADD COLUMN IF NOT EXISTS conflict_reason TEXT;
+
+ALTER TABLE public.competition_venues ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.competition_schedule_configs ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================================
+-- 33. Participant Registration & Competition Notifications
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.competition_registration_configs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID NOT NULL UNIQUE REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  is_enabled BOOLEAN NOT NULL DEFAULT false,
+  capacity INTEGER,
+  opens_at TIMESTAMPTZ,
+  closes_at TIMESTAMPTZ,
+  require_approval BOOLEAN NOT NULL DEFAULT true,
+  allow_waitlist BOOLEAN NOT NULL DEFAULT true,
+  allow_team_registration BOOLEAN NOT NULL DEFAULT false,
+  eligibility_rules JSONB NOT NULL DEFAULT '{"allowed_domains": [], "min_age": null, "notes": ""}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_comp_reg_configs_leaderboard ON public.competition_registration_configs(leaderboard_id);
+
+CREATE TABLE IF NOT EXISTS public.competition_registrations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  member_id UUID REFERENCES public.leaderboard_members(id) ON DELETE SET NULL,
+  team_id UUID REFERENCES public.teams(id) ON DELETE SET NULL,
+  participant_name TEXT NOT NULL,
+  participant_email TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  claim_token TEXT UNIQUE,
+  claimed_at TIMESTAMPTZ,
+  rejection_reason TEXT,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.competition_registrations
+  DROP CONSTRAINT IF EXISTS competition_registrations_status_check;
+
+ALTER TABLE public.competition_registrations
+  ADD CONSTRAINT competition_registrations_status_check
+  CHECK (status IN ('pending', 'approved', 'rejected', 'waitlisted', 'withdrawn', 'confirmed'));
+
+CREATE INDEX IF NOT EXISTS idx_comp_reg_leaderboard ON public.competition_registrations(leaderboard_id);
+CREATE INDEX IF NOT EXISTS idx_comp_reg_user ON public.competition_registrations(user_id);
+CREATE INDEX IF NOT EXISTS idx_comp_reg_status ON public.competition_registrations(leaderboard_id, status);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_comp_reg_claim_token ON public.competition_registrations(claim_token) WHERE claim_token IS NOT NULL;
+
+ALTER TABLE public.leaderboard_members
+  ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_leaderboard_members_user ON public.leaderboard_members(user_id);
+
+CREATE TABLE IF NOT EXISTS public.competition_notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  recipient_email TEXT,
+  notification_type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  action_url TEXT,
+  delivery_status TEXT NOT NULL DEFAULT 'delivered',
+  idempotency_key TEXT UNIQUE,
+  read_at TIMESTAMPTZ,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.competition_notifications
+  DROP CONSTRAINT IF EXISTS competition_notifications_delivery_status_check;
+
+ALTER TABLE public.competition_notifications
+  ADD CONSTRAINT competition_notifications_delivery_status_check
+  CHECK (delivery_status IN ('queued', 'delivered', 'read', 'failed'));
+
+CREATE INDEX IF NOT EXISTS idx_comp_notif_user ON public.competition_notifications(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_comp_notif_status ON public.competition_notifications(user_id, delivery_status);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_comp_notif_idempotency ON public.competition_notifications(idempotency_key) WHERE idempotency_key IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS public.notification_preferences (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  leaderboard_id UUID REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  email_opt_in BOOLEAN NOT NULL DEFAULT true,
+  in_app_opt_in BOOLEAN NOT NULL DEFAULT true,
+  match_reminders BOOLEAN NOT NULL DEFAULT true,
+  result_updates BOOLEAN NOT NULL DEFAULT true,
+  announcements BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (user_id, leaderboard_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_notif_pref_user ON public.notification_preferences(user_id);
+
+ALTER TABLE public.competition_registration_configs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.competition_registrations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.competition_notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notification_preferences ENABLE ROW LEVEL SECURITY;
+
+-- 34. Templates Versioning & Event-Day Mode (Era 2 Prompt 3)
+ALTER TABLE public.leaderboard_admins
+  ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'admin' CHECK (role IN ('admin', 'referee'));
+
+CREATE OR REPLACE FUNCTION public.can_operate_event_day(p_leaderboard_id UUID, p_user_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM leaderboards l
+    WHERE l.id = p_leaderboard_id AND l.owner_id = p_user_id
+  ) OR EXISTS (
+    SELECT 1 FROM leaderboard_admins la
+    WHERE la.leaderboard_id = p_leaderboard_id AND la.user_id = p_user_id
+  );
+END;
+$$;
+
+ALTER TABLE public.competition_templates
+  ADD COLUMN IF NOT EXISTS version TEXT NOT NULL DEFAULT '1.0.0',
+  ADD COLUMN IF NOT EXISTS engine TEXT NOT NULL DEFAULT 'league_table',
+  ADD COLUMN IF NOT EXISTS format TEXT NOT NULL DEFAULT 'league',
+  ADD COLUMN IF NOT EXISTS default_config JSONB NOT NULL DEFAULT '{}'::jsonb;
 

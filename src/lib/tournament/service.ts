@@ -437,7 +437,7 @@ export const TournamentService = {
     setLocalTournamentState(state);
   },
 
-  async saveMatchResult(input: SaveTournamentMatchResultInput): Promise<void> {
+  async saveMatchResult(input: SaveTournamentMatchResultInput, options?: { skipAdminCheck?: boolean }): Promise<void> {
     const allPieces = await Promise.all([
       this.getMatchesByMatchId(input.matchId),
       this.getMatchById(input.matchId),
@@ -450,7 +450,9 @@ export const TournamentService = {
       throw new Error('Match not found.');
     }
 
-    await DatabaseService.requireAdminPermission(leaderboardId);
+    if (!options?.skipAdminCheck) {
+      await DatabaseService.requireAdminPermission(leaderboardId);
+    }
 
     // Validate knockout match result against competition rules (disallowing draws)
     const rules = await CompetitionRulesService.getRules(leaderboardId);
@@ -580,6 +582,23 @@ export const TournamentService = {
         logMsg = `[Tournament Final] ${homeName} ${input.homeScore} - ${input.awayScore} ${awayName} — 🏆 ${champMember?.name || winnerName} crowned champion!`;
       }
       await DatabaseService.addActivityLog(leaderboardId, logMsg);
+
+      // Notify participants of tournament result update
+      const userIds = [home?.user_id, away?.user_id].filter(Boolean) as string[];
+      if (userIds.length > 0) {
+        const lb = await DatabaseService.getLeaderboard(leaderboardId);
+        if (lb) {
+          const { CompetitionNotificationService } = await import('@/lib/competition/notifications/service');
+          await CompetitionNotificationService.notifyResultUpdated({
+            leaderboard_id: leaderboardId,
+            competitionName: lb.name,
+            userIds,
+            matchTitle: `${homeName} vs ${awayName}`,
+            scoreSummary: `${input.homeScore} - ${input.awayScore}`,
+            slug: lb.slug,
+          });
+        }
+      }
     } catch (logErr) {
       console.error('Failed to log tournament match activity:', logErr);
     }
@@ -616,6 +635,20 @@ export const TournamentService = {
         console.warn('Could not record audit entry for tournament match result:', auditErr);
       }
     }
+  },
+
+  async submitMatchScore(
+    input: {
+      leaderboardId?: string;
+      matchId: string;
+      homeScore: number;
+      awayScore: number;
+      reason?: string;
+      evidenceUrls?: string[];
+    },
+    options?: { skipAdminCheck?: boolean }
+  ): Promise<void> {
+    return this.saveMatchResult(input, options);
   },
 
   async getBracketView(leaderboardId: string): Promise<TournamentBracketView | null> {

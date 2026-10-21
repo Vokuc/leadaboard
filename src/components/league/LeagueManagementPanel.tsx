@@ -14,8 +14,11 @@ import { uploadImageAsset } from '@/lib/image-upload';
 import { TeamRosterManagement } from '@/components/teams/TeamRosterManagement';
 import { CompetitionRulesSettings } from '@/components/competition/CompetitionRulesSettings';
 import { ResultAuditDrawer } from '@/components/competition/ResultAuditDrawer';
+import { CompetitionSchedulerPanel } from '@/components/competition/scheduling/CompetitionSchedulerPanel';
+import { RegistrationManagementPanel } from '@/components/competition/registration/RegistrationManagementPanel';
+import { EventDayControlPanel } from '@/components/competition/event-day/EventDayControlPanel';
 
-type TabKey = 'overview' | 'standings' | 'fixtures' | 'teams' | 'settings' | 'integrations';
+type TabKey = 'overview' | 'standings' | 'fixtures' | 'schedule' | 'event_day' | 'registrations' | 'teams' | 'settings' | 'integrations';
 
 interface LeagueManagementPanelProps {
   leaderboard: Leaderboard;
@@ -325,17 +328,17 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
         </div>
       </div>
 
-      <div className="flex max-w-3xl gap-2 rounded-2xl border border-neutral-850 bg-neutral-900/40 p-1 overflow-x-auto custom-scrollbar">
-        {(['overview', 'standings', 'fixtures', 'teams', 'settings', 'integrations'] as const).map((tab) => (
+      <div className="flex max-w-4xl gap-2 rounded-2xl border border-neutral-850 bg-neutral-900/40 p-1 overflow-x-auto custom-scrollbar">
+        {(['overview', 'standings', 'fixtures', 'schedule', 'event_day', 'registrations', 'teams', 'settings', 'integrations'] as const).map((tab) => (
           <button
             key={tab}
             type="button"
             onClick={() => setActiveTab(tab)}
-            className={`flex-1 rounded-xl px-3 py-2 text-xs font-bold capitalize transition-all ${
+            className={`flex-1 rounded-xl px-3 py-2 text-xs font-bold capitalize transition-all whitespace-nowrap ${
               activeTab === tab ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white'
             }`}
           >
-            {tab}
+            {tab === 'event_day' ? 'Event Day ⚡' : tab}
           </button>
         ))}
       </div>
@@ -520,6 +523,30 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
             )}
           </div>
         </div>
+      )}
+
+      {activeTab === 'schedule' && (
+        <CompetitionSchedulerPanel
+          leaderboard={leaderboard}
+          engine="league_table"
+          members={members}
+          onScheduleCommitted={() => void loadLeagueData()}
+        />
+      )}
+
+      {activeTab === 'event_day' && (
+        <EventDayControlPanel
+          leaderboard={leaderboard}
+          competitionConfig={competitionConfig}
+        />
+      )}
+
+      {activeTab === 'registrations' && (
+        <RegistrationManagementPanel
+          leaderboard={leaderboard}
+          members={members}
+          onMembersUpdated={() => void loadLeagueData()}
+        />
       )}
 
       {activeTab === 'teams' && (
@@ -723,17 +750,62 @@ function FixtureCard({ fixture, homeName, awayName, existingResult, onSaveResult
   const [homeScore, setHomeScore] = useState(existingResult?.home_score ?? 0);
   const [awayScore, setAwayScore] = useState(existingResult?.away_score ?? 0);
 
+  const formatScheduledTime = (start: string | null, end: string | null | undefined) => {
+    if (!start) return 'No kickoff scheduled';
+    try {
+      const startDate = new Date(start);
+      const startStr = startDate.toLocaleString([], {
+        month: 'short',
+        day: 'numeric',
+        weekday: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      if (!end) return startStr;
+      const endDate = new Date(end);
+      const endStr = endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return `${startStr} - ${endStr}`;
+    } catch {
+      return start;
+    }
+  };
+
   return (
-    <div className="glass rounded-2xl p-5">
-      <div className="flex items-center justify-between gap-3">
+    <div className="glass rounded-2xl p-5 space-y-3">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-sm font-semibold text-white">{homeName} vs {awayName}</div>
-          <div className="mt-1 flex items-center gap-2 text-[11px] text-neutral-500">
-            <Calendar className="h-3.5 w-3.5" />
-            {fixture.scheduled_at ? new Date(fixture.scheduled_at).toLocaleString() : 'No kickoff scheduled'}
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-neutral-400">
+            <span className="flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5 text-neutral-500" />
+              {formatScheduledTime(fixture.scheduled_at, fixture.scheduled_end_at)}
+            </span>
+            {fixture.venue_name && (
+              <span className="flex items-center gap-1 text-emerald-400 font-medium">
+                • {fixture.venue_name} {fixture.court_field ? `(${fixture.court_field})` : ''}
+              </span>
+            )}
+            {fixture.round_name && (
+              <span className="text-neutral-500">• {fixture.round_name}</span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {fixture.scheduling_status && fixture.scheduling_status !== 'unscheduled' && (
+            <span
+              className={`rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${
+                fixture.scheduling_status === 'scheduled'
+                  ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400'
+                  : fixture.scheduling_status === 'conflict'
+                  ? 'border-red-500/20 bg-red-500/10 text-red-400'
+                  : fixture.scheduling_status === 'rescheduled'
+                  ? 'border-amber-500/20 bg-amber-500/10 text-amber-400'
+                  : 'border-neutral-700 bg-neutral-800 text-neutral-400'
+              }`}
+            >
+              {fixture.scheduling_status}
+            </span>
+          )}
           <div className="rounded-lg border border-white/5 px-2 py-1 text-[11px] uppercase tracking-widest text-neutral-400">
             {fixture.status}
           </div>
@@ -748,7 +820,15 @@ function FixtureCard({ fixture, homeName, awayName, existingResult, onSaveResult
           </button>
         </div>
       </div>
-      <div className="mt-4 flex flex-wrap items-center gap-3">
+
+      {fixture.scheduling_status === 'conflict' && fixture.conflict_reason && (
+        <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-950/30 p-2.5 text-xs text-red-300">
+          <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+          <span><strong>Conflict:</strong> {fixture.conflict_reason}</span>
+        </div>
+      )}
+
+      <div className="mt-2 flex flex-wrap items-center gap-3 pt-1 border-t border-white/5">
         <input type="number" value={homeScore} onChange={(event) => setHomeScore(Number(event.target.value) || 0)} className="w-20 rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />
         <span className="text-sm font-bold text-white">-</span>
         <input type="number" value={awayScore} onChange={(event) => setAwayScore(Number(event.target.value) || 0)} className="w-20 rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white" />

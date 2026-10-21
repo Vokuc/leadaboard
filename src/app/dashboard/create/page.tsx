@@ -25,6 +25,8 @@ import HelpModal from '@/components/HelpModal';
 import { createLeaderboardHelp } from '@/lib/help-content';
 import { uploadImageAsset } from '@/lib/image-upload';
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
+import { TemplatePicker } from '@/components/competition/templates/TemplatePicker';
+import { CompetitionTemplateDefinition } from '@/types';
 
 interface ScoringRuleInput {
   event_name: string;
@@ -147,6 +149,8 @@ function CreateLeaderboardForm() {
   const [pointsForLoss, setPointsForLoss] = useState(0);
   const [tournamentBracketSize, setTournamentBracketSize] = useState(8);
   const [tournamentSeedingMode, setTournamentSeedingMode] = useState<TournamentSeedingMode>('random');
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [selectedBlueprint, setSelectedBlueprint] = useState<CompetitionTemplateDefinition | null>(null);
   
   // Parse prefill rules if provided (e.g. "Deal Closed:100,Meeting Booked:15")
   const prefillRulesStr = searchParams.get('rules');
@@ -223,6 +227,37 @@ function CreateLeaderboardForm() {
     setPointsForWin(template.default_points_for_win);
     setPointsForDraw(template.default_points_for_draw);
     setPointsForLoss(template.default_points_for_loss);
+  };
+
+  const handleSelectReusableTemplate = (selected: CompetitionTemplateDefinition) => {
+    setSelectedBlueprint(selected);
+    if (!name.trim()) {
+      setName(selected.name);
+    }
+    setDescription(selected.description);
+    setCompetitionEngine(selected.engine);
+    setCompetitionType(selected.competition_type);
+    setCoverImageUrl(coverArtTemplates[selected.competition_type] || coverArtTemplates.custom);
+    if (selected.engine === 'league_table') {
+      setPointsForWin(selected.rules.points_for_win ?? 3);
+      setPointsForDraw(selected.rules.points_for_draw ?? 1);
+      setPointsForLoss(selected.rules.points_for_loss ?? 0);
+      setTemplateKey(selected.key === 'round_robin_tournament' ? 'custom' : (selected.key as CompetitionTemplateKey));
+    } else if (selected.engine === 'tournament') {
+      setTournamentBracketSize(selected.fixture_settings.default_bracket_size ?? 8);
+      setTournamentSeedingMode(selected.fixture_settings.seeding_mode ?? 'random');
+      setTemplateKey('football');
+    } else if (selected.engine === 'simple_points') {
+      if (selected.rules.scoring_rules && selected.rules.scoring_rules.length > 0) {
+        setScoringRules(
+          selected.rules.scoring_rules.map((r) => ({
+            event_name: r.event_name,
+            points: r.points,
+            description: r.description || '',
+          }))
+        );
+      }
+    }
   };
 
   const handleCoverImageSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -417,7 +452,43 @@ function CreateLeaderboardForm() {
             <div className="space-y-5">
               <div>
                 <h2 className="text-xl font-bold text-white tracking-tight">Step 1: Competition Identity</h2>
-                <p className="text-xs text-neutral-400 mt-1">Provide a name, visibility configurations, and pick a template.</p>
+                <p className="text-xs text-neutral-400 mt-1">Provide a name, visibility configurations, or start from a blueprint.</p>
+              </div>
+
+              {/* Template Blueprint Showcase */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-violet-950/40 via-neutral-900 to-neutral-950 border border-violet-500/20 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-violet-400 shrink-0" />
+                    <div>
+                      <h4 className="text-xs font-bold text-white">Start from a Pre-Configured Blueprint</h4>
+                      <p className="text-[11px] text-neutral-400">
+                        {selectedBlueprint 
+                          ? `Applied: ${selectedBlueprint.name} (v${selectedBlueprint.version})` 
+                          : 'Load instant scoring rules, formats, and tiebreakers.'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowTemplatePicker(!showTemplatePicker)}
+                    className="px-3 py-1.5 rounded-xl bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-xs font-semibold text-violet-300 hover:text-white transition-all cursor-pointer self-start sm:self-auto"
+                  >
+                    {showTemplatePicker ? 'Collapse Blueprints' : selectedBlueprint ? 'Change Blueprint' : 'Browse Blueprints'}
+                  </button>
+                </div>
+
+                {showTemplatePicker && (
+                  <div className="pt-3 border-t border-white/5 animate-fade-in">
+                    <TemplatePicker
+                      selectedTemplateKey={selectedBlueprint?.key}
+                      onSelectTemplate={(tpl) => {
+                        handleSelectReusableTemplate(tpl);
+                        setShowTemplatePicker(false);
+                      }}
+                    />
+                  </div>
+                )}
               </div>
 
               <div>

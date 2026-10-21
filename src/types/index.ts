@@ -83,6 +83,7 @@ export interface Leaderboard {
 export interface LeaderboardAdmin {
   leaderboard_id: string;
   user_id: string;
+  role?: 'admin' | 'referee';
   created_at: string;
   profile?: Profile;
 }
@@ -138,6 +139,7 @@ export interface TeamWithRoster extends Team {
 export interface LeaderboardMember {
   id: string;
   leaderboard_id: string;
+  user_id?: string | null;
   name: string;
   email: string | null;
   avatar_url: string | null;
@@ -395,6 +397,91 @@ export interface LeagueSettings {
   updated_at: string;
 }
 
+export type SchedulingStatus = 'unscheduled' | 'scheduled' | 'rescheduled' | 'conflict' | 'cancelled';
+
+export interface CompetitionVenue {
+  id: string;
+  leaderboard_id: string;
+  name: string;
+  court_field?: string | null;
+  location?: string | null;
+  capacity?: number | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ParticipantBlackout {
+  member_id: string;
+  start_date: string;
+  end_date: string;
+  reason?: string;
+}
+
+export interface CompetitionScheduleConfig {
+  id: string;
+  leaderboard_id: string;
+  start_date: string; // YYYY-MM-DD
+  end_date: string;   // YYYY-MM-DD
+  timezone: string;
+  playable_days: number[]; // 0=Sun, 1=Mon, ..., 6=Sat
+  daily_start_time: string; // HH:mm
+  daily_end_time: string;   // HH:mm
+  match_duration_minutes: number;
+  buffer_minutes: number;
+  rest_interval_minutes: number;
+  participant_availability: ParticipantBlackout[];
+  auto_assign_venues: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScheduledSlotProposal {
+  entity_id: string;
+  entity_type: 'fixture' | 'tournament_match';
+  home_member_id: string | null;
+  away_member_id: string | null;
+  home_name: string;
+  away_name: string;
+  round_name: string;
+  round_index?: number;
+  match_index?: number;
+  scheduled_at: string;
+  scheduled_end_at: string;
+  venue_id: string | null;
+  venue_name: string | null;
+  court_field: string | null;
+  timezone: string;
+  status: SchedulingStatus;
+  conflict_reason: string | null;
+}
+
+export interface ScheduleConflictExplanation {
+  entity_id: string;
+  home_name: string;
+  away_name: string;
+  round_name: string;
+  reason: string;
+  type: 'venue_overlap' | 'participant_overlap' | 'rest_interval_violation' | 'blackout_window' | 'outside_window' | 'exceeded_range' | 'manual_conflict';
+}
+
+export interface SchedulePreviewResult {
+  total_items: number;
+  scheduled_items: ScheduledSlotProposal[];
+  unscheduled_items: Array<{
+    entity_id: string;
+    home_member_id: string | null;
+    away_member_id: string | null;
+    home_name: string;
+    away_name: string;
+    round_name: string;
+    reason: string;
+  }>;
+  conflicts: ScheduleConflictExplanation[];
+  has_conflicts: boolean;
+  can_commit: boolean;
+}
+
 export interface Fixture {
   id: string;
   leaderboard_id: string;
@@ -402,10 +489,18 @@ export interface Fixture {
   away_member_id: string;
   round_name: string | null;
   scheduled_at: string | null;
+  scheduled_end_at?: string | null;
+  venue_id?: string | null;
+  venue_name?: string | null;
+  court_field?: string | null;
+  timezone?: string;
+  scheduling_status?: SchedulingStatus;
+  conflict_reason?: string | null;
   status: FixtureStatus;
   created_at: string;
   updated_at: string;
 }
+
 
 export interface FixtureResult {
   fixture_id: string;
@@ -485,12 +580,20 @@ export interface TournamentMatch {
   leaderboard_id: string;
   round_id: string;
   round_index: number;
+  round_name?: string | null;
   match_index: number;
   home_member_id: string | null;
   away_member_id: string | null;
   winner_member_id: string | null;
   loser_member_id: string | null;
   scheduled_at: string | null;
+  scheduled_end_at?: string | null;
+  venue_id?: string | null;
+  venue_name?: string | null;
+  court_field?: string | null;
+  timezone?: string;
+  scheduling_status?: SchedulingStatus;
+  conflict_reason?: string | null;
   state: TournamentMatchState;
   next_match_id: string | null;
   next_match_slot: 'home' | 'away' | null;
@@ -535,3 +638,169 @@ export interface TournamentBracketView {
   rounds: TournamentRoundView[];
   champion: LeaderboardMember | null;
 }
+
+export type RegistrationStatus =
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+  | 'waitlisted'
+  | 'withdrawn'
+  | 'confirmed';
+
+export interface CompetitionEligibilityRules {
+  allowed_domains?: string[];
+  min_age?: number | null;
+  notes?: string;
+}
+
+export interface CompetitionRegistrationConfig {
+  id: string;
+  leaderboard_id: string;
+  is_enabled: boolean;
+  capacity: number | null;
+  opens_at: string | null;
+  closes_at: string | null;
+  require_approval: boolean;
+  allow_waitlist: boolean;
+  allow_team_registration: boolean;
+  eligibility_rules: CompetitionEligibilityRules;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CompetitionRegistration {
+  id: string;
+  leaderboard_id: string;
+  user_id: string | null;
+  member_id: string | null;
+  team_id: string | null;
+  participant_name: string;
+  participant_email: string;
+  status: RegistrationStatus;
+  claim_token: string | null;
+  claimed_at: string | null;
+  rejection_reason: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type NotificationType =
+  | 'registration_received'
+  | 'registration_approved'
+  | 'registration_rejected'
+  | 'registration_waitlisted'
+  | 'fixture_scheduled'
+  | 'match_rescheduled'
+  | 'match_reminder'
+  | 'result_updated'
+  | 'competition_announcement';
+
+export type NotificationDeliveryStatus = 'queued' | 'delivered' | 'read' | 'failed';
+
+export interface CompetitionNotification {
+  id: string;
+  leaderboard_id: string | null;
+  user_id: string;
+  recipient_email: string | null;
+  notification_type: NotificationType;
+  title: string;
+  message: string;
+  action_url: string | null;
+  delivery_status: NotificationDeliveryStatus;
+  idempotency_key: string | null;
+  read_at: string | null;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface NotificationPreference {
+  id: string;
+  user_id: string;
+  leaderboard_id: string | null;
+  email_opt_in: boolean;
+  in_app_opt_in: boolean;
+  match_reminders: boolean;
+  result_updates: boolean;
+  announcements: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// ==========================================
+// TEMPLATES & EVENT-DAY OPERATIONS (ERA 2 PROMPT 3)
+// ==========================================
+
+export interface CompetitionTemplateDefinition {
+  key: string;
+  name: string;
+  version: string;
+  description: string;
+  engine: CompetitionEngine;
+  format: 'league' | 'knockout' | 'round_robin' | 'points_race' | 'fitness' | 'quiz' | 'custom';
+  competition_type: CompetitionType;
+  entity_type: CompetitionEntityType;
+  rules: {
+    points_for_win?: number;
+    points_for_draw?: number;
+    points_for_loss?: number;
+    scoring_rules?: Array<{ event_name: string; points: number; description?: string }>;
+  };
+  tie_breakers: string[];
+  fixture_settings: {
+    match_duration_minutes: number;
+    buffer_minutes: number;
+    two_legged?: boolean;
+    default_bracket_size?: number;
+    seeding_mode?: TournamentSeedingMode;
+  };
+  public_display_options: {
+    show_standings?: boolean;
+    show_bracket?: boolean;
+    show_fixtures?: boolean;
+    show_rules?: boolean;
+    show_activity_feed?: boolean;
+    highlight_top_n?: number;
+  };
+}
+
+export type EventDayOperatorRole = 'organizer' | 'referee' | 'viewer';
+
+export interface EventDayParticipant {
+  id: string;
+  name: string;
+  avatar_url?: string | null;
+  short_code?: string | null;
+  seed?: number | null;
+}
+
+export interface EventDayMatch {
+  id: string;
+  leaderboard_id: string;
+  engine: CompetitionEngine;
+  home_participant: EventDayParticipant;
+  away_participant: EventDayParticipant;
+  home_score: number | null;
+  away_score: number | null;
+  status: 'scheduled' | 'live' | 'completed' | 'postponed' | 'cancelled';
+  scheduled_at: string | null;
+  scheduled_end_at: string | null;
+  venue_name: string | null;
+  court_field: string | null;
+  round_name: string | null;
+  is_live: boolean;
+  next_actions: Array<'start' | 'update_score' | 'finalize' | 'edit'>;
+}
+
+export interface EventDayOfflineAction {
+  id: string;
+  matchId: string;
+  leaderboardId: string;
+  engine: CompetitionEngine;
+  actionType: 'start' | 'score_update' | 'finalize';
+  homeScore?: number;
+  awayScore?: number;
+  reason?: string;
+  timestamp: string;
+}
+

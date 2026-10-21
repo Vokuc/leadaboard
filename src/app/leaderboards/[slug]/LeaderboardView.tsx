@@ -31,6 +31,8 @@ import SafeImage from '@/components/SafeImage';
 import LeaguePublicView from '@/components/league/LeaguePublicView';
 import TournamentPublicView from '@/components/tournament/TournamentPublicView';
 import Logo from '@/components/Logo';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { PublicRegistrationCard } from '@/components/competition/registration/PublicRegistrationCard';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -335,6 +337,7 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
           </Link>
 
           <div className="flex items-center gap-2">
+            <NotificationBell />
             <HelpModal {...publicLeaderboardHelp} />
             <button
               onClick={() => setShowShareModal(true)}
@@ -364,6 +367,8 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
             <p className="text-sm text-neutral-400 mt-2 leading-relaxed">{leaderboard.description}</p>
           </div>
 
+          <PublicRegistrationCard leaderboard={leaderboard} onRegistrationUpdated={() => void loadData(true)} />
+
           <LeaguePublicView leaderboard={leaderboard} competitionConfig={competitionConfig} />
         </main>
 
@@ -387,6 +392,7 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
           </Link>
 
           <div className="flex items-center gap-2">
+            <NotificationBell />
             <HelpModal {...publicLeaderboardHelp} />
             <button
               onClick={() => setShowShareModal(true)}
@@ -415,6 +421,8 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
             </h1>
             <p className="text-sm text-neutral-400 mt-2 leading-relaxed">{leaderboard.description}</p>
           </div>
+
+          <PublicRegistrationCard leaderboard={leaderboard} onRegistrationUpdated={() => void loadData(true)} />
 
           <TournamentPublicView leaderboard={leaderboard} competitionConfig={competitionConfig} />
         </main>
@@ -524,6 +532,7 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
           </Link>
 
           <div className="flex items-center gap-2">
+            <NotificationBell />
             <HelpModal {...publicLeaderboardHelp} />
             <button
               onClick={() => setShowShareModal(true)}
@@ -533,6 +542,8 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
             </button>
           </div>
         </header>
+
+        <PublicRegistrationCard leaderboard={leaderboard} onRegistrationUpdated={() => void loadData(true)} />
 
         {/* VISUAL PODIUM SECTION (TOP 3) */}
         {rankings.length > 0 && (

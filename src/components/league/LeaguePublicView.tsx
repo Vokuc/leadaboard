@@ -207,9 +207,16 @@ export default function LeaguePublicView({ leaderboard, competitionConfig }: Lea
                       <span className="rounded bg-red-500/10 px-2 py-0.5 text-[10px] font-bold text-red-400 border border-red-500/20">Voided</span>
                     )}
                   </div>
-                  <div className="mt-1 flex items-center gap-2 text-[11px] text-neutral-500">
-                    <Calendar className="h-3.5 w-3.5" />
-                    {item.fixture.round_name || 'Fixture'}
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-neutral-500">
+                    <span className="flex items-center gap-1.5">
+                      <Calendar className="h-3.5 w-3.5" />
+                      {item.fixture.round_name || 'Fixture'}
+                    </span>
+                    {item.fixture.venue_name && (
+                      <span className="text-emerald-400 font-medium">
+                        • {item.fixture.venue_name} {item.fixture.court_field ? `(${item.fixture.court_field})` : ''}
+                      </span>
+                    )}
                   </div>
                 </div>
               ))
