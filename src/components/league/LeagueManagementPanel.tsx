@@ -15,8 +15,9 @@ import { TeamRosterManagement } from '@/components/teams/TeamRosterManagement';
 import { CompetitionRulesSettings } from '@/components/competition/CompetitionRulesSettings';
 import { ResultAuditDrawer } from '@/components/competition/ResultAuditDrawer';
 import { CompetitionSchedulerPanel } from '@/components/competition/scheduling/CompetitionSchedulerPanel';
+import { RegistrationManagementPanel } from '@/components/competition/registration/RegistrationManagementPanel';
 
-type TabKey = 'overview' | 'standings' | 'fixtures' | 'schedule' | 'teams' | 'settings' | 'integrations';
+type TabKey = 'overview' | 'standings' | 'fixtures' | 'schedule' | 'registrations' | 'teams' | 'settings' | 'integrations';
 
 interface LeagueManagementPanelProps {
   leaderboard: Leaderboard;
@@ -327,7 +328,7 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
       </div>
 
       <div className="flex max-w-4xl gap-2 rounded-2xl border border-neutral-850 bg-neutral-900/40 p-1 overflow-x-auto custom-scrollbar">
-        {(['overview', 'standings', 'fixtures', 'schedule', 'teams', 'settings', 'integrations'] as const).map((tab) => (
+        {(['overview', 'standings', 'fixtures', 'schedule', 'registrations', 'teams', 'settings', 'integrations'] as const).map((tab) => (
           <button
             key={tab}
             type="button"
@@ -529,6 +530,14 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
           engine="league_table"
           members={members}
           onScheduleCommitted={() => void loadLeagueData()}
+        />
+      )}
+
+      {activeTab === 'registrations' && (
+        <RegistrationManagementPanel
+          leaderboard={leaderboard}
+          members={members}
+          onMembersUpdated={() => void loadLeagueData()}
         />
       )}
 

@@ -794,6 +794,10 @@ export const DatabaseService = {
     return found || null;
   },
 
+  async getLeaderboard(id: string): Promise<Leaderboard | null> {
+    return this.getLeaderboardById(id);
+  },
+
   async createLeaderboard(
     lb: Omit<Leaderboard, 'id' | 'owner_id' | 'created_at' | 'updated_at' | 'status'>,
     rules: Omit<ScoringRule, 'id' | 'leaderboard_id' | 'created_at'>[] = [],
@@ -1031,8 +1035,14 @@ export const DatabaseService = {
     return mockDb.getMembers().filter(m => m.leaderboard_id === leaderboardId);
   },
 
-  async addMember(leaderboardId: string, member: Omit<LeaderboardMember, 'id' | 'leaderboard_id' | 'created_at' | 'updated_at' | 'is_active'>): Promise<LeaderboardMember> {
-    await this.requireAdminPermission(leaderboardId);
+  async addMember(
+    leaderboardId: string,
+    member: Omit<LeaderboardMember, 'id' | 'leaderboard_id' | 'created_at' | 'updated_at' | 'is_active'>,
+    options?: { skipAdminCheck?: boolean }
+  ): Promise<LeaderboardMember> {
+    if (!options?.skipAdminCheck) {
+      await this.requireAdminPermission(leaderboardId);
+    }
     const avatar = member.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(member.name)}`;
     
     // Resolve team & team_id
@@ -1125,10 +1135,16 @@ export const DatabaseService = {
     return newMember;
   },
 
-  async updateMember(id: string, updates: Partial<LeaderboardMember>): Promise<LeaderboardMember> {
+  async updateMember(
+    id: string,
+    updates: Partial<LeaderboardMember>,
+    options?: { skipAdminCheck?: boolean }
+  ): Promise<LeaderboardMember> {
     const leaderboardId = await this.getLeaderboardIdFromMember(id);
     if (!leaderboardId) throw new Error('Player not found.');
-    await this.requireAdminPermission(leaderboardId);
+    if (!options?.skipAdminCheck) {
+      await this.requireAdminPermission(leaderboardId);
+    }
 
     let resolvedUpdates = { ...updates };
     if ('team_id' in updates || 'team' in updates) {

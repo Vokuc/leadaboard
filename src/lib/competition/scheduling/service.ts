@@ -583,9 +583,31 @@ export const CompetitionSchedulingService = {
         .select()
         .single();
 
-      if (error) {
-        throw error;
+      // Notify participants of reschedule
+      try {
+        const home = members.find((m) => m.id === target.home_member_id);
+        const away = members.find((m) => m.id === target.away_member_id);
+        const userIds = [home?.user_id, away?.user_id].filter(Boolean) as string[];
+        if (userIds.length > 0) {
+          const lb = await DatabaseService.getLeaderboard(fixtureLeaderboardId);
+          if (lb) {
+            const { CompetitionNotificationService } = await import('@/lib/competition/notifications/service');
+            await CompetitionNotificationService.notifyFixtureScheduled({
+              leaderboard_id: fixtureLeaderboardId,
+              competitionName: lb.name,
+              userIds,
+              fixtureTitle: `${home?.name || 'Home'} vs ${away?.name || 'Away'}`,
+              scheduledAt: input.scheduledAt,
+              venueName: input.venueName || null,
+              isReschedule: true,
+              slug: lb.slug,
+            });
+          }
+        }
+      } catch (notifErr) {
+        console.warn('Could not dispatch reschedule notification:', notifErr);
       }
+
       return { fixture: data, conflicts };
     }
 
@@ -593,6 +615,31 @@ export const CompetitionSchedulingService = {
     if (idx >= 0) {
       allFixtures[idx] = updatedFixture;
       localSet('fixtures', allFixtures);
+    }
+
+    // Notify participants of reschedule
+    try {
+      const home = members.find((m) => m.id === target.home_member_id);
+      const away = members.find((m) => m.id === target.away_member_id);
+      const userIds = [home?.user_id, away?.user_id].filter(Boolean) as string[];
+      if (userIds.length > 0) {
+        const lb = await DatabaseService.getLeaderboard(fixtureLeaderboardId);
+        if (lb) {
+          const { CompetitionNotificationService } = await import('@/lib/competition/notifications/service');
+          await CompetitionNotificationService.notifyFixtureScheduled({
+            leaderboard_id: fixtureLeaderboardId,
+            competitionName: lb.name,
+            userIds,
+            fixtureTitle: `${home?.name || 'Home'} vs ${away?.name || 'Away'}`,
+            scheduledAt: input.scheduledAt,
+            venueName: input.venueName || null,
+            isReschedule: true,
+            slug: lb.slug,
+          });
+        }
+      }
+    } catch (notifErr) {
+      console.warn('Could not dispatch reschedule notification:', notifErr);
     }
 
     return { fixture: updatedFixture, conflicts };
@@ -691,9 +738,31 @@ export const CompetitionSchedulingService = {
         .select()
         .single();
 
-      if (error) {
-        throw error;
+      // Notify participants of match reschedule
+      try {
+        const home = members.find((m) => m.id === target.home_member_id);
+        const away = members.find((m) => m.id === target.away_member_id);
+        const userIds = [home?.user_id, away?.user_id].filter(Boolean) as string[];
+        if (userIds.length > 0) {
+          const lb = await DatabaseService.getLeaderboard(target.leaderboard_id);
+          if (lb) {
+            const { CompetitionNotificationService } = await import('@/lib/competition/notifications/service');
+            await CompetitionNotificationService.notifyFixtureScheduled({
+              leaderboard_id: target.leaderboard_id,
+              competitionName: lb.name,
+              userIds,
+              fixtureTitle: `${home?.name || 'Home'} vs ${away?.name || 'Away'}`,
+              scheduledAt: input.scheduledAt,
+              venueName: input.venueName || null,
+              isReschedule: true,
+              slug: lb.slug,
+            });
+          }
+        }
+      } catch (notifErr) {
+        console.warn('Could not dispatch tournament reschedule notification:', notifErr);
       }
+
       return { match: data, conflicts };
     }
 
@@ -702,6 +771,31 @@ export const CompetitionSchedulingService = {
     if (idx >= 0) {
       allStored[idx] = updatedMatch;
       localSet('tournament_matches', allStored);
+    }
+
+    // Notify participants of match reschedule
+    try {
+      const home = members.find((m) => m.id === target.home_member_id);
+      const away = members.find((m) => m.id === target.away_member_id);
+      const userIds = [home?.user_id, away?.user_id].filter(Boolean) as string[];
+      if (userIds.length > 0) {
+        const lb = await DatabaseService.getLeaderboard(target.leaderboard_id);
+        if (lb) {
+          const { CompetitionNotificationService } = await import('@/lib/competition/notifications/service');
+          await CompetitionNotificationService.notifyFixtureScheduled({
+            leaderboard_id: target.leaderboard_id,
+            competitionName: lb.name,
+            userIds,
+            fixtureTitle: `${home?.name || 'Home'} vs ${away?.name || 'Away'}`,
+            scheduledAt: input.scheduledAt,
+            venueName: input.venueName || null,
+            isReschedule: true,
+            slug: lb.slug,
+          });
+        }
+      }
+    } catch (notifErr) {
+      console.warn('Could not dispatch tournament reschedule notification:', notifErr);
     }
 
     return { match: updatedMatch, conflicts };

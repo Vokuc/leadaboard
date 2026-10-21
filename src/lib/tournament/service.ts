@@ -580,6 +580,23 @@ export const TournamentService = {
         logMsg = `[Tournament Final] ${homeName} ${input.homeScore} - ${input.awayScore} ${awayName} — 🏆 ${champMember?.name || winnerName} crowned champion!`;
       }
       await DatabaseService.addActivityLog(leaderboardId, logMsg);
+
+      // Notify participants of tournament result update
+      const userIds = [home?.user_id, away?.user_id].filter(Boolean) as string[];
+      if (userIds.length > 0) {
+        const lb = await DatabaseService.getLeaderboard(leaderboardId);
+        if (lb) {
+          const { CompetitionNotificationService } = await import('@/lib/competition/notifications/service');
+          await CompetitionNotificationService.notifyResultUpdated({
+            leaderboard_id: leaderboardId,
+            competitionName: lb.name,
+            userIds,
+            matchTitle: `${homeName} vs ${awayName}`,
+            scoreSummary: `${input.homeScore} - ${input.awayScore}`,
+            slug: lb.slug,
+          });
+        }
+      }
     } catch (logErr) {
       console.error('Failed to log tournament match activity:', logErr);
     }

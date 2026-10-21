@@ -37,6 +37,7 @@ import {
 } from '@/types';
 import { TeamRosterManagement } from '@/components/teams/TeamRosterManagement';
 import { CompetitionSchedulerPanel } from '@/components/competition/scheduling/CompetitionSchedulerPanel';
+import { RegistrationManagementPanel } from '@/components/competition/registration/RegistrationManagementPanel';
 
 interface TournamentManagementPanelProps {
   leaderboard: Leaderboard;
@@ -44,7 +45,7 @@ interface TournamentManagementPanelProps {
   onLeaderboardUpdated: (leaderboard: Leaderboard) => void;
 }
 
-type TabKey = 'overview' | 'bracket' | 'matches' | 'schedule' | 'participants' | 'teams' | 'settings' | 'integrations';
+type TabKey = 'overview' | 'bracket' | 'matches' | 'schedule' | 'registrations' | 'participants' | 'teams' | 'settings' | 'integrations';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -372,7 +373,7 @@ export default function TournamentManagementPanel({
       </div>
 
       <div className="flex max-w-4xl gap-2 rounded-2xl border border-neutral-850 bg-neutral-900/40 p-1 overflow-x-auto custom-scrollbar">
-        {(['overview', 'bracket', 'matches', 'schedule', 'participants', 'teams', 'settings', 'integrations'] as const).map((tab) => (
+        {(['overview', 'bracket', 'matches', 'schedule', 'registrations', 'participants', 'teams', 'settings', 'integrations'] as const).map((tab) => (
           <button
             key={tab}
             type="button"
@@ -729,6 +730,15 @@ export default function TournamentManagementPanel({
           engine="tournament"
           members={members}
           onScheduleCommitted={() => void loadTournamentData(true)}
+        />
+      )}
+
+      {activeTab === 'registrations' && (
+        <RegistrationManagementPanel
+          leaderboard={leaderboard}
+          members={members}
+          teams={teams}
+          onMembersUpdated={() => void loadTournamentData(true)}
         />
       )}
 

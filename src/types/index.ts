@@ -138,6 +138,7 @@ export interface TeamWithRoster extends Team {
 export interface LeaderboardMember {
   id: string;
   leaderboard_id: string;
+  user_id?: string | null;
   name: string;
   email: string | null;
   avatar_url: string | null;
@@ -634,4 +635,92 @@ export interface TournamentBracketView {
   tournament: Tournament;
   rounds: TournamentRoundView[];
   champion: LeaderboardMember | null;
+}
+
+export type RegistrationStatus =
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+  | 'waitlisted'
+  | 'withdrawn'
+  | 'confirmed';
+
+export interface CompetitionEligibilityRules {
+  allowed_domains?: string[];
+  min_age?: number | null;
+  notes?: string;
+}
+
+export interface CompetitionRegistrationConfig {
+  id: string;
+  leaderboard_id: string;
+  is_enabled: boolean;
+  capacity: number | null;
+  opens_at: string | null;
+  closes_at: string | null;
+  require_approval: boolean;
+  allow_waitlist: boolean;
+  allow_team_registration: boolean;
+  eligibility_rules: CompetitionEligibilityRules;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CompetitionRegistration {
+  id: string;
+  leaderboard_id: string;
+  user_id: string | null;
+  member_id: string | null;
+  team_id: string | null;
+  participant_name: string;
+  participant_email: string;
+  status: RegistrationStatus;
+  claim_token: string | null;
+  claimed_at: string | null;
+  rejection_reason: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type NotificationType =
+  | 'registration_received'
+  | 'registration_approved'
+  | 'registration_rejected'
+  | 'registration_waitlisted'
+  | 'fixture_scheduled'
+  | 'match_rescheduled'
+  | 'match_reminder'
+  | 'result_updated'
+  | 'competition_announcement';
+
+export type NotificationDeliveryStatus = 'queued' | 'delivered' | 'read' | 'failed';
+
+export interface CompetitionNotification {
+  id: string;
+  leaderboard_id: string | null;
+  user_id: string;
+  recipient_email: string | null;
+  notification_type: NotificationType;
+  title: string;
+  message: string;
+  action_url: string | null;
+  delivery_status: NotificationDeliveryStatus;
+  idempotency_key: string | null;
+  read_at: string | null;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface NotificationPreference {
+  id: string;
+  user_id: string;
+  leaderboard_id: string | null;
+  email_opt_in: boolean;
+  in_app_opt_in: boolean;
+  match_reminders: boolean;
+  result_updates: boolean;
+  announcements: boolean;
+  created_at: string;
+  updated_at: string;
 }

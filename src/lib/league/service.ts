@@ -620,6 +620,23 @@ export const LeagueService = {
         const awayName = away?.name || 'Away';
         const msg = `${roundStr}${homeName} ${input.homeScore} - ${input.awayScore} ${awayName}`;
         await DatabaseService.addActivityLog(leaderboardId, msg);
+
+        // Notify participants of result update
+        const userIds = [home?.user_id, away?.user_id].filter(Boolean) as string[];
+        if (userIds.length > 0) {
+          const lb = await DatabaseService.getLeaderboard(leaderboardId);
+          if (lb) {
+            const { CompetitionNotificationService } = await import('@/lib/competition/notifications/service');
+            await CompetitionNotificationService.notifyResultUpdated({
+              leaderboard_id: leaderboardId,
+              competitionName: lb.name,
+              userIds,
+              matchTitle: `${homeName} vs ${awayName}`,
+              scoreSummary: `${input.homeScore} - ${input.awayScore}`,
+              slug: lb.slug,
+            });
+          }
+        }
       }
     } catch (logErr) {
       console.error('Failed to log fixture activity:', logErr);

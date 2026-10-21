@@ -30,6 +30,7 @@ import Link from 'next/link';
 import HelpModal from '@/components/HelpModal';
 import { dashboardHelp } from '@/lib/help-content';
 import SafeImage from '@/components/SafeImage';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 export default function DashboardPage() {
   const { profile, logout, loading: authLoading } = useAuth();
@@ -229,6 +230,7 @@ export default function DashboardPage() {
               <Users className="w-3.5 h-3.5" /> Admin Users
             </Link>
           )}
+          <NotificationBell />
           <div className="flex items-center gap-3">
             {profile?.avatar_url && (
               <SafeImage src={profile.avatar_url} alt="Profile" width={32} height={32} className="h-8 w-8 rounded-lg border border-white/10 object-cover" />

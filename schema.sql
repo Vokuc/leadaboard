@@ -976,6 +976,104 @@ ALTER TABLE public.tournament_matches
 ALTER TABLE public.competition_venues ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.competition_schedule_configs ENABLE ROW LEVEL SECURITY;
 
+-- ============================================================================
+-- 33. Participant Registration & Competition Notifications
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.competition_registration_configs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID NOT NULL UNIQUE REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  is_enabled BOOLEAN NOT NULL DEFAULT false,
+  capacity INTEGER,
+  opens_at TIMESTAMPTZ,
+  closes_at TIMESTAMPTZ,
+  require_approval BOOLEAN NOT NULL DEFAULT true,
+  allow_waitlist BOOLEAN NOT NULL DEFAULT true,
+  allow_team_registration BOOLEAN NOT NULL DEFAULT false,
+  eligibility_rules JSONB NOT NULL DEFAULT '{"allowed_domains": [], "min_age": null, "notes": ""}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
+CREATE INDEX IF NOT EXISTS idx_comp_reg_configs_leaderboard ON public.competition_registration_configs(leaderboard_id);
 
+CREATE TABLE IF NOT EXISTS public.competition_registrations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  member_id UUID REFERENCES public.leaderboard_members(id) ON DELETE SET NULL,
+  team_id UUID REFERENCES public.teams(id) ON DELETE SET NULL,
+  participant_name TEXT NOT NULL,
+  participant_email TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  claim_token TEXT UNIQUE,
+  claimed_at TIMESTAMPTZ,
+  rejection_reason TEXT,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
+ALTER TABLE public.competition_registrations
+  DROP CONSTRAINT IF EXISTS competition_registrations_status_check;
+
+ALTER TABLE public.competition_registrations
+  ADD CONSTRAINT competition_registrations_status_check
+  CHECK (status IN ('pending', 'approved', 'rejected', 'waitlisted', 'withdrawn', 'confirmed'));
+
+CREATE INDEX IF NOT EXISTS idx_comp_reg_leaderboard ON public.competition_registrations(leaderboard_id);
+CREATE INDEX IF NOT EXISTS idx_comp_reg_user ON public.competition_registrations(user_id);
+CREATE INDEX IF NOT EXISTS idx_comp_reg_status ON public.competition_registrations(leaderboard_id, status);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_comp_reg_claim_token ON public.competition_registrations(claim_token) WHERE claim_token IS NOT NULL;
+
+ALTER TABLE public.leaderboard_members
+  ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_leaderboard_members_user ON public.leaderboard_members(user_id);
+
+CREATE TABLE IF NOT EXISTS public.competition_notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  recipient_email TEXT,
+  notification_type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  action_url TEXT,
+  delivery_status TEXT NOT NULL DEFAULT 'delivered',
+  idempotency_key TEXT UNIQUE,
+  read_at TIMESTAMPTZ,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.competition_notifications
+  DROP CONSTRAINT IF EXISTS competition_notifications_delivery_status_check;
+
+ALTER TABLE public.competition_notifications
+  ADD CONSTRAINT competition_notifications_delivery_status_check
+  CHECK (delivery_status IN ('queued', 'delivered', 'read', 'failed'));
+
+CREATE INDEX IF NOT EXISTS idx_comp_notif_user ON public.competition_notifications(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_comp_notif_status ON public.competition_notifications(user_id, delivery_status);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_comp_notif_idempotency ON public.competition_notifications(idempotency_key) WHERE idempotency_key IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS public.notification_preferences (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  leaderboard_id UUID REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  email_opt_in BOOLEAN NOT NULL DEFAULT true,
+  in_app_opt_in BOOLEAN NOT NULL DEFAULT true,
+  match_reminders BOOLEAN NOT NULL DEFAULT true,
+  result_updates BOOLEAN NOT NULL DEFAULT true,
+  announcements BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (user_id, leaderboard_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_notif_pref_user ON public.notification_preferences(user_id);
+
+ALTER TABLE public.competition_registration_configs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.competition_registrations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.competition_notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notification_preferences ENABLE ROW LEVEL SECURITY;

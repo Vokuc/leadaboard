@@ -37,6 +37,8 @@ import LeagueManagementPanel from '@/components/league/LeagueManagementPanel';
 import TournamentManagementPanel from '@/components/tournament/TournamentManagementPanel';
 import { TeamRosterManagement } from '@/components/teams/TeamRosterManagement';
 import { CompetitionRulesSettings } from '@/components/competition/CompetitionRulesSettings';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { RegistrationManagementPanel } from '@/components/competition/registration/RegistrationManagementPanel';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -65,7 +67,7 @@ export default function LeaderboardManagementPage() {
   const [coverUploading, setCoverUploading] = useState(false);
 
   // Layout Tab
-  const [activeTab, setActiveTab] = useState<'overview' | 'players' | 'teams' | 'scores' | 'settings' | 'integrations'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'players' | 'registrations' | 'teams' | 'scores' | 'settings' | 'integrations'>('overview');
   const [teams, setTeams] = useState<Team[]>([]);
   const [showEmbedModal, setShowEmbedModal] = useState(false);
   const [embedCopied, setEmbedCopied] = useState(false);
@@ -600,7 +602,10 @@ export default function LeaderboardManagementPage() {
             </span>
           </div>
 
-          <HelpModal {...leaderboardManagementHelp} />
+          <div className="flex items-center gap-3">
+            <NotificationBell />
+            <HelpModal {...leaderboardManagementHelp} />
+          </div>
         </header>
 
         <main className="flex-1 max-w-6xl mx-auto w-full px-6 mt-8 space-y-8">
@@ -674,7 +679,10 @@ export default function LeaderboardManagementPage() {
             </span>
           </div>
 
-          <HelpModal {...leaderboardManagementHelp} />
+          <div className="flex items-center gap-3">
+            <NotificationBell />
+            <HelpModal {...leaderboardManagementHelp} />
+          </div>
         </header>
 
         <main className="flex-1 max-w-6xl mx-auto w-full px-6 mt-8 space-y-8">
@@ -749,7 +757,10 @@ export default function LeaderboardManagementPage() {
           </span>
         </div>
 
-        <HelpModal {...leaderboardManagementHelp} />
+        <div className="flex items-center gap-3">
+          <NotificationBell />
+          <HelpModal {...leaderboardManagementHelp} />
+        </div>
       </header>
 
       {/* Main Board Container */}
@@ -798,7 +809,7 @@ export default function LeaderboardManagementPage() {
 
         {/* Tab selection */}
         <div className="flex border-b border-neutral-850 p-1 bg-neutral-900/40 rounded-2xl border mb-8 overflow-x-auto custom-scrollbar">
-          {(['overview', 'players', 'teams', 'scores', 'settings', 'integrations'] as const).map((tab) => (
+          {(['overview', 'players', 'registrations', 'teams', 'scores', 'settings', 'integrations'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -1112,6 +1123,18 @@ export default function LeaderboardManagementPage() {
               </div>
             )}
           </div>
+        )}
+
+        {/* ==========================================
+            TAB CONTENT: REGISTRATIONS & ROSTER
+            ========================================== */}
+        {activeTab === 'registrations' && leaderboard && (
+          <RegistrationManagementPanel
+            leaderboard={leaderboard}
+            members={members}
+            teams={teams}
+            onMembersUpdated={loadAllData}
+          />
         )}
 
         {/* ==========================================
