@@ -14,6 +14,7 @@ import {
   TeamWithRoster,
   TeamRosterRole,
   CompetitionConfig,
+  CompetitionRegistrationConfig,
   ParticipantProfile,
   ParticipantClaim,
   ParticipantCorrection,
@@ -43,7 +44,7 @@ export const supabase = isSupabaseConfigured
 
 const SEED_CREATOR_ID = 'creator-user-id';
 
-const DEFAULT_PROFILE: Profile = {
+export const DEFAULT_PROFILE: Profile = {
   id: SEED_CREATOR_ID,
   email: 'creator@leaderboardos.com',
   full_name: 'Alex Mercer',
@@ -95,7 +96,7 @@ export const DEFAULT_LEADERBOARDS: Leaderboard[] = [
   }
 ];
 
-const DEFAULT_SEASONS: Season[] = [
+export const DEFAULT_SEASONS: Season[] = [
   {
     id: 'season-gaming-1',
     leaderboard_id: 'lb-gaming-1',
@@ -403,6 +404,99 @@ const DEFAULT_ACTIVITY_LOGS: ActivityLog[] = [
   { id: 'log-4', leaderboard_id: 'lb-workplace-1', message: 'Sarah Jenkins score adjusted by +15 points: Meeting Booked', created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() },
   { id: 'log-5', leaderboard_id: 'lb-workplace-1', message: 'Michael Scott score adjusted by -150 points: Lost Account', created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() },
   { id: 'log-6', leaderboard_id: 'lb-workplace-1', message: 'Dwight Schrute score adjusted by +50 points: Upsell Landed', created_at: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString() }
+];
+
+export const DEFAULT_COMPETITION_CONFIGS: CompetitionConfig[] = [
+  {
+    leaderboard_id: 'lb-gaming-1',
+    engine_type: 'tournament',
+    template_key: 'esports',
+    entity_type: 'individual',
+    operational_status: 'registration_open',
+    participation_type: 'online',
+    location_name: 'Online (Twitch & Discord)',
+    entry_fee: 0,
+    currency: 'USD',
+    rules_summary: 'Single-elimination FPS tournament bracket with seeding based on seasonal score.',
+    is_featured: true,
+    created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    leaderboard_id: 'lb-workplace-1',
+    engine_type: 'simple_points',
+    template_key: 'custom',
+    entity_type: 'team',
+    operational_status: 'in_progress',
+    participation_type: 'online',
+    location_name: 'Global Enterprise HQ',
+    entry_fee: 0,
+    currency: 'USD',
+    rules_summary: 'Enterprise quarterly sales performance and qualified account bookings.',
+    is_featured: false,
+    created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    leaderboard_id: 'lb-sports-1',
+    engine_type: 'league_table',
+    template_key: 'football',
+    entity_type: 'individual',
+    operational_status: 'in_progress',
+    participation_type: 'in_person',
+    location_name: 'Sunset Athletic Track, Bay Area',
+    entry_fee: 10,
+    currency: 'USD',
+    rules_summary: 'Weekly circuit running league with 3-1-0 standings and age-graded tie breakers.',
+    is_featured: true,
+    created_at: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+];
+
+export const DEFAULT_REGISTRATION_CONFIGS: CompetitionRegistrationConfig[] = [
+  {
+    id: 'reg-cfg-gaming-1',
+    leaderboard_id: 'lb-gaming-1',
+    is_enabled: true,
+    capacity: 16,
+    opens_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    closes_at: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
+    require_approval: false,
+    allow_waitlist: true,
+    allow_team_registration: false,
+    eligibility_rules: { min_age: 16, notes: 'Open community tournament' },
+    created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'reg-cfg-workplace-1',
+    leaderboard_id: 'lb-workplace-1',
+    is_enabled: true,
+    capacity: 20,
+    opens_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+    closes_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    require_approval: true,
+    allow_waitlist: true,
+    allow_team_registration: true,
+    eligibility_rules: { allowed_domains: ['company.com'], notes: 'Verified company employees only' },
+    created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'reg-cfg-sports-1',
+    leaderboard_id: 'lb-sports-1',
+    is_enabled: true,
+    capacity: 10,
+    opens_at: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+    closes_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+    require_approval: true,
+    allow_waitlist: true,
+    allow_team_registration: false,
+    eligibility_rules: { notes: 'Club membership or guest day pass required' },
+    created_at: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
 ];
 
 export const DEFAULT_ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
@@ -1044,8 +1138,48 @@ export const DatabaseService = {
       if (error) return null;
       return data as CompetitionConfig;
     }
-    const configs = mockDb.get<CompetitionConfig[]>('competition_configs', []);
+    const configs = mockDb.get<CompetitionConfig[]>('competition_configs', DEFAULT_COMPETITION_CONFIGS);
     return configs.find(c => c.leaderboard_id === leaderboardId) || null;
+  },
+
+  async saveCompetitionConfig(config: CompetitionConfig): Promise<CompetitionConfig> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('competition_configs')
+        .upsert(config, { onConflict: 'leaderboard_id' })
+        .select()
+        .single();
+      if (error) throw error;
+      return data as CompetitionConfig;
+    }
+    const configs = mockDb.get<CompetitionConfig[]>('competition_configs', DEFAULT_COMPETITION_CONFIGS);
+    const existingIdx = configs.findIndex(c => c.leaderboard_id === config.leaderboard_id);
+    const updated = { ...config, updated_at: new Date().toISOString() };
+    if (existingIdx >= 0) {
+      configs[existingIdx] = updated;
+    } else {
+      configs.push(updated);
+    }
+    mockDb.set('competition_configs', configs);
+    return updated;
+  },
+
+  async getAllCompetitionConfigs(): Promise<CompetitionConfig[]> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.from('competition_configs').select('*');
+      if (error) return [];
+      return (data || []) as CompetitionConfig[];
+    }
+    return mockDb.get<CompetitionConfig[]>('competition_configs', DEFAULT_COMPETITION_CONFIGS);
+  },
+
+  async getAllRegistrationConfigs(): Promise<CompetitionRegistrationConfig[]> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.from('competition_registration_configs').select('*');
+      if (error) return [];
+      return (data || []) as CompetitionRegistrationConfig[];
+    }
+    return mockDb.get<CompetitionRegistrationConfig[]>('competition_registration_configs', DEFAULT_REGISTRATION_CONFIGS);
   },
 
   async createLeaderboard(

@@ -278,6 +278,12 @@ export interface CompetitionConfig {
   template_key: CompetitionTemplateKey;
   entity_type: CompetitionEntityType;
   operational_status?: CompetitionOperationalStatus;
+  participation_type?: 'online' | 'in_person' | 'hybrid' | 'unspecified';
+  location_name?: string | null;
+  entry_fee?: number;
+  currency?: string;
+  rules_summary?: string | null;
+  is_featured?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -1102,5 +1108,103 @@ export interface RatingHistoryEntry {
   reversal_reason?: string | null;
   created_at: string;
 }
+
+// ==========================================
+// COMPETITION MARKETPLACE DISCOVERY (ERA 4 PROMPT 1)
+// ==========================================
+
+export type MarketplaceParticipationType = 'all' | 'online' | 'in_person' | 'hybrid';
+export type MarketplaceRegistrationStatusFilter = 'all' | 'open' | 'approval_required' | 'waitlist' | 'closed' | 'view_only';
+export type MarketplaceSortOption = 'recently_updated' | 'upcoming' | 'popular' | 'newest';
+export type MarketplacePricingFilter = 'all' | 'free' | 'paid';
+export type MarketplaceDateRangeFilter = 'all' | 'upcoming' | 'ongoing' | 'past';
+
+export interface MarketplaceOrganizerInfo {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+}
+
+export interface MarketplaceRegistrationInfo {
+  is_enabled: boolean;
+  status: 'open' | 'approval_required' | 'waitlist' | 'closed' | 'ended' | 'view_only';
+  opens_at: string | null;
+  closes_at: string | null;
+  capacity: number | null;
+  registered_count: number;
+  require_approval: boolean;
+  allow_waitlist: boolean;
+  allow_team_registration: boolean;
+  eligibility_rules?: CompetitionEligibilityRules | null;
+  is_user_registered?: boolean;
+  user_registration_status?: RegistrationStatus | null;
+}
+
+export interface MarketplaceSeasonInfo {
+  id?: string;
+  name: string;
+  start_date: string;
+  end_date: string | null;
+}
+
+export interface MarketplacePricingInfo {
+  is_free: boolean;
+  entry_fee: number;
+  currency: string;
+}
+
+export interface MarketplaceCompetition {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  competition_type: CompetitionType;
+  engine_type: CompetitionEngine;
+  entity_type: CompetitionEntityType;
+  operational_status: CompetitionOperationalStatus;
+  cover_image_url: string | null;
+  created_at: string;
+  updated_at: string;
+  organizer: MarketplaceOrganizerInfo;
+  season: MarketplaceSeasonInfo | null;
+  registration: MarketplaceRegistrationInfo;
+  participation_type: 'online' | 'in_person' | 'hybrid' | 'unspecified';
+  location_name: string | null;
+  pricing: MarketplacePricingInfo;
+  rules_summary: string | null;
+  participant_count: number;
+  is_demo: boolean;
+}
+
+export interface MarketplaceQueryOptions {
+  query?: string;
+  category?: CompetitionType | 'all';
+  engine?: CompetitionEngine | 'all';
+  participation_type?: MarketplaceParticipationType;
+  registration_status?: MarketplaceRegistrationStatusFilter;
+  pricing?: MarketplacePricingFilter;
+  date_range?: MarketplaceDateRangeFilter;
+  organizer_id?: string;
+  sort?: MarketplaceSortOption;
+  page?: number;
+  pageSize?: number;
+  includeDemo?: boolean;
+  currentUserId?: string;
+}
+
+export interface MarketplaceQueryResult {
+  items: MarketplaceCompetition[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  facets: {
+    categories: Record<string, number>;
+    engines: Record<string, number>;
+    participationTypes: Record<string, number>;
+    registrationStatuses: Record<string, number>;
+  };
+}
+
 
 

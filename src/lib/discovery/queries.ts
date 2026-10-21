@@ -101,3 +101,11 @@ export async function getPublicLeaderboards(
 
   return { data: formattedData, totalCount: count || 0 };
 }
+
+export async function queryMarketplaceCompetitions(
+  options?: import('@/types').MarketplaceQueryOptions
+): Promise<import('@/types').MarketplaceQueryResult> {
+  const { CompetitionMarketplaceService } = await import('@/lib/competition/marketplace/service');
+  return CompetitionMarketplaceService.queryCompetitions(options);
+}
+
