@@ -277,12 +277,42 @@ export const CompetitionNotificationService = {
         }
         throw error;
       }
-      return data as CompetitionNotification;
+      const result = data as CompetitionNotification;
+      this.dispatchExternalEmail(recipient_email, prefs.email_opt_in, title, message, action_url);
+      return result;
     }
 
     const all = localGet<CompetitionNotification[]>(NOTIFICATIONS_STORAGE_KEY, []);
     localSet(NOTIFICATIONS_STORAGE_KEY, [newNotification, ...all]);
+    this.dispatchExternalEmail(recipient_email, prefs.email_opt_in, title, message, action_url);
     return newNotification;
+  },
+
+  /**
+   * Helper to dispatch external email asynchronously without blocking.
+   */
+  dispatchExternalEmail(
+    recipientEmail?: string | null,
+    optIn?: boolean,
+    title?: string,
+    message?: string,
+    actionUrl?: string | null
+  ) {
+    if (!recipientEmail || optIn === false || !title || !message) return;
+    if (typeof window !== 'undefined') {
+      void fetch('/api/notifications/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: recipientEmail,
+          title,
+          message,
+          action_url: actionUrl,
+        }),
+      }).catch((err) => {
+        console.warn('External email dispatch skipped or failed:', err);
+      });
+    }
   },
 
   /**
