@@ -395,6 +395,91 @@ export interface LeagueSettings {
   updated_at: string;
 }
 
+export type SchedulingStatus = 'unscheduled' | 'scheduled' | 'rescheduled' | 'conflict' | 'cancelled';
+
+export interface CompetitionVenue {
+  id: string;
+  leaderboard_id: string;
+  name: string;
+  court_field?: string | null;
+  location?: string | null;
+  capacity?: number | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ParticipantBlackout {
+  member_id: string;
+  start_date: string;
+  end_date: string;
+  reason?: string;
+}
+
+export interface CompetitionScheduleConfig {
+  id: string;
+  leaderboard_id: string;
+  start_date: string; // YYYY-MM-DD
+  end_date: string;   // YYYY-MM-DD
+  timezone: string;
+  playable_days: number[]; // 0=Sun, 1=Mon, ..., 6=Sat
+  daily_start_time: string; // HH:mm
+  daily_end_time: string;   // HH:mm
+  match_duration_minutes: number;
+  buffer_minutes: number;
+  rest_interval_minutes: number;
+  participant_availability: ParticipantBlackout[];
+  auto_assign_venues: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScheduledSlotProposal {
+  entity_id: string;
+  entity_type: 'fixture' | 'tournament_match';
+  home_member_id: string | null;
+  away_member_id: string | null;
+  home_name: string;
+  away_name: string;
+  round_name: string;
+  round_index?: number;
+  match_index?: number;
+  scheduled_at: string;
+  scheduled_end_at: string;
+  venue_id: string | null;
+  venue_name: string | null;
+  court_field: string | null;
+  timezone: string;
+  status: SchedulingStatus;
+  conflict_reason: string | null;
+}
+
+export interface ScheduleConflictExplanation {
+  entity_id: string;
+  home_name: string;
+  away_name: string;
+  round_name: string;
+  reason: string;
+  type: 'venue_overlap' | 'participant_overlap' | 'rest_interval_violation' | 'blackout_window' | 'outside_window' | 'exceeded_range' | 'manual_conflict';
+}
+
+export interface SchedulePreviewResult {
+  total_items: number;
+  scheduled_items: ScheduledSlotProposal[];
+  unscheduled_items: Array<{
+    entity_id: string;
+    home_member_id: string | null;
+    away_member_id: string | null;
+    home_name: string;
+    away_name: string;
+    round_name: string;
+    reason: string;
+  }>;
+  conflicts: ScheduleConflictExplanation[];
+  has_conflicts: boolean;
+  can_commit: boolean;
+}
+
 export interface Fixture {
   id: string;
   leaderboard_id: string;
@@ -402,10 +487,18 @@ export interface Fixture {
   away_member_id: string;
   round_name: string | null;
   scheduled_at: string | null;
+  scheduled_end_at?: string | null;
+  venue_id?: string | null;
+  venue_name?: string | null;
+  court_field?: string | null;
+  timezone?: string;
+  scheduling_status?: SchedulingStatus;
+  conflict_reason?: string | null;
   status: FixtureStatus;
   created_at: string;
   updated_at: string;
 }
+
 
 export interface FixtureResult {
   fixture_id: string;
@@ -491,6 +584,13 @@ export interface TournamentMatch {
   winner_member_id: string | null;
   loser_member_id: string | null;
   scheduled_at: string | null;
+  scheduled_end_at?: string | null;
+  venue_id?: string | null;
+  venue_name?: string | null;
+  court_field?: string | null;
+  timezone?: string;
+  scheduling_status?: SchedulingStatus;
+  conflict_reason?: string | null;
   state: TournamentMatchState;
   next_match_id: string | null;
   next_match_slot: 'home' | 'away' | null;

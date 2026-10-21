@@ -918,5 +918,64 @@ CREATE INDEX IF NOT EXISTS idx_competition_pathways_status ON public.competition
 
 ALTER TABLE public.competition_pathways ENABLE ROW LEVEL SECURITY;
 
+-- ============================================================================
+-- 32. Competition Scheduler, Venues & Constraints
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.competition_venues (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID NOT NULL REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  court_field TEXT,
+  location TEXT,
+  capacity INTEGER,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_competition_venues_leaderboard ON public.competition_venues(leaderboard_id);
+
+CREATE TABLE IF NOT EXISTS public.competition_schedule_configs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  leaderboard_id UUID NOT NULL UNIQUE REFERENCES public.leaderboards(id) ON DELETE CASCADE,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  timezone TEXT NOT NULL DEFAULT 'UTC',
+  playable_days INTEGER[] NOT NULL DEFAULT '{1,2,3,4,5,6,0}',
+  daily_start_time TEXT NOT NULL DEFAULT '09:00',
+  daily_end_time TEXT NOT NULL DEFAULT '18:00',
+  match_duration_minutes INTEGER NOT NULL DEFAULT 60,
+  buffer_minutes INTEGER NOT NULL DEFAULT 15,
+  rest_interval_minutes INTEGER NOT NULL DEFAULT 120,
+  participant_availability JSONB NOT NULL DEFAULT '[]'::jsonb,
+  auto_assign_venues BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_competition_schedule_configs_leaderboard ON public.competition_schedule_configs(leaderboard_id);
+
+ALTER TABLE public.fixtures
+  ADD COLUMN IF NOT EXISTS scheduled_end_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS venue_id UUID REFERENCES public.competition_venues(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS venue_name TEXT,
+  ADD COLUMN IF NOT EXISTS court_field TEXT,
+  ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'UTC',
+  ADD COLUMN IF NOT EXISTS scheduling_status TEXT NOT NULL DEFAULT 'unscheduled',
+  ADD COLUMN IF NOT EXISTS conflict_reason TEXT;
+
+ALTER TABLE public.tournament_matches
+  ADD COLUMN IF NOT EXISTS scheduled_end_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS venue_id UUID REFERENCES public.competition_venues(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS venue_name TEXT,
+  ADD COLUMN IF NOT EXISTS court_field TEXT,
+  ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'UTC',
+  ADD COLUMN IF NOT EXISTS scheduling_status TEXT NOT NULL DEFAULT 'unscheduled',
+  ADD COLUMN IF NOT EXISTS conflict_reason TEXT;
+
+ALTER TABLE public.competition_venues ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.competition_schedule_configs ENABLE ROW LEVEL SECURITY;
+
+
 
 

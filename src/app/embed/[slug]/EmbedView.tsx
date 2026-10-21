@@ -12,7 +12,7 @@ import {
   LeagueStandingRow,
   TournamentBracketView,
 } from '@/types';
-import { Trophy, Swords, Calendar } from 'lucide-react';
+import { Trophy } from 'lucide-react';
 import SafeImage from '@/components/SafeImage';
 import { useSearchParams } from 'next/navigation';
 
@@ -25,7 +25,7 @@ export interface EmbedViewInitialData {
 
 interface EmbedViewProps {
   slug: string;
-  initialData: any | null; // using any to match the server fetch payload easily
+  initialData: EmbedViewInitialData | null;
 }
 
 export default function EmbedView({ slug, initialData }: EmbedViewProps) {
@@ -82,12 +82,14 @@ export default function EmbedView({ slug, initialData }: EmbedViewProps) {
   );
 
   useEffect(() => {
-    // If we have initial data, we still need to load engine-specific state (league standings or tournament bracket)
-    if (initialData?.competitionConfig?.engine_type === 'league_table' || initialData?.competitionConfig?.engine_type === 'tournament') {
-      void loadData(true);
-    } else if (!initialData) {
-      void loadData();
-    }
+    queueMicrotask(() => {
+      // If we have initial data, we still need to load engine-specific state (league standings or tournament bracket)
+      if (initialData?.competitionConfig?.engine_type === 'league_table' || initialData?.competitionConfig?.engine_type === 'tournament') {
+        void loadData(true);
+      } else if (!initialData) {
+        void loadData();
+      }
+    });
   }, [initialData, loadData]);
 
   // Real-time subscriptions
@@ -347,6 +349,13 @@ export default function EmbedView({ slug, initialData }: EmbedViewProps) {
                               {node.match.state === 'live' && (
                                 <div className="mt-1 flex items-center gap-1 text-[9px] text-rose-400 font-bold uppercase tracking-wider">
                                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" /> Live
+                                </div>
+                              )}
+
+                              {node.match.scheduled_at && node.match.state === 'scheduled' && (
+                                <div className="mt-1 flex items-center justify-between text-[9px] text-neutral-400">
+                                  <span>{new Date(node.match.scheduled_at).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                  {node.match.venue_name && <span className="text-emerald-400 font-medium truncate max-w-[80px]">{node.match.venue_name}</span>}
                                 </div>
                               )}
                             </div>

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import {
   Activity,
   ArrowUpRight,
+  Calendar,
   Crown,
   Plus,
   Save,
@@ -35,6 +36,7 @@ import {
   PathwayTieHandling,
 } from '@/types';
 import { TeamRosterManagement } from '@/components/teams/TeamRosterManagement';
+import { CompetitionSchedulerPanel } from '@/components/competition/scheduling/CompetitionSchedulerPanel';
 
 interface TournamentManagementPanelProps {
   leaderboard: Leaderboard;
@@ -42,7 +44,7 @@ interface TournamentManagementPanelProps {
   onLeaderboardUpdated: (leaderboard: Leaderboard) => void;
 }
 
-type TabKey = 'overview' | 'bracket' | 'matches' | 'participants' | 'teams' | 'settings' | 'integrations';
+type TabKey = 'overview' | 'bracket' | 'matches' | 'schedule' | 'participants' | 'teams' | 'settings' | 'integrations';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -369,8 +371,8 @@ export default function TournamentManagementPanel({
         </div>
       </div>
 
-      <div className="flex max-w-3xl gap-2 rounded-2xl border border-neutral-850 bg-neutral-900/40 p-1 overflow-x-auto custom-scrollbar">
-        {(['overview', 'bracket', 'matches', 'participants', 'teams', 'settings', 'integrations'] as const).map((tab) => (
+      <div className="flex max-w-4xl gap-2 rounded-2xl border border-neutral-850 bg-neutral-900/40 p-1 overflow-x-auto custom-scrollbar">
+        {(['overview', 'bracket', 'matches', 'schedule', 'participants', 'teams', 'settings', 'integrations'] as const).map((tab) => (
           <button
             key={tab}
             type="button"
@@ -639,12 +641,59 @@ export default function TournamentManagementPanel({
               const canSave = !!node.homeMember && !!node.awayMember && node.match.state !== 'bye' && node.match.state !== 'cancelled';
 
               return (
-                <div key={node.match.id} className="glass rounded-2xl p-5">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="text-sm font-semibold text-white">{node.homeMember?.name || 'TBD'} vs {node.awayMember?.name || 'TBD'}</div>
-                    <div className="rounded-lg border border-white/5 px-2 py-1 text-[11px] uppercase tracking-widest text-neutral-400">{node.match.state}</div>
+                <div key={node.match.id} className="glass rounded-2xl p-5 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="text-sm font-semibold text-white">{node.homeMember?.name || 'TBD'} vs {node.awayMember?.name || 'TBD'}</div>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-neutral-400">
+                        {node.match.scheduled_at && (
+                          <span className="flex items-center gap-1.5 text-neutral-300">
+                            <Calendar className="h-3.5 w-3.5 text-neutral-500" />
+                            {new Date(node.match.scheduled_at).toLocaleString([], {
+                              month: 'short',
+                              day: 'numeric',
+                              weekday: 'short',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        )}
+                        {node.match.venue_name && (
+                          <span className="text-emerald-400 font-medium">
+                            • {node.match.venue_name} {node.match.court_field ? `(${node.match.court_field})` : ''}
+                          </span>
+                        )}
+                        <span className="text-neutral-500">• Round {node.match.round_index}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {node.match.scheduling_status && node.match.scheduling_status !== 'unscheduled' && (
+                        <span
+                          className={`rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${
+                            node.match.scheduling_status === 'scheduled'
+                              ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400'
+                              : node.match.scheduling_status === 'conflict'
+                              ? 'border-red-500/20 bg-red-500/10 text-red-400'
+                              : node.match.scheduling_status === 'rescheduled'
+                              ? 'border-amber-500/20 bg-amber-500/10 text-amber-400'
+                              : 'border-neutral-700 bg-neutral-800 text-neutral-400'
+                          }`}
+                        >
+                          {node.match.scheduling_status}
+                        </span>
+                      )}
+                      <div className="rounded-lg border border-white/5 px-2 py-1 text-[11px] uppercase tracking-widest text-neutral-400">{node.match.state}</div>
+                    </div>
                   </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-3">
+
+                  {node.match.scheduling_status === 'conflict' && node.match.conflict_reason && (
+                    <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-950/30 p-2 text-xs text-red-300">
+                      <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+                      <span>{node.match.conflict_reason}</span>
+                    </div>
+                  )}
+
+                  <div className="mt-2 flex flex-wrap items-center gap-3 pt-2 border-t border-white/5">
                     <input
                       type="number"
                       value={draft.home}
@@ -672,6 +721,15 @@ export default function TournamentManagementPanel({
             })
           )}
         </div>
+      )}
+
+      {activeTab === 'schedule' && (
+        <CompetitionSchedulerPanel
+          leaderboard={leaderboard}
+          engine="tournament"
+          members={members}
+          onScheduleCommitted={() => void loadTournamentData(true)}
+        />
       )}
 
       {activeTab === 'participants' && (
