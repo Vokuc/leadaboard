@@ -16,8 +16,9 @@ import { CompetitionRulesSettings } from '@/components/competition/CompetitionRu
 import { ResultAuditDrawer } from '@/components/competition/ResultAuditDrawer';
 import { CompetitionSchedulerPanel } from '@/components/competition/scheduling/CompetitionSchedulerPanel';
 import { RegistrationManagementPanel } from '@/components/competition/registration/RegistrationManagementPanel';
+import { EventDayControlPanel } from '@/components/competition/event-day/EventDayControlPanel';
 
-type TabKey = 'overview' | 'standings' | 'fixtures' | 'schedule' | 'registrations' | 'teams' | 'settings' | 'integrations';
+type TabKey = 'overview' | 'standings' | 'fixtures' | 'schedule' | 'event_day' | 'registrations' | 'teams' | 'settings' | 'integrations';
 
 interface LeagueManagementPanelProps {
   leaderboard: Leaderboard;
@@ -328,16 +329,16 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
       </div>
 
       <div className="flex max-w-4xl gap-2 rounded-2xl border border-neutral-850 bg-neutral-900/40 p-1 overflow-x-auto custom-scrollbar">
-        {(['overview', 'standings', 'fixtures', 'schedule', 'registrations', 'teams', 'settings', 'integrations'] as const).map((tab) => (
+        {(['overview', 'standings', 'fixtures', 'schedule', 'event_day', 'registrations', 'teams', 'settings', 'integrations'] as const).map((tab) => (
           <button
             key={tab}
             type="button"
             onClick={() => setActiveTab(tab)}
-            className={`flex-1 rounded-xl px-3 py-2 text-xs font-bold capitalize transition-all ${
+            className={`flex-1 rounded-xl px-3 py-2 text-xs font-bold capitalize transition-all whitespace-nowrap ${
               activeTab === tab ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white'
             }`}
           >
-            {tab}
+            {tab === 'event_day' ? 'Event Day ⚡' : tab}
           </button>
         ))}
       </div>
@@ -530,6 +531,13 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
           engine="league_table"
           members={members}
           onScheduleCommitted={() => void loadLeagueData()}
+        />
+      )}
+
+      {activeTab === 'event_day' && (
+        <EventDayControlPanel
+          leaderboard={leaderboard}
+          competitionConfig={competitionConfig}
         />
       )}
 

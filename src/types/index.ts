@@ -83,6 +83,7 @@ export interface Leaderboard {
 export interface LeaderboardAdmin {
   leaderboard_id: string;
   user_id: string;
+  role?: 'admin' | 'referee';
   created_at: string;
   profile?: Profile;
 }
@@ -579,6 +580,7 @@ export interface TournamentMatch {
   leaderboard_id: string;
   round_id: string;
   round_index: number;
+  round_name?: string | null;
   match_index: number;
   home_member_id: string | null;
   away_member_id: string | null;
@@ -724,3 +726,81 @@ export interface NotificationPreference {
   created_at: string;
   updated_at: string;
 }
+
+// ==========================================
+// TEMPLATES & EVENT-DAY OPERATIONS (ERA 2 PROMPT 3)
+// ==========================================
+
+export interface CompetitionTemplateDefinition {
+  key: string;
+  name: string;
+  version: string;
+  description: string;
+  engine: CompetitionEngine;
+  format: 'league' | 'knockout' | 'round_robin' | 'points_race' | 'fitness' | 'quiz' | 'custom';
+  competition_type: CompetitionType;
+  entity_type: CompetitionEntityType;
+  rules: {
+    points_for_win?: number;
+    points_for_draw?: number;
+    points_for_loss?: number;
+    scoring_rules?: Array<{ event_name: string; points: number; description?: string }>;
+  };
+  tie_breakers: string[];
+  fixture_settings: {
+    match_duration_minutes: number;
+    buffer_minutes: number;
+    two_legged?: boolean;
+    default_bracket_size?: number;
+    seeding_mode?: TournamentSeedingMode;
+  };
+  public_display_options: {
+    show_standings?: boolean;
+    show_bracket?: boolean;
+    show_fixtures?: boolean;
+    show_rules?: boolean;
+    show_activity_feed?: boolean;
+    highlight_top_n?: number;
+  };
+}
+
+export type EventDayOperatorRole = 'organizer' | 'referee' | 'viewer';
+
+export interface EventDayParticipant {
+  id: string;
+  name: string;
+  avatar_url?: string | null;
+  short_code?: string | null;
+  seed?: number | null;
+}
+
+export interface EventDayMatch {
+  id: string;
+  leaderboard_id: string;
+  engine: CompetitionEngine;
+  home_participant: EventDayParticipant;
+  away_participant: EventDayParticipant;
+  home_score: number | null;
+  away_score: number | null;
+  status: 'scheduled' | 'live' | 'completed' | 'postponed' | 'cancelled';
+  scheduled_at: string | null;
+  scheduled_end_at: string | null;
+  venue_name: string | null;
+  court_field: string | null;
+  round_name: string | null;
+  is_live: boolean;
+  next_actions: Array<'start' | 'update_score' | 'finalize' | 'edit'>;
+}
+
+export interface EventDayOfflineAction {
+  id: string;
+  matchId: string;
+  leaderboardId: string;
+  engine: CompetitionEngine;
+  actionType: 'start' | 'score_update' | 'finalize';
+  homeScore?: number;
+  awayScore?: number;
+  reason?: string;
+  timestamp: string;
+}
+

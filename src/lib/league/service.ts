@@ -503,12 +503,14 @@ export const LeagueService = {
     return fixture;
   },
 
-  async saveFixtureResult(input: SaveFixtureResultInput): Promise<void> {
+  async saveFixtureResult(input: SaveFixtureResultInput, options?: { skipAdminCheck?: boolean }): Promise<void> {
     const leaderboardId = await this.getLeaderboardIdFromFixture(input.fixtureId);
     if (!leaderboardId) {
       throw new Error('Fixture not found.');
     }
-    await DatabaseService.requireAdminPermission(leaderboardId);
+    if (!options?.skipAdminCheck) {
+      await DatabaseService.requireAdminPermission(leaderboardId);
+    }
 
     // Validate fixture result with competition rules
     const rules = await CompetitionRulesService.getRules(leaderboardId);

@@ -12,7 +12,8 @@ import {
   Team,
   TeamMember,
   TeamWithRoster,
-  TeamRosterRole
+  TeamRosterRole,
+  CompetitionConfig
 } from '../types';
 import { CompetitionRulesService } from '@/lib/competition/rules/service';
 import { validateScoreAdjustment } from '@/lib/competition/rules/validation';
@@ -796,6 +797,20 @@ export const DatabaseService = {
 
   async getLeaderboard(id: string): Promise<Leaderboard | null> {
     return this.getLeaderboardById(id);
+  },
+
+  async getCompetitionConfig(leaderboardId: string): Promise<CompetitionConfig | null> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('competition_configs')
+        .select('*')
+        .eq('leaderboard_id', leaderboardId)
+        .maybeSingle();
+      if (error) return null;
+      return data as CompetitionConfig;
+    }
+    const configs = mockDb.get<CompetitionConfig[]>('competition_configs', []);
+    return configs.find(c => c.leaderboard_id === leaderboardId) || null;
   },
 
   async createLeaderboard(

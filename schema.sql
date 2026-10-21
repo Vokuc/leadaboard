@@ -1077,3 +1077,31 @@ ALTER TABLE public.competition_registration_configs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.competition_registrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.competition_notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notification_preferences ENABLE ROW LEVEL SECURITY;
+
+-- 34. Templates Versioning & Event-Day Mode (Era 2 Prompt 3)
+ALTER TABLE public.leaderboard_admins
+  ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'admin' CHECK (role IN ('admin', 'referee'));
+
+CREATE OR REPLACE FUNCTION public.can_operate_event_day(p_leaderboard_id UUID, p_user_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM leaderboards l
+    WHERE l.id = p_leaderboard_id AND l.owner_id = p_user_id
+  ) OR EXISTS (
+    SELECT 1 FROM leaderboard_admins la
+    WHERE la.leaderboard_id = p_leaderboard_id AND la.user_id = p_user_id
+  );
+END;
+$$;
+
+ALTER TABLE public.competition_templates
+  ADD COLUMN IF NOT EXISTS version TEXT NOT NULL DEFAULT '1.0.0',
+  ADD COLUMN IF NOT EXISTS engine TEXT NOT NULL DEFAULT 'league_table',
+  ADD COLUMN IF NOT EXISTS format TEXT NOT NULL DEFAULT 'league',
+  ADD COLUMN IF NOT EXISTS default_config JSONB NOT NULL DEFAULT '{}'::jsonb;
+

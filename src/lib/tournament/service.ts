@@ -437,7 +437,7 @@ export const TournamentService = {
     setLocalTournamentState(state);
   },
 
-  async saveMatchResult(input: SaveTournamentMatchResultInput): Promise<void> {
+  async saveMatchResult(input: SaveTournamentMatchResultInput, options?: { skipAdminCheck?: boolean }): Promise<void> {
     const allPieces = await Promise.all([
       this.getMatchesByMatchId(input.matchId),
       this.getMatchById(input.matchId),
@@ -450,7 +450,9 @@ export const TournamentService = {
       throw new Error('Match not found.');
     }
 
-    await DatabaseService.requireAdminPermission(leaderboardId);
+    if (!options?.skipAdminCheck) {
+      await DatabaseService.requireAdminPermission(leaderboardId);
+    }
 
     // Validate knockout match result against competition rules (disallowing draws)
     const rules = await CompetitionRulesService.getRules(leaderboardId);
@@ -633,6 +635,20 @@ export const TournamentService = {
         console.warn('Could not record audit entry for tournament match result:', auditErr);
       }
     }
+  },
+
+  async submitMatchScore(
+    input: {
+      leaderboardId?: string;
+      matchId: string;
+      homeScore: number;
+      awayScore: number;
+      reason?: string;
+      evidenceUrls?: string[];
+    },
+    options?: { skipAdminCheck?: boolean }
+  ): Promise<void> {
+    return this.saveMatchResult(input, options);
   },
 
   async getBracketView(leaderboardId: string): Promise<TournamentBracketView | null> {

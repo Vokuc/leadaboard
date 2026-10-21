@@ -38,6 +38,7 @@ import {
 import { TeamRosterManagement } from '@/components/teams/TeamRosterManagement';
 import { CompetitionSchedulerPanel } from '@/components/competition/scheduling/CompetitionSchedulerPanel';
 import { RegistrationManagementPanel } from '@/components/competition/registration/RegistrationManagementPanel';
+import { EventDayControlPanel } from '@/components/competition/event-day/EventDayControlPanel';
 
 interface TournamentManagementPanelProps {
   leaderboard: Leaderboard;
@@ -45,7 +46,7 @@ interface TournamentManagementPanelProps {
   onLeaderboardUpdated: (leaderboard: Leaderboard) => void;
 }
 
-type TabKey = 'overview' | 'bracket' | 'matches' | 'schedule' | 'registrations' | 'participants' | 'teams' | 'settings' | 'integrations';
+type TabKey = 'overview' | 'bracket' | 'matches' | 'schedule' | 'event_day' | 'registrations' | 'participants' | 'teams' | 'settings' | 'integrations';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -373,16 +374,16 @@ export default function TournamentManagementPanel({
       </div>
 
       <div className="flex max-w-4xl gap-2 rounded-2xl border border-neutral-850 bg-neutral-900/40 p-1 overflow-x-auto custom-scrollbar">
-        {(['overview', 'bracket', 'matches', 'schedule', 'registrations', 'participants', 'teams', 'settings', 'integrations'] as const).map((tab) => (
+        {(['overview', 'bracket', 'matches', 'schedule', 'event_day', 'registrations', 'participants', 'teams', 'settings', 'integrations'] as const).map((tab) => (
           <button
             key={tab}
             type="button"
             onClick={() => setActiveTab(tab)}
-            className={`flex-1 rounded-xl px-3 py-2 text-xs font-bold capitalize transition-all ${
+            className={`flex-1 rounded-xl px-3 py-2 text-xs font-bold capitalize transition-all whitespace-nowrap ${
               activeTab === tab ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white'
             }`}
           >
-            {tab}
+            {tab === 'event_day' ? 'Event Day ⚡' : tab}
           </button>
         ))}
       </div>
@@ -730,6 +731,13 @@ export default function TournamentManagementPanel({
           engine="tournament"
           members={members}
           onScheduleCommitted={() => void loadTournamentData(true)}
+        />
+      )}
+
+      {activeTab === 'event_day' && (
+        <EventDayControlPanel
+          leaderboard={leaderboard}
+          competitionConfig={competitionConfig}
         />
       )}
 

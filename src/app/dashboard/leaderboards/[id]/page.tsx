@@ -39,6 +39,8 @@ import { TeamRosterManagement } from '@/components/teams/TeamRosterManagement';
 import { CompetitionRulesSettings } from '@/components/competition/CompetitionRulesSettings';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { RegistrationManagementPanel } from '@/components/competition/registration/RegistrationManagementPanel';
+import { EventDayControlPanel } from '@/components/competition/event-day/EventDayControlPanel';
+import { Play } from 'lucide-react';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -67,7 +69,7 @@ export default function LeaderboardManagementPage() {
   const [coverUploading, setCoverUploading] = useState(false);
 
   // Layout Tab
-  const [activeTab, setActiveTab] = useState<'overview' | 'players' | 'registrations' | 'teams' | 'scores' | 'settings' | 'integrations'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'players' | 'registrations' | 'event_day' | 'teams' | 'scores' | 'settings' | 'integrations'>('overview');
   const [teams, setTeams] = useState<Team[]>([]);
   const [showEmbedModal, setShowEmbedModal] = useState(false);
   const [embedCopied, setEmbedCopied] = useState(false);
@@ -796,6 +798,12 @@ export default function LeaderboardManagementPage() {
             >
               <Share2 className="w-3.5 h-3.5" /> Share
             </button>
+            <Link
+              href={`/dashboard/leaderboards/${leaderboard?.id}/event-day`}
+              className="flex items-center gap-1.5 px-3 py-2 bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 rounded-xl text-xs font-bold text-rose-300 shadow-lg transition-all cursor-pointer"
+            >
+              <Play className="w-3.5 h-3.5 fill-rose-400 text-rose-400" /> Event-Day Arena
+            </Link>
             <a
               href={`/leaderboards/${leaderboard?.slug}`}
               target="_blank"
@@ -809,17 +817,17 @@ export default function LeaderboardManagementPage() {
 
         {/* Tab selection */}
         <div className="flex border-b border-neutral-850 p-1 bg-neutral-900/40 rounded-2xl border mb-8 overflow-x-auto custom-scrollbar">
-          {(['overview', 'players', 'registrations', 'teams', 'scores', 'settings', 'integrations'] as const).map((tab) => (
+          {(['overview', 'players', 'registrations', 'event_day', 'teams', 'scores', 'settings', 'integrations'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-2 text-xs font-bold rounded-xl capitalize transition-all cursor-pointer ${
+              className={`flex-1 py-2 text-xs font-bold rounded-xl capitalize transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === tab 
                   ? 'bg-neutral-800 text-white shadow-md' 
                   : 'text-neutral-400 hover:text-white'
               }`}
             >
-              {tab}
+              {tab === 'event_day' ? 'Event Day ⚡' : tab}
             </button>
           ))}
         </div>
@@ -1134,6 +1142,16 @@ export default function LeaderboardManagementPage() {
             members={members}
             teams={teams}
             onMembersUpdated={loadAllData}
+          />
+        )}
+
+        {/* ==========================================
+            TAB CONTENT: EVENT-DAY ARENA
+            ========================================== */}
+        {activeTab === 'event_day' && leaderboard && (
+          <EventDayControlPanel
+            leaderboard={leaderboard}
+            competitionConfig={competitionConfig}
           />
         )}
 

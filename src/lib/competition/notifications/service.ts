@@ -556,4 +556,29 @@ export const CompetitionNotificationService = {
       });
     }
   },
+
+  /**
+   * Helper to broadcast a posted result for an event/match.
+   */
+  async notifyResultPosted(params: {
+    leaderboard_id: string;
+    competitionName: string;
+    matchTitle: string;
+    scoreSummary: string;
+    slug: string;
+    userIds?: string[];
+  }): Promise<void> {
+    const { leaderboard_id, competitionName, matchTitle, scoreSummary, slug, userIds } = params;
+    const targetUsers = userIds && userIds.length > 0 ? userIds : [];
+    if (targetUsers.length > 0) {
+      await this.notifyResultUpdated({
+        leaderboard_id,
+        competitionName,
+        userIds: targetUsers,
+        matchTitle,
+        scoreSummary,
+        slug,
+      });
+    }
+  },
 };
