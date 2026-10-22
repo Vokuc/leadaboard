@@ -34,6 +34,10 @@ import TournamentPublicView from '@/components/tournament/TournamentPublicView';
 import Logo from '@/components/Logo';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { PublicRegistrationCard } from '@/components/competition/registration/PublicRegistrationCard';
+import { ShareResultModal } from '@/components/sharing/ShareResultModal';
+import { ShareTriggerButton } from '@/components/sharing/ShareTriggerButton';
+import { SharedResultHighlightBanner } from '@/components/sharing/SharedResultHighlightBanner';
+import { ShareUrlOptions } from '@/lib/sharing/service';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -80,6 +84,7 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
 
   // Sharing Popup
   const [showShareModal, setShowShareModal] = useState(false);
+  const [activeShareOptions, setActiveShareOptions] = useState<ShareUrlOptions>({ type: 'competition' });
   const qrCanvasRef = useRef<HTMLCanvasElement>(null);
   const [shareUrl, setShareUrl] = useState('');
   const [copied, setCopied] = useState(false);
@@ -291,56 +296,12 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
 
   // ─── Share Modal (shared across engine types) ──────────────────────────────
 
-  const renderShareModal = (title: string) => (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="absolute inset-0" onClick={() => setShowShareModal(false)} />
-
-      <div className="glass-premium max-w-sm w-full p-6 rounded-2xl shadow-2xl relative border-white/10 glow-primary z-10 flex flex-col items-center text-center">
-        <button
-          onClick={() => setShowShareModal(false)}
-          className="absolute top-4 right-4 text-neutral-500 hover:text-white p-1 hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
-        >
-          <X className="w-4.5 h-4.5" />
-        </button>
-
-        <Share2 className="w-5 h-5 text-violet-400 mb-2" />
-        <h3 className="font-bold text-sm text-white">{title}</h3>
-        <p className="text-[10px] text-neutral-500 mt-1 max-w-[200px]">
-          Copy the public link or scan the code invitation.
-        </p>
-
-        <div className="mt-5 p-2 bg-white rounded-xl shadow-inner border border-neutral-200">
-          <canvas ref={qrCanvasRef} />
-        </div>
-
-        <div className="mt-6 flex w-full border border-neutral-850 p-1 bg-neutral-950/65 rounded-xl text-xs gap-1.5 items-center">
-          <span className="flex-1 text-neutral-450 truncate text-[11px] px-2 text-left">
-            {shareUrl}
-          </span>
-          <button
-            onClick={copyLink}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-500 rounded-lg text-[10px] font-bold text-white transition-all cursor-pointer whitespace-nowrap glow-primary"
-          >
-            <Copy className="w-3 h-3" /> {copied ? 'Copied!' : 'Copy Link'}
-          </button>
-        </div>
-
-        <div className="w-full mt-4 border-t border-white/5 pt-4">
-          <p className="text-[10px] text-neutral-500 mb-2">Or embed this leaderboard on your website:</p>
-          <div className="flex w-full border border-neutral-850 p-1 bg-neutral-950/65 rounded-xl text-xs gap-1.5 items-center">
-            <span className="flex-1 text-neutral-450 truncate text-[11px] px-2 text-left opacity-70">
-              {`<iframe src="${typeof window !== 'undefined' ? window.location.origin : ''}/embed/${leaderboard?.slug}"...>`}
-            </span>
-            <button
-              onClick={copyEmbedCode}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 rounded-lg text-[10px] font-bold text-white transition-all cursor-pointer whitespace-nowrap border border-white/10"
-            >
-              <Copy className="w-3 h-3" /> {embedCopied ? 'Copied Code!' : 'Copy Embed'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+  const renderShareModal = () => (
+    <ShareResultModal
+      isOpen={showShareModal}
+      onClose={() => setShowShareModal(false)}
+      options={activeShareOptions}
+    />
   );
 
   // ─── League Table View ─────────────────────────────────────────────────────
@@ -358,7 +319,10 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
             <NotificationBell />
             <HelpModal {...publicLeaderboardHelp} />
             <button
-              onClick={() => setShowShareModal(true)}
+              onClick={() => {
+                setActiveShareOptions({ type: 'competition', slug: leaderboard.slug });
+                setShowShareModal(true);
+              }}
               className="flex items-center gap-1.5 px-3 py-1.5 border border-neutral-850 hover:border-neutral-700 bg-neutral-900/60 hover:bg-neutral-900 text-xs font-semibold rounded-xl text-neutral-300 hover:text-white transition-colors cursor-pointer"
             >
               <Share2 className="w-3.5 h-3.5" /> Share Page
@@ -367,6 +331,8 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
         </header>
 
         <main className="flex-1 max-w-6xl mx-auto w-full px-6 mt-8 space-y-10">
+          <SharedResultHighlightBanner slug={leaderboard.slug} />
+
           <div className="text-center max-w-2xl mx-auto">
             <div className="flex justify-center items-center gap-2 mb-3">
               <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
@@ -404,7 +370,7 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
           <LeaguePublicView leaderboard={leaderboard} competitionConfig={competitionConfig} />
         </main>
 
-        {showShareModal && renderShareModal("Share League")}
+        {showShareModal && renderShareModal()}
       </div>
     );
   }
@@ -427,7 +393,10 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
             <NotificationBell />
             <HelpModal {...publicLeaderboardHelp} />
             <button
-              onClick={() => setShowShareModal(true)}
+              onClick={() => {
+                setActiveShareOptions({ type: 'competition', slug: leaderboard.slug });
+                setShowShareModal(true);
+              }}
               className="flex items-center gap-1.5 px-3 py-1.5 border border-neutral-850 hover:border-neutral-700 bg-neutral-900/60 hover:bg-neutral-900 text-xs font-semibold rounded-xl text-neutral-300 hover:text-white transition-colors cursor-pointer"
             >
               <Share2 className="w-3.5 h-3.5" /> Share Page
@@ -436,6 +405,8 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
         </header>
 
         <main className="flex-1 max-w-6xl mx-auto w-full px-6 mt-8 space-y-10">
+          <SharedResultHighlightBanner slug={leaderboard.slug} />
+
           <div className="text-center max-w-2xl mx-auto">
             <div className="flex justify-center items-center gap-2 mb-3">
               <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
@@ -473,7 +444,7 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
           <TournamentPublicView leaderboard={leaderboard} competitionConfig={competitionConfig} />
         </main>
 
-        {showShareModal && renderShareModal("Share Tournament")}
+        {showShareModal && renderShareModal()}
       </div>
     );
   }
@@ -581,13 +552,18 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
             <NotificationBell />
             <HelpModal {...publicLeaderboardHelp} />
             <button
-              onClick={() => setShowShareModal(true)}
+              onClick={() => {
+                setActiveShareOptions({ type: 'competition', slug: leaderboard.slug });
+                setShowShareModal(true);
+              }}
               className="flex items-center gap-1.5 px-3 py-1.5 border border-neutral-850 hover:border-neutral-700 bg-neutral-900/60 hover:bg-neutral-900 text-xs font-semibold rounded-xl text-neutral-300 hover:text-white transition-colors cursor-pointer"
             >
               <Share2 className="w-3.5 h-3.5" /> Share Page
             </button>
           </div>
         </header>
+
+        <SharedResultHighlightBanner slug={leaderboard.slug} />
 
         {isDemo && (
           <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between text-xs text-amber-200">
@@ -622,6 +598,20 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
                     isFirst ? 'order-1 sm:order-2 z-20' : isSecond ? 'order-2 sm:order-1 z-10' : 'order-3 z-10'
                   }`}
                 >
+                  {/* Share button on podium */}
+                  <div className="absolute top-0 right-1 z-30">
+                    <ShareTriggerButton
+                      options={{
+                        type: isFirst ? 'champion' : 'placement',
+                        slug: leaderboard.slug,
+                        memberId: player.member_id,
+                      }}
+                      size="icon"
+                      variant="subtle"
+                      title={isFirst ? "Share Champion Result" : "Share Placement Result"}
+                    />
+                  </div>
+
                   {/* Visual crown for #1 */}
                   {isFirst && (
                     <span className="text-xl absolute -top-5 text-amber-400 animate-bounce">👑</span>
@@ -823,7 +813,19 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
                             )}
                           </td>
                           <td className="px-6 py-4 text-right font-extrabold text-sm text-neutral-250">
-                            {r.total_points.toLocaleString()}
+                            <div className="flex items-center justify-end gap-2.5">
+                              <span>{r.total_points.toLocaleString()}</span>
+                              <ShareTriggerButton
+                                options={{
+                                  type: 'placement',
+                                  slug: leaderboard.slug,
+                                  memberId: r.member_id,
+                                }}
+                                size="icon"
+                                variant="ghost"
+                                title={`Share ${r.player_name}'s standing`}
+                              />
+                            </div>
                           </td>
                         </tr>
                       );
@@ -946,6 +948,24 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
               </div>
             </div>
 
+            {/* Share Player Action */}
+            <div className="mb-5">
+              <button
+                onClick={() => {
+                  setActiveShareOptions({
+                    type: 'placement',
+                    slug: leaderboard.slug,
+                    memberId: selectedPlayer.member_id,
+                  });
+                  setShowShareModal(true);
+                }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 font-bold text-xs text-white transition shadow-lg shadow-violet-600/20 cursor-pointer"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span>Share Competitor Result Card</span>
+              </button>
+            </div>
+
             {/* Score Logs History list */}
             <div>
               <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
@@ -1023,7 +1043,7 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
       )}
 
       {/* MODAL: SHARING QR & LINKS */}
-      {showShareModal && renderShareModal("Share League")}
+      {showShareModal && renderShareModal()}
     </div>
   );
 }

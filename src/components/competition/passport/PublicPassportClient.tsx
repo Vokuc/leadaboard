@@ -7,6 +7,7 @@ import { CompetitionPassportView } from '@/components/competition/passport/Compe
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import { Trophy, ArrowLeft, Lock, UserX } from 'lucide-react';
+import { SharedResultHighlightBanner } from '@/components/sharing/SharedResultHighlightBanner';
 
 interface PublicPassportClientProps {
   handle: string;
@@ -95,6 +96,8 @@ export const PublicPassportClient: React.FC<PublicPassportClientProps> = ({ hand
           <span>/</span>
           <span className="font-mono text-violet-300">@{handle}</span>
         </div>
+
+        <SharedResultHighlightBanner handle={handle} />
 
         {loading ? (
           <div className="py-24 text-center space-y-3">
