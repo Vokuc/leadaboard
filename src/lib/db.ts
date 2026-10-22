@@ -23,7 +23,12 @@ import {
   ParticipantAchievement,
   CompetitionRating,
   RatingHistoryEntry,
-  RatingEntityType
+  RatingEntityType,
+  ApiKey,
+  WebhookSubscription,
+  WebhookDelivery,
+  ApiIdempotencyRecord,
+  ApiAuditLog
 } from '../types';
 import { CompetitionRulesService } from '@/lib/competition/rules/service';
 import { validateScoreAdjustment } from '@/lib/competition/rules/validation';
@@ -814,6 +819,46 @@ class LocalDb {
   setRatingHistory(history: RatingHistoryEntry[]): void {
     this.set('rating_history', history);
   }
+
+  getApiKeys(): ApiKey[] {
+    return this.get<ApiKey[]>('api_keys', []);
+  }
+
+  setApiKeys(keys: ApiKey[]): void {
+    this.set('api_keys', keys);
+  }
+
+  getWebhookSubscriptions(): WebhookSubscription[] {
+    return this.get<WebhookSubscription[]>('webhook_subscriptions', []);
+  }
+
+  setWebhookSubscriptions(subs: WebhookSubscription[]): void {
+    this.set('webhook_subscriptions', subs);
+  }
+
+  getWebhookDeliveries(): WebhookDelivery[] {
+    return this.get<WebhookDelivery[]>('webhook_deliveries', []);
+  }
+
+  setWebhookDeliveries(deliveries: WebhookDelivery[]): void {
+    this.set('webhook_deliveries', deliveries);
+  }
+
+  getIdempotencyRecords(): ApiIdempotencyRecord[] {
+    return this.get<ApiIdempotencyRecord[]>('api_idempotency_records', []);
+  }
+
+  setIdempotencyRecords(records: ApiIdempotencyRecord[]): void {
+    this.set('api_idempotency_records', records);
+  }
+
+  getApiAuditLogs(): ApiAuditLog[] {
+    return this.get<ApiAuditLog[]>('api_audit_logs', []);
+  }
+
+  setApiAuditLogs(logs: ApiAuditLog[]): void {
+    this.set('api_audit_logs', logs);
+  }
 }
 
 export const mockDb = new LocalDb();
@@ -1140,6 +1185,17 @@ export const DatabaseService = {
     }
     const configs = mockDb.get<CompetitionConfig[]>('competition_configs', DEFAULT_COMPETITION_CONFIGS);
     return configs.find(c => c.leaderboard_id === leaderboardId) || null;
+  },
+
+  async getCompetitionConfigs(): Promise<CompetitionConfig[]> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('competition_configs')
+        .select('*');
+      if (error) return [];
+      return (data as CompetitionConfig[]) || [];
+    }
+    return mockDb.get<CompetitionConfig[]>('competition_configs', DEFAULT_COMPETITION_CONFIGS);
   },
 
   async saveCompetitionConfig(config: CompetitionConfig): Promise<CompetitionConfig> {
@@ -2190,8 +2246,15 @@ export const DatabaseService = {
   },
 
   // Score Events
-  async addScoreEvent(leaderboardId: string, memberId: string, event: Omit<ScoreEvent, 'id' | 'leaderboard_id' | 'member_id' | 'created_at'>): Promise<ScoreEvent> {
-    await this.requireAdminPermission(leaderboardId);
+  async addScoreEvent(
+    leaderboardId: string,
+    memberId: string,
+    event: Omit<ScoreEvent, 'id' | 'leaderboard_id' | 'member_id' | 'created_at'>,
+    options?: { skipAdminCheck?: boolean }
+  ): Promise<ScoreEvent> {
+    if (!options?.skipAdminCheck) {
+      await this.requireAdminPermission(leaderboardId);
+    }
     
     // Validate score adjustment against competition rules
     const rules = await CompetitionRulesService.getRules(leaderboardId);
@@ -2407,6 +2470,22 @@ export const DatabaseService = {
     const members = mockDb.getMembers().filter(m => m.leaderboard_id === leaderboardId);
     const events = mockDb.getScoreEvents().filter(e => e.leaderboard_id === leaderboardId);
     return evaluatePointsRankings(members, events, rules);
+  },
+
+  async getScoreEvents(leaderboardId: string): Promise<ScoreEvent[]> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('score_events')
+        .select('*')
+        .eq('leaderboard_id', leaderboardId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data as ScoreEvent[]) || [];
+    }
+    return mockDb
+      .getScoreEvents()
+      .filter((e) => e.leaderboard_id === leaderboardId)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   },
 
   async getPlayerHistory(memberId: string): Promise<ScoreEvent[]> {
@@ -2727,5 +2806,225 @@ export const DatabaseService = {
     current[index] = updated;
     mockDb.setRatingHistory(current);
     return updated;
+  },
+
+  // ==========================================
+  // ERA 5: API KEYS & WEBHOOKS
+  // ==========================================
+
+  async getApiKeys(ownerId?: string): Promise<ApiKey[]> {
+    if (isSupabaseConfigured && supabase) {
+      let query = supabase.from('api_keys').select('*').order('created_at', { ascending: false });
+      if (ownerId) query = query.eq('owner_id', ownerId);
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data || []) as ApiKey[];
+    }
+    return mockDb
+      .getApiKeys()
+      .filter((k) => !ownerId || k.owner_id === ownerId)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  },
+
+  async getApiKeyById(id: string): Promise<ApiKey | null> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.from('api_keys').select('*').eq('id', id).maybeSingle();
+      if (error) throw error;
+      return (data || null) as ApiKey | null;
+    }
+    return mockDb.getApiKeys().find((k) => k.id === id) || null;
+  },
+
+  async saveApiKey(apiKey: ApiKey): Promise<ApiKey> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.from('api_keys').insert([apiKey]).select().single();
+      if (error) throw error;
+      return data as ApiKey;
+    }
+    const current = mockDb.getApiKeys();
+    current.push(apiKey);
+    mockDb.setApiKeys(current);
+    return apiKey;
+  },
+
+  async updateApiKey(id: string, updates: Partial<ApiKey>): Promise<ApiKey> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('api_keys')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data as ApiKey;
+    }
+    const current = mockDb.getApiKeys();
+    const index = current.findIndex((k) => k.id === id);
+    if (index === -1) throw new Error('API Key not found.');
+    const updated = { ...current[index], ...updates, updated_at: new Date().toISOString() };
+    current[index] = updated;
+    mockDb.setApiKeys(current);
+    return updated;
+  },
+
+  async deleteApiKey(id: string): Promise<void> {
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('api_keys').delete().eq('id', id);
+      if (error) throw error;
+      return;
+    }
+    const current = mockDb.getApiKeys();
+    mockDb.setApiKeys(current.filter((k) => k.id !== id));
+  },
+
+  async getWebhookSubscriptions(ownerId?: string): Promise<WebhookSubscription[]> {
+    if (isSupabaseConfigured && supabase) {
+      let query = supabase.from('webhook_subscriptions').select('*').order('created_at', { ascending: false });
+      if (ownerId) query = query.eq('owner_id', ownerId);
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data || []) as WebhookSubscription[];
+    }
+    return mockDb
+      .getWebhookSubscriptions()
+      .filter((s) => !ownerId || s.owner_id === ownerId)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  },
+
+  async getWebhookSubscriptionById(id: string): Promise<WebhookSubscription | null> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.from('webhook_subscriptions').select('*').eq('id', id).maybeSingle();
+      if (error) throw error;
+      return (data || null) as WebhookSubscription | null;
+    }
+    return mockDb.getWebhookSubscriptions().find((s) => s.id === id) || null;
+  },
+
+  async saveWebhookSubscription(sub: WebhookSubscription): Promise<WebhookSubscription> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.from('webhook_subscriptions').insert([sub]).select().single();
+      if (error) throw error;
+      return data as WebhookSubscription;
+    }
+    const current = mockDb.getWebhookSubscriptions();
+    current.push(sub);
+    mockDb.setWebhookSubscriptions(current);
+    return sub;
+  },
+
+  async updateWebhookSubscription(id: string, updates: Partial<WebhookSubscription>): Promise<WebhookSubscription> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('webhook_subscriptions')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data as WebhookSubscription;
+    }
+    const current = mockDb.getWebhookSubscriptions();
+    const index = current.findIndex((s) => s.id === id);
+    if (index === -1) throw new Error('Webhook subscription not found.');
+    const updated = { ...current[index], ...updates, updated_at: new Date().toISOString() };
+    current[index] = updated;
+    mockDb.setWebhookSubscriptions(current);
+    return updated;
+  },
+
+  async deleteWebhookSubscription(id: string): Promise<void> {
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('webhook_subscriptions').delete().eq('id', id);
+      if (error) throw error;
+      return;
+    }
+    const current = mockDb.getWebhookSubscriptions();
+    mockDb.setWebhookSubscriptions(current.filter((s) => s.id !== id));
+  },
+
+  async getWebhookDeliveries(subscriptionId?: string): Promise<WebhookDelivery[]> {
+    if (isSupabaseConfigured && supabase) {
+      let query = supabase.from('webhook_deliveries').select('*').order('created_at', { ascending: false }).limit(50);
+      if (subscriptionId) query = query.eq('subscription_id', subscriptionId);
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data || []) as WebhookDelivery[];
+    }
+    return mockDb
+      .getWebhookDeliveries()
+      .filter((d) => !subscriptionId || d.subscription_id === subscriptionId)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 50);
+  },
+
+  async saveWebhookDelivery(delivery: WebhookDelivery): Promise<WebhookDelivery> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.from('webhook_deliveries').insert([delivery]).select().single();
+      if (error) throw error;
+      return data as WebhookDelivery;
+    }
+    const current = mockDb.getWebhookDeliveries();
+    current.unshift(delivery);
+    mockDb.setWebhookDeliveries(current);
+    return delivery;
+  },
+
+  async getIdempotencyRecord(keyId: string, idempotencyKey: string): Promise<ApiIdempotencyRecord | null> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase
+        .from('api_idempotency_records')
+        .select('*')
+        .eq('key_id', keyId)
+        .eq('idempotency_key', idempotencyKey)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      if (new Date(data.expires_at).getTime() < Date.now()) return null;
+      return data as ApiIdempotencyRecord;
+    }
+    const record = mockDb
+      .getIdempotencyRecords()
+      .find((r) => r.key_id === keyId && r.idempotency_key === idempotencyKey);
+    if (!record) return null;
+    if (new Date(record.expires_at).getTime() < Date.now()) return null;
+    return record;
+  },
+
+  async saveIdempotencyRecord(record: ApiIdempotencyRecord): Promise<ApiIdempotencyRecord> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.from('api_idempotency_records').upsert([record]).select().single();
+      if (error) throw error;
+      return data as ApiIdempotencyRecord;
+    }
+    const current = mockDb.getIdempotencyRecords().filter((r) => !(r.key_id === record.key_id && r.idempotency_key === record.idempotency_key));
+    current.push(record);
+    mockDb.setIdempotencyRecords(current);
+    return record;
+  },
+
+  async saveApiAuditLog(log: ApiAuditLog): Promise<ApiAuditLog> {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.from('api_audit_logs').insert([log]).select().single();
+      if (error) throw error;
+      return data as ApiAuditLog;
+    }
+    const current = mockDb.getApiAuditLogs();
+    current.unshift(log);
+    mockDb.setApiAuditLogs(current.slice(0, 200));
+    return log;
+  },
+
+  async getApiAuditLogs(ownerId?: string): Promise<ApiAuditLog[]> {
+    if (isSupabaseConfigured && supabase) {
+      let query = supabase.from('api_audit_logs').select('*').order('created_at', { ascending: false }).limit(100);
+      if (ownerId) query = query.eq('owner_id', ownerId);
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data || []) as ApiAuditLog[];
+    }
+    return mockDb
+      .getApiAuditLogs()
+      .filter((l) => !ownerId || l.owner_id === ownerId)
+      .slice(0, 100);
   }
 };

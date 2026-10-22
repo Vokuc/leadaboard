@@ -1206,5 +1206,131 @@ export interface MarketplaceQueryResult {
   };
 }
 
+// ==========================================
+// ERA 5: SECURE COMPETITION API & WEBHOOKS
+// ==========================================
+
+export type ApiKeyScope =
+  | 'competitions:read'
+  | 'competitions:write'
+  | 'scores:submit'
+  | 'participants:write'
+  | 'webhooks:manage'
+  | 'admin';
+
+export type ApiKeyStatus = 'active' | 'revoked' | 'expired';
+
+export interface ApiKey {
+  id: string;
+  owner_id: string;
+  name: string;
+  key_prefix: string;
+  secret_hash: string;
+  scopes: ApiKeyScope[];
+  rate_limit_per_minute: number;
+  status: ApiKeyStatus;
+  expires_at: string | null;
+  last_used_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApiKeyCreateInput {
+  name: string;
+  scopes: ApiKeyScope[];
+  rate_limit_per_minute?: number;
+  expires_at?: string | null;
+}
+
+export interface ApiKeyCreatedResult {
+  apiKey: ApiKey;
+  plaintextSecret: string;
+}
+
+export type WebhookEventType =
+  | 'competition.created'
+  | 'competition.updated'
+  | 'competition.completed'
+  | 'result.submitted'
+  | 'result.approved'
+  | 'participant.registered'
+  | 'ping';
+
+export interface WebhookSubscription {
+  id: string;
+  owner_id: string;
+  url: string;
+  secret: string;
+  events: WebhookEventType[];
+  description?: string | null;
+  status: 'active' | 'disabled';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WebhookDelivery {
+  id: string;
+  subscription_id: string;
+  event: WebhookEventType;
+  payload: Record<string, unknown>;
+  status: 'success' | 'failed' | 'pending';
+  status_code: number | null;
+  attempts: number;
+  error_message: string | null;
+  delivered_at: string | null;
+  created_at: string;
+}
+
+export interface ApiIdempotencyRecord {
+  id: string;
+  key_id: string;
+  idempotency_key: string;
+  endpoint: string;
+  request_hash: string;
+  response_status: number;
+  response_body: string;
+  expires_at: string;
+  created_at: string;
+}
+
+export interface ApiAuditLog {
+  id: string;
+  key_id: string;
+  owner_id: string;
+  endpoint: string;
+  method: string;
+  status_code: number;
+  duration_ms?: number;
+  idempotency_key?: string | null;
+  created_at: string;
+}
+
+export interface ApiMeta {
+  page?: number;
+  pageSize?: number;
+  total?: number;
+  hasMore?: boolean;
+  version: string;
+}
+
+export interface ApiSuccessResponse<T> {
+  success: true;
+  data: T;
+  meta?: ApiMeta;
+}
+
+export interface ApiErrorDetail {
+  code: string;
+  message: string;
+  details?: unknown;
+}
+
+export interface ApiErrorResponse {
+  success: false;
+  error: ApiErrorDetail;
+}
+
+export type ApiResponse<T> = ApiSuccessResponse<T> | ApiErrorResponse;
+
 
 

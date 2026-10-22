@@ -25,7 +25,8 @@ import {
   BookOpen,
   GraduationCap,
   CreditCard,
-  Shield
+  Shield,
+  Code
 } from 'lucide-react';
 import Link from 'next/link';
 import HelpModal from '@/components/HelpModal';
@@ -228,6 +229,12 @@ export default function DashboardPage() {
             className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-neutral-800 bg-neutral-900/60 text-neutral-300 text-xs font-semibold hover:bg-neutral-800"
           >
             <CreditCard className="w-3.5 h-3.5" /> Billing
+          </Link>
+          <Link
+            href="/dashboard/developer"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-200 text-xs font-semibold hover:bg-cyan-500/20"
+          >
+            <Code className="w-3.5 h-3.5 text-cyan-400" /> Developer
           </Link>
           {canOpenAdminPages && (
             <Link
