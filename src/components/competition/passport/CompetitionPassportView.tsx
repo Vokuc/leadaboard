@@ -29,6 +29,7 @@ import {
   Minus,
 } from 'lucide-react';
 import SafeImage from '@/components/SafeImage';
+import { ShareTriggerButton } from '@/components/sharing/ShareTriggerButton';
 
 interface CompetitionPassportViewProps {
   passport: CompetitionPassportData;
@@ -995,6 +996,22 @@ export const CompetitionPassportView: React.FC<CompetitionPassportViewProps> = (
                                 </span>
                               )}
                             </div>
+                          </div>
+                        )}
+
+                        {!isRevoked && (
+                          <div className="pt-2">
+                            <ShareTriggerButton
+                              options={{
+                                type: 'achievement',
+                                handle: profile.username,
+                                achievementId: award.id,
+                              }}
+                              size="sm"
+                              variant="subtle"
+                              label="Share Achievement"
+                              className="w-full"
+                            />
                           </div>
                         )}
                       </div>

@@ -27,10 +27,19 @@ import LeaderboardView, {
   type LeaderboardViewInitialData,
 } from './LeaderboardView';
 
+import { getAuthoritativeShareData, ShareType } from '@/lib/sharing/service';
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type PageProps = {
   params: Promise<{ slug: string }>;
+  searchParams?: Promise<{
+    share?: string;
+    member?: string;
+    match?: string;
+    fixture?: string;
+    v?: string;
+  }>;
 };
 
 // ─── Server-Side Data Fetching ────────────────────────────────────────────────
@@ -96,8 +105,52 @@ const fetchPublicLeaderboardData = cache(async (
 
 // ─── Dynamic Metadata ─────────────────────────────────────────────────────────
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
   const { slug } = await params;
+  const { share, member, match, fixture, v } = (await searchParams) || {};
+
+  // Check if this is a shared result deep link
+  if (share && ['placement', 'champion', 'match', 'bracket', 'competition'].includes(share)) {
+    const shareData = await getAuthoritativeShareData({
+      type: share as ShareType,
+      slug,
+      memberId: member,
+      matchId: match,
+      fixtureId: fixture,
+      version: v,
+    });
+
+    if (shareData && !shareData.isPrivate) {
+      return {
+        title: `${shareData.title} | ${shareData.competitionName} | LeaderboardOS`,
+        description: `${shareData.subtitle} Verified competitive results on LeaderboardOS.`,
+        alternates: {
+          canonical: shareData.canonicalUrl,
+        },
+        openGraph: {
+          title: `${shareData.title} — ${shareData.competitionName}`,
+          description: shareData.subtitle,
+          url: shareData.canonicalUrl,
+          siteName: 'LeaderboardOS',
+          images: [
+            {
+              url: shareData.ogImageUrl,
+              width: 1200,
+              height: 630,
+              alt: `${shareData.title} on LeaderboardOS`,
+            },
+          ],
+          type: 'website',
+        },
+        twitter: {
+          card: 'summary_large_image',
+          title: `${shareData.title} — ${shareData.competitionName}`,
+          description: shareData.subtitle,
+          images: [shareData.ogImageUrl],
+        },
+      };
+    }
+  }
 
   // Demo mode: we have no server data — return minimal non-indexed metadata
   if (!isSupabaseServerConfigured) {
@@ -132,11 +185,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     lb.description ||
     `Live real-time leaderboard for ${lb.name}. View current rankings, scores, and standings.`;
 
+  const versionHash = String(new Date(lb.updated_at || lb.created_at).getTime());
+  const ogImageUrl = `${BASE_URL}/api/og/share?type=competition&slug=${lb.slug}&v=${versionHash}`;
+
   return buildMetadata({
     title: lb.name,
     description,
     canonical: `${BASE_URL}/leaderboards/${lb.slug}`,
-    ...(lb.cover_image_url && { ogImage: lb.cover_image_url }),
+    ogImage: lb.cover_image_url || ogImageUrl,
   });
 }
 

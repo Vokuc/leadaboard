@@ -5,6 +5,7 @@ import { Activity, Calendar, Crown, Swords, Trophy } from 'lucide-react';
 import { isSupabaseConfigured, supabase } from '@/lib/db';
 import { TournamentService } from '@/lib/tournament/service';
 import { CompetitionConfig, Leaderboard, TournamentBracketView } from '@/types';
+import { ShareTriggerButton } from '@/components/sharing/ShareTriggerButton';
 
 interface TournamentPublicViewProps {
   leaderboard: Leaderboard;
@@ -151,10 +152,24 @@ export default function TournamentPublicView({ leaderboard, competitionConfig }:
                 <div className="mb-3 text-sm font-semibold text-white">{round.round.round_name}</div>
                 <div className="space-y-3 text-xs">
                   {round.matches.map((node) => (
-                    <div key={node.match.id} className="rounded-lg border border-white/5 bg-neutral-950/60 px-3 py-2">
-                      <div className="font-medium text-neutral-100">{node.homeMember?.name || 'TBD'} vs {node.awayMember?.name || 'TBD'}</div>
-                      <div className="mt-1 text-neutral-400">{node.result ? `${node.result.home_score} - ${node.result.away_score}` : 'Awaiting result'}</div>
-                      <div className="mt-1 text-[11px] uppercase tracking-wider text-neutral-500">{node.match.state}</div>
+                    <div key={node.match.id} className="rounded-lg border border-white/5 bg-neutral-950/60 px-3 py-2 flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-neutral-100 truncate">{node.homeMember?.name || 'TBD'} vs {node.awayMember?.name || 'TBD'}</div>
+                        <div className="mt-1 text-neutral-400">{node.result ? `${node.result.home_score} - ${node.result.away_score}` : 'Awaiting result'}</div>
+                        <div className="mt-1 text-[11px] uppercase tracking-wider text-neutral-500">{node.match.state}</div>
+                      </div>
+                      {node.result && (
+                        <ShareTriggerButton
+                          options={{
+                            type: 'match',
+                            slug: leaderboard.slug,
+                            matchId: node.match.id,
+                          }}
+                          size="icon"
+                          variant="ghost"
+                          title="Share match result"
+                        />
+                      )}
                     </div>
                   ))}
                 </div>
@@ -195,9 +210,21 @@ export default function TournamentPublicView({ leaderboard, competitionConfig }:
               <div className="text-neutral-500">No results recorded yet.</div>
             ) : (
               recentResults.slice(0, 8).map((item) => (
-                <div key={item.match.id} className="rounded-xl border border-white/5 bg-black/20 px-3 py-3">
-                  <div className="font-semibold text-white">{item.homeMember?.name} {item.result.home_score} - {item.result.away_score} {item.awayMember?.name}</div>
-                  <div className="mt-1 text-[11px] text-neutral-500">Round {item.match.round_index}</div>
+                <div key={item.match.id} className="rounded-xl border border-white/5 bg-black/20 px-3 py-3 flex items-center justify-between gap-2">
+                  <div>
+                    <div className="font-semibold text-white">{item.homeMember?.name} {item.result.home_score} - {item.result.away_score} {item.awayMember?.name}</div>
+                    <div className="mt-1 text-[11px] text-neutral-500">Round {item.match.round_index}</div>
+                  </div>
+                  <ShareTriggerButton
+                    options={{
+                      type: 'match',
+                      slug: leaderboard.slug,
+                      matchId: item.match.id,
+                    }}
+                    size="icon"
+                    variant="subtle"
+                    title="Share match result"
+                  />
                 </div>
               ))
             )}
@@ -206,11 +233,22 @@ export default function TournamentPublicView({ leaderboard, competitionConfig }:
       </div>
 
       {bracketView?.champion && (
-        <div className="glass rounded-2xl border border-amber-500/20 bg-amber-500/10 p-5">
-          <div className="flex items-center gap-2 text-sm font-bold text-amber-200">
-            <Crown className="h-4 w-4" /> Champion: {bracketView.champion.name}
+        <div className="glass rounded-2xl border border-amber-500/20 bg-amber-500/10 p-5 flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-bold text-amber-200">
+              <Crown className="h-4 w-4" /> Champion: {bracketView.champion.name}
+            </div>
+            <div className="mt-1 text-xs text-amber-100/80">Tournament template: {competitionConfig.template_key}</div>
           </div>
-          <div className="mt-1 text-xs text-amber-100/80">Tournament template: {competitionConfig.template_key}</div>
+          <ShareTriggerButton
+            options={{
+              type: 'champion',
+              slug: leaderboard.slug,
+            }}
+            variant="solid"
+            size="sm"
+            label="Share Champion"
+          />
         </div>
       )}
     </div>

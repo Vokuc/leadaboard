@@ -8,6 +8,7 @@ import { LeagueService } from '@/lib/league/service';
 import { CompetitionConfig, CompetitionRules, CompetitionStatistic, Leaderboard, LeagueStandingRow } from '@/types';
 import { CompetitionRulesService } from '@/lib/competition/rules/service';
 import { RulesExplainerCard } from '@/components/competition/RulesExplainerCard';
+import { ShareTriggerButton } from '@/components/sharing/ShareTriggerButton';
 
 interface LeaguePublicViewProps {
   leaderboard: Leaderboard;
@@ -119,10 +120,20 @@ export default function LeaguePublicView({ leaderboard, competitionConfig }: Lea
           <div className="mt-2 text-lg font-bold text-white">League Table</div>
           <div className="mt-1 text-xs text-neutral-400">{competitionConfig.entity_type === 'team' ? 'Club standings' : 'Individual standings'}</div>
         </div>
-        <div className="glass rounded-2xl p-5">
-          <div className="text-[10px] uppercase tracking-widest text-neutral-500">Leader</div>
-          <div className="mt-2 text-lg font-bold text-white">{topTeam}</div>
-          <div className="mt-1 text-xs text-neutral-400">Top of the table</div>
+        <div className="glass rounded-2xl p-5 flex items-center justify-between">
+          <div>
+            <div className="text-[10px] uppercase tracking-widest text-neutral-500">Leader</div>
+            <div className="mt-2 text-lg font-bold text-white">{topTeam}</div>
+            <div className="mt-1 text-xs text-neutral-400">Top of the table</div>
+          </div>
+          {standings.length > 0 && (
+            <ShareTriggerButton
+              options={{ type: 'champion', slug: leaderboard.slug }}
+              size="sm"
+              variant="subtle"
+              label="Share"
+            />
+          )}
         </div>
         <div className="glass rounded-2xl p-5">
           <div className="text-[10px] uppercase tracking-widest text-neutral-500">Results</div>
@@ -140,6 +151,7 @@ export default function LeaguePublicView({ leaderboard, competitionConfig }: Lea
               {visibleColumns.map((column) => (
                 <th key={column.id} className="px-6 py-3.5">{column.label}</th>
               ))}
+              <th className="px-4 py-3.5 text-right w-12">Share</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5 bg-black/20">
@@ -171,6 +183,18 @@ export default function LeaguePublicView({ leaderboard, competitionConfig }: Lea
                 {visibleColumns.map((column) => (
                   <td key={column.id} className="px-6 py-4 text-neutral-300">{formatValue(row.stats[column.statistic_key] || 0)}</td>
                 ))}
+                <td className="px-4 py-4 text-right">
+                  <ShareTriggerButton
+                    options={{
+                      type: 'placement',
+                      slug: leaderboard.slug,
+                      memberId: row.member_id,
+                    }}
+                    size="icon"
+                    variant="ghost"
+                    title={`Share ${row.name}'s standing`}
+                  />
+                </td>
               </tr>
             ))}
           </tbody>
@@ -198,14 +222,26 @@ export default function LeaguePublicView({ leaderboard, competitionConfig }: Lea
             ) : (
               recentResults.slice(0, 8).map((item) => (
                 <div key={item.fixture.id} className="rounded-xl border border-white/5 bg-black/25 px-3 py-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <div className="font-semibold text-white">{item.homeMember?.name} {item.result?.home_score} - {item.result?.away_score} {item.awayMember?.name}</div>
-                    {item.result?.status === 'disputed' && (
-                      <span className="rounded bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-400 border border-amber-500/20">Under Dispute</span>
-                    )}
-                    {item.result?.status === 'voided' && (
-                      <span className="rounded bg-red-500/10 px-2 py-0.5 text-[10px] font-bold text-red-400 border border-red-500/20">Voided</span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {item.result?.status === 'disputed' && (
+                        <span className="rounded bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-400 border border-amber-500/20">Under Dispute</span>
+                      )}
+                      {item.result?.status === 'voided' && (
+                        <span className="rounded bg-red-500/10 px-2 py-0.5 text-[10px] font-bold text-red-400 border border-red-500/20">Voided</span>
+                      )}
+                      <ShareTriggerButton
+                        options={{
+                          type: 'match',
+                          slug: leaderboard.slug,
+                          fixtureId: item.fixture.id,
+                        }}
+                        size="icon"
+                        variant="subtle"
+                        title="Share match result"
+                      />
+                    </div>
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-neutral-500">
                     <span className="flex items-center gap-1.5">
