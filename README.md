@@ -101,3 +101,10 @@ Only the **Owner** of a leaderboard is authorized to:
 - Delete or archive the leaderboard.
 
 **Visitors** can only view ranking podiums, search lists, and active logs for leaderboards marked **Public**. **Private** boards require login verification.
+
+---
+
+## 📚 Documentation
+
+- [Secure Competition API & Webhooks (`/api/v1`)](docs/api.md): Versioned REST API, scoped keys, sliding-window rate limiting, idempotency, HMAC SHA-256 webhooks, and Developer Console.
+- [Payments & Billing](docs/payments.md): Multi-provider billing architecture and Paystack lifecycle integration.
