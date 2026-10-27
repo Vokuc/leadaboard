@@ -82,7 +82,7 @@ CREATE POLICY "Organizers can view own competition sponsors"
     (leaderboard_id IS NOT NULL AND EXISTS (
       SELECT 1 FROM public.leaderboards l
       WHERE l.id = competition_sponsors.leaderboard_id
-        AND (l.created_by = auth.uid() OR EXISTS (
+        AND (l.owner_id = auth.uid() OR EXISTS (
           SELECT 1 FROM public.leaderboard_admins la
           WHERE la.leaderboard_id = l.id AND la.user_id = auth.uid()
         ))
@@ -106,7 +106,7 @@ CREATE POLICY "Organizers can insert competition sponsors"
     (leaderboard_id IS NOT NULL AND EXISTS (
       SELECT 1 FROM public.leaderboards l
       WHERE l.id = leaderboard_id
-        AND (l.created_by = auth.uid() OR EXISTS (
+        AND (l.owner_id = auth.uid() OR EXISTS (
           SELECT 1 FROM public.leaderboard_admins la
           WHERE la.leaderboard_id = l.id AND la.user_id = auth.uid()
         ))
@@ -129,7 +129,7 @@ CREATE POLICY "Organizers can update competition sponsors"
     (leaderboard_id IS NOT NULL AND EXISTS (
       SELECT 1 FROM public.leaderboards l
       WHERE l.id = competition_sponsors.leaderboard_id
-        AND (l.created_by = auth.uid() OR EXISTS (
+        AND (l.owner_id = auth.uid() OR EXISTS (
           SELECT 1 FROM public.leaderboard_admins la
           WHERE la.leaderboard_id = l.id AND la.user_id = auth.uid()
         ))
@@ -152,7 +152,7 @@ CREATE POLICY "Organizers can delete competition sponsors"
     (leaderboard_id IS NOT NULL AND EXISTS (
       SELECT 1 FROM public.leaderboards l
       WHERE l.id = competition_sponsors.leaderboard_id
-        AND (l.created_by = auth.uid() OR EXISTS (
+        AND (l.owner_id = auth.uid() OR EXISTS (
           SELECT 1 FROM public.leaderboard_admins la
           WHERE la.leaderboard_id = l.id AND la.user_id = auth.uid()
         ))
@@ -189,7 +189,7 @@ CREATE POLICY "Organizers can read sponsor events"
           (cs.leaderboard_id IS NOT NULL AND EXISTS (
             SELECT 1 FROM public.leaderboards l
             WHERE l.id = cs.leaderboard_id
-              AND (l.created_by = auth.uid() OR EXISTS (
+              AND (l.owner_id = auth.uid() OR EXISTS (
                 SELECT 1 FROM public.leaderboard_admins la
                 WHERE la.leaderboard_id = l.id AND la.user_id = auth.uid()
               ))
