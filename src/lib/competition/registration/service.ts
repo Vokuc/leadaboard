@@ -86,6 +86,9 @@ export interface RegisterParticipantInput {
   participantEmail: string;
   teamId?: string | null;
   notes?: string | null;
+  initialStatus?: RegistrationStatus;
+  paymentReference?: string;
+  paymentStatus?: import('@/types').RegistrationPaymentStatus;
 }
 
 export const CompetitionRegistrationService = {
@@ -126,6 +129,14 @@ export const CompetitionRegistrationService = {
         min_age: null,
         notes: '',
       },
+      entry_fee: null,
+      currency: 'NGN',
+      payment_deadline: null,
+      refund_policy: 'no_refunds',
+      platform_fee_percent: 5,
+      prize_pool_percentage: 0,
+      guaranteed_prize_pool: null,
+      payout_status: 'unconfigured',
       created_at: nowIso(),
       updated_at: nowIso(),
     };
@@ -159,6 +170,14 @@ export const CompetitionRegistrationService = {
             allow_waitlist: updated.allow_waitlist,
             allow_team_registration: updated.allow_team_registration,
             eligibility_rules: updated.eligibility_rules,
+            entry_fee: updated.entry_fee ?? null,
+            currency: updated.currency ?? 'NGN',
+            payment_deadline: updated.payment_deadline ?? null,
+            refund_policy: updated.refund_policy ?? 'no_refunds',
+            platform_fee_percent: updated.platform_fee_percent ?? 5,
+            prize_pool_percentage: updated.prize_pool_percentage ?? 0,
+            guaranteed_prize_pool: updated.guaranteed_prize_pool ?? null,
+            payout_status: updated.payout_status ?? 'unconfigured',
             updated_at: updated.updated_at,
           },
           { onConflict: 'leaderboard_id' }
@@ -272,10 +291,10 @@ export const CompetitionRegistrationService = {
       throw new Error(capacityEval.error);
     }
 
-    const assignedStatus = capacityEval.targetStatus;
+    const assignedStatus = input.initialStatus || capacityEval.targetStatus;
     let memberId: string | null = null;
 
-    // 5. If auto-approved/confirmed, link or create member record
+    // 5. If auto-approved/confirmed (and not pending payment), link or create member record
     if (assignedStatus === 'confirmed' || assignedStatus === 'approved') {
       memberId = await this.syncMemberRecord(leaderboardId, {
         name: participantName.trim(),
@@ -298,6 +317,12 @@ export const CompetitionRegistrationService = {
       claimed_at: null,
       rejection_reason: null,
       notes: notes?.trim() || null,
+      payment_id: null,
+      payment_status: input.paymentStatus || (assignedStatus === 'pending_payment' ? 'pending' : null),
+      payment_reference: input.paymentReference || null,
+      amount_paid: 0,
+      currency: config.currency || 'NGN',
+      paid_at: null,
       created_at: nowIso(),
       updated_at: nowIso(),
     };
@@ -318,6 +343,12 @@ export const CompetitionRegistrationService = {
           claimed_at: newRegistration.claimed_at,
           rejection_reason: newRegistration.rejection_reason,
           notes: newRegistration.notes,
+          payment_id: newRegistration.payment_id,
+          payment_status: newRegistration.payment_status,
+          payment_reference: newRegistration.payment_reference,
+          amount_paid: newRegistration.amount_paid,
+          currency: newRegistration.currency,
+          paid_at: newRegistration.paid_at,
           created_at: newRegistration.created_at,
           updated_at: newRegistration.updated_at,
         })
@@ -330,8 +361,8 @@ export const CompetitionRegistrationService = {
       localSet(REGISTRATIONS_STORAGE_KEY, [...all, newRegistration]);
     }
 
-    // 6. Notify the participant of registration status
-    if (userId) {
+    // 6. Notify the participant of registration status (skip if pending payment)
+    if (userId && assignedStatus !== 'pending_payment') {
       const lb = await DatabaseService.getLeaderboard(leaderboardId);
       if (lb) {
         await CompetitionNotificationService.notifyRegistrationStatus({
@@ -346,6 +377,140 @@ export const CompetitionRegistrationService = {
     }
 
     return newRegistration;
+  },
+
+  /**
+   * Confirms a paid registration upon verified transaction completion.
+   * Promotes registration to approved or confirmed, creates member record, and assigns payment metadata.
+   */
+  async confirmPaidRegistration(
+    registrationId: string,
+    leaderboardId: string,
+    paymentDetails: {
+      paymentId: string;
+      paymentReference: string;
+      amountPaid: number;
+      currency: string;
+      paidAt: string;
+    }
+  ): Promise<CompetitionRegistration> {
+    const reg = await this.getRegistrationById(registrationId, leaderboardId);
+    if (!reg) throw new Error('Registration not found.');
+
+    const config = await this.getConfig(leaderboardId);
+    const targetStatus: RegistrationStatus = config.require_approval ? 'approved' : 'confirmed';
+
+    let memberId = reg.member_id;
+    if (!memberId) {
+      memberId = await this.syncMemberRecord(leaderboardId, {
+        name: reg.participant_name,
+        email: reg.participant_email,
+        userId: reg.user_id,
+        teamId: reg.team_id,
+      });
+    }
+
+    const updated: CompetitionRegistration = {
+      ...reg,
+      status: targetStatus,
+      member_id: memberId,
+      payment_id: paymentDetails.paymentId,
+      payment_status: 'succeeded',
+      payment_reference: paymentDetails.paymentReference,
+      amount_paid: paymentDetails.amountPaid,
+      currency: paymentDetails.currency,
+      paid_at: paymentDetails.paidAt,
+      updated_at: nowIso(),
+    };
+
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase
+        .from('competition_registrations')
+        .update({
+          status: updated.status,
+          member_id: updated.member_id,
+          payment_id: updated.payment_id,
+          payment_status: updated.payment_status,
+          payment_reference: updated.payment_reference,
+          amount_paid: updated.amount_paid,
+          currency: updated.currency,
+          paid_at: updated.paid_at,
+          updated_at: updated.updated_at,
+        })
+        .eq('id', registrationId);
+
+      if (error) throw error;
+    } else {
+      const all = localGet<CompetitionRegistration[]>(REGISTRATIONS_STORAGE_KEY, []);
+      const nextList = all.map((r) => (r.id === registrationId ? updated : r));
+      localSet(REGISTRATIONS_STORAGE_KEY, nextList);
+    }
+
+    if (updated.user_id) {
+      const lb = await DatabaseService.getLeaderboard(leaderboardId);
+      if (lb) {
+        await CompetitionNotificationService.notifyRegistrationStatus({
+          leaderboard_id: leaderboardId,
+          competitionName: lb.name,
+          user_id: updated.user_id,
+          participant_email: updated.participant_email,
+          status: targetStatus as 'pending' | 'approved' | 'rejected' | 'waitlisted' | 'confirmed',
+          slug: lb.slug,
+        });
+      }
+    }
+
+    return updated;
+  },
+
+  /**
+   * Marks a registration as refunded and deactivates participant membership.
+   */
+  async markRefunded(
+    registrationId: string,
+    leaderboardId: string
+  ): Promise<CompetitionRegistration> {
+    const reg = await this.getRegistrationById(registrationId, leaderboardId);
+    if (!reg) throw new Error('Registration not found.');
+
+    const updated: CompetitionRegistration = {
+      ...reg,
+      status: 'withdrawn',
+      payment_status: 'refunded',
+      updated_at: nowIso(),
+    };
+
+    if (isSupabaseConfigured && supabase) {
+      await supabase
+        .from('competition_registrations')
+        .update({
+          status: 'withdrawn',
+          payment_status: 'refunded',
+          updated_at: updated.updated_at,
+        })
+        .eq('id', registrationId);
+    } else {
+      const all = localGet<CompetitionRegistration[]>(REGISTRATIONS_STORAGE_KEY, []);
+      localSet(
+        REGISTRATIONS_STORAGE_KEY,
+        all.map((r) => (r.id === registrationId ? updated : r))
+      );
+    }
+
+    // Deactivate member in roster if exists
+    if (reg.member_id) {
+      try {
+        await DatabaseService.updateMember(
+          reg.member_id,
+          { is_active: false },
+          { skipAdminCheck: true }
+        );
+      } catch (err) {
+        console.warn('Could not deactivate member for refunded registration:', err);
+      }
+    }
+
+    return updated;
   },
 
   /**
@@ -626,20 +791,20 @@ export const CompetitionRegistrationService = {
   /**
    * Helper to fetch registration by ID.
    */
-  async getRegistrationById(registrationId: string): Promise<CompetitionRegistration | null> {
+  async getRegistrationById(registrationId: string, leaderboardId?: string): Promise<CompetitionRegistration | null> {
     if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase
-        .from('competition_registrations')
-        .select('*')
-        .eq('id', registrationId)
-        .maybeSingle();
+      let query = supabase.from('competition_registrations').select('*').eq('id', registrationId);
+      if (leaderboardId) {
+        query = query.eq('leaderboard_id', leaderboardId);
+      }
+      const { data, error } = await query.maybeSingle();
 
       if (!error && data) return data as CompetitionRegistration;
       return null;
     }
 
     const all = localGet<CompetitionRegistration[]>(REGISTRATIONS_STORAGE_KEY, []);
-    return all.find((r) => r.id === registrationId) || null;
+    return all.find((r) => r.id === registrationId && (!leaderboardId || r.leaderboard_id === leaderboardId)) || null;
   },
 
   /**

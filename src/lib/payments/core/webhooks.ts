@@ -107,6 +107,38 @@ export const PaymentWebhookService = {
     const paymentReference = String(data.payment_reference || data.reference || data.paymentReference || '');
     const providerSubscriptionId = String(data.provider_subscription_id || data.subscription_id || data.subscriptionId || '');
 
+    const rawMeta = (data.metadata || {}) as Record<string, unknown>;
+    // Check if this is a competition registration payment (starts with cpay_ or has metadata payment_kind === 'entry_fee')
+    const isCompetitionPayment =
+      paymentReference.startsWith('cpay_') ||
+      rawMeta.payment_kind === 'entry_fee' ||
+      Boolean(rawMeta.competition_id);
+
+    if (isCompetitionPayment && paymentReference) {
+      const { CompetitionPaymentService } = await import('@/lib/payments/competition/service');
+      const verifyResult = await CompetitionPaymentService.verifyPayment(paymentReference);
+
+      await supabase
+        .from('webhook_events')
+        .update({
+          processed: true,
+          processed_at: new Date().toISOString(),
+          metadata: {
+            handled_by: 'CompetitionPaymentService',
+            verified: verifyResult.success,
+          },
+        })
+        .eq('provider', providerKey)
+        .eq('event_id', normalized.eventId);
+
+      return {
+        success: true,
+        eventId: normalized.eventId,
+        type: 'competition_entry_fee',
+        verified: verifyResult.success,
+      };
+    }
+
     if (paymentReference) {
       const paymentStatus = mapPaymentStatus(normalized.eventType);
 

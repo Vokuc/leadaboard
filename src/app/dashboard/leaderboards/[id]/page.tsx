@@ -40,6 +40,7 @@ import { CompetitionRulesSettings } from '@/components/competition/CompetitionRu
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { RegistrationManagementPanel } from '@/components/competition/registration/RegistrationManagementPanel';
 import { EventDayControlPanel } from '@/components/competition/event-day/EventDayControlPanel';
+import { FinanceManagementPanel } from '@/components/competition/finance/FinanceManagementPanel';
 import { Play } from 'lucide-react';
 
 function getErrorMessage(error: unknown, fallback: string): string {
@@ -69,7 +70,7 @@ export default function LeaderboardManagementPage() {
   const [coverUploading, setCoverUploading] = useState(false);
 
   // Layout Tab
-  const [activeTab, setActiveTab] = useState<'overview' | 'players' | 'registrations' | 'event_day' | 'teams' | 'scores' | 'settings' | 'integrations'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'players' | 'registrations' | 'event_day' | 'teams' | 'scores' | 'settings' | 'integrations' | 'finance'>('overview');
   const [teams, setTeams] = useState<Team[]>([]);
   const [showEmbedModal, setShowEmbedModal] = useState(false);
   const [embedCopied, setEmbedCopied] = useState(false);
@@ -817,7 +818,7 @@ export default function LeaderboardManagementPage() {
 
         {/* Tab selection */}
         <div className="flex border-b border-neutral-850 p-1 bg-neutral-900/40 rounded-2xl border mb-8 overflow-x-auto custom-scrollbar">
-          {(['overview', 'players', 'registrations', 'event_day', 'teams', 'scores', 'settings', 'integrations'] as const).map((tab) => (
+          {(['overview', 'players', 'registrations', 'event_day', 'teams', 'scores', 'finance', 'settings', 'integrations'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -827,7 +828,7 @@ export default function LeaderboardManagementPage() {
                   : 'text-neutral-400 hover:text-white'
               }`}
             >
-              {tab === 'event_day' ? 'Event Day ⚡' : tab}
+              {tab === 'event_day' ? 'Event Day ⚡' : tab === 'finance' ? 'Finance & Ledger 💰' : tab}
             </button>
           ))}
         </div>
@@ -1304,6 +1305,16 @@ export default function LeaderboardManagementPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* ==========================================
+            TAB CONTENT: FINANCE & LEDGER
+            ========================================== */}
+        {activeTab === 'finance' && leaderboard && (
+          <FinanceManagementPanel
+            leaderboard={leaderboard}
+            members={members}
+          />
         )}
 
         {/* ==========================================

@@ -35,6 +35,10 @@ import {
   OrganizationInvitation,
   OrganizationAuditLog,
   OrganizationBrandingConfig,
+  CompetitionPayment,
+  CompetitionLedgerEntry,
+  CompetitionRefund,
+  CompetitionPrizeAllocation,
 } from '../types';
 import { CompetitionRulesService } from '@/lib/competition/rules/service';
 import { validateScoreAdjustment } from '@/lib/competition/rules/validation';
@@ -689,9 +693,24 @@ export const DEFAULT_ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
 
 // LocalStorage Helper
 class LocalDb {
+  private inMemoryFallback = new Map<string, string>();
+
+  private getStorage(): { getItem(k: string): string | null; setItem(k: string, v: string): void } {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage;
+    }
+    if (typeof localStorage !== 'undefined') {
+      return localStorage;
+    }
+    return {
+      getItem: (k: string) => this.inMemoryFallback.get(k) || null,
+      setItem: (k: string, v: string) => { this.inMemoryFallback.set(k, v); },
+    };
+  }
+
   public get<T>(key: string, defaults: T): T {
-    if (typeof window === 'undefined') return defaults;
-    const val = localStorage.getItem(`leaderboardos_${key}`);
+    const storage = this.getStorage();
+    const val = storage.getItem(`leaderboardos_${key}`);
     if (!val) {
       this.set(key, defaults);
       return defaults;
@@ -704,13 +723,13 @@ class LocalDb {
   }
 
   public set(key: string, val: unknown): void {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(`leaderboardos_${key}`, JSON.stringify(val));
+    const storage = this.getStorage();
+    storage.setItem(`leaderboardos_${key}`, JSON.stringify(val));
   }
 
   init(): void {
-    if (typeof window === 'undefined') return;
-    if (!localStorage.getItem('leaderboardos_initialized')) {
+    const storage = this.getStorage();
+    if (!storage.getItem('leaderboardos_initialized')) {
       this.set('profile', DEFAULT_PROFILE);
       this.set('leaderboards', DEFAULT_LEADERBOARDS);
       this.set('seasons', DEFAULT_SEASONS);
@@ -724,7 +743,7 @@ class LocalDb {
       this.set('organization_members', DEFAULT_ORGANIZATION_MEMBERS);
       this.set('organization_invitations', []);
       this.set('organization_audit_logs', []);
-      localStorage.setItem('leaderboardos_initialized', 'true');
+      storage.setItem('leaderboardos_initialized', 'true');
     }
   }
 
@@ -934,6 +953,38 @@ class LocalDb {
 
   setOrganizationAuditLogs(logs: OrganizationAuditLog[]): void {
     this.set('organization_audit_logs', logs);
+  }
+
+  getCompetitionPayments(): CompetitionPayment[] {
+    return this.get<CompetitionPayment[]>('competition_payments', []);
+  }
+
+  setCompetitionPayments(payments: CompetitionPayment[]): void {
+    this.set('competition_payments', payments);
+  }
+
+  getCompetitionLedgerEntries(): CompetitionLedgerEntry[] {
+    return this.get<CompetitionLedgerEntry[]>('competition_ledger_entries', []);
+  }
+
+  setCompetitionLedgerEntries(entries: CompetitionLedgerEntry[]): void {
+    this.set('competition_ledger_entries', entries);
+  }
+
+  getCompetitionRefunds(): CompetitionRefund[] {
+    return this.get<CompetitionRefund[]>('competition_refunds', []);
+  }
+
+  setCompetitionRefunds(refunds: CompetitionRefund[]): void {
+    this.set('competition_refunds', refunds);
+  }
+
+  getCompetitionPrizeAllocations(): CompetitionPrizeAllocation[] {
+    return this.get<CompetitionPrizeAllocation[]>('competition_prize_allocations', []);
+  }
+
+  setCompetitionPrizeAllocations(allocations: CompetitionPrizeAllocation[]): void {
+    this.set('competition_prize_allocations', allocations);
   }
 }
 
@@ -1147,16 +1198,16 @@ export const DatabaseService = {
     return false;
   },
 
-  async requireAdminPermission(leaderboardId: string): Promise<string> {
-    const profile = await this.getCurrentProfile();
-    if (!profile) {
+  async requireAdminPermission(leaderboardId: string, actorUserId?: string): Promise<string> {
+    const userId = actorUserId || (await this.getCurrentProfile())?.id;
+    if (!userId) {
       throw new Error('Unauthenticated: You must be logged in.');
     }
-    const hasPermission = await this.canManageLeaderboard(profile.id, leaderboardId);
+    const hasPermission = await this.canManageLeaderboard(userId, leaderboardId);
     if (!hasPermission) {
       throw new Error('Permission denied: You do not have permission to manage this leaderboard.');
     }
-    return profile.id;
+    return userId;
   },
 
   async requireOwnerPermission(leaderboardId: string): Promise<string> {

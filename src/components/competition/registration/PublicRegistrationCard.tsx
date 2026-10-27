@@ -13,9 +13,14 @@ import { CompetitionRegistrationService } from '@/lib/competition/registration/s
 import {
   CheckCircle2,
   Clock,
+  CreditCard,
+  Download,
   ExternalLink,
   Lock,
   LogIn,
+  Printer,
+  Receipt,
+  RotateCcw,
   ShieldAlert,
   Sparkles,
   Trophy,
@@ -31,6 +36,38 @@ interface PublicRegistrationCardProps {
   onRegistrationUpdated?: () => void;
 }
 
+interface PaymentReceipt {
+  receiptNumber: string;
+  reference: string;
+  amount: number;
+  currency: string;
+  paidAt: string;
+  participantName: string;
+  participantEmail: string;
+  competitionName: string;
+  organizerName?: string;
+  refundPolicy: string;
+}
+
+function formatMinorUnits(amount: number, currency = 'NGN'): string {
+  const major = (amount / 100).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  const currencySymbols: Record<string, string> = {
+    NGN: '₦',
+    USD: '$',
+    GBP: '£',
+    EUR: '€',
+    GHS: 'GH₵',
+    KES: 'KSh',
+  };
+
+  const symbol = currencySymbols[currency.toUpperCase()] || `${currency} `;
+  return `${symbol}${major}`;
+}
+
 export function PublicRegistrationCard({
   leaderboard,
   teams = [],
@@ -41,6 +78,9 @@ export function PublicRegistrationCard({
   const router = useRouter();
 
   const claimToken = searchParams.get('claim');
+  const redirectPaymentRef = searchParams.get('reference');
+  const isRegisteredRedirect = searchParams.get('registered') === 'true';
+  const isDemoVerify = searchParams.get('demo_verify') === '1';
 
   const [config, setConfig] = useState<CompetitionRegistrationConfig | null>(null);
   const [existingReg, setExistingReg] = useState<CompetitionRegistration | null>(null);
@@ -56,8 +96,13 @@ export function PublicRegistrationCard({
   const [submitting, setSubmitting] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Receipt Modal State
+  const [receiptData, setReceiptData] = useState<PaymentReceipt | null>(null);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -86,6 +131,55 @@ export function PublicRegistrationCard({
     void loadData();
   }, [loadData]);
 
+  // Handle Automatic Payment Verification Callback from Provider Redirect
+  useEffect(() => {
+    if (!redirectPaymentRef || !isRegisteredRedirect || verifyingPayment) return;
+
+    let isCancelled = false;
+    async function verifyIncomingPayment() {
+      setVerifyingPayment(true);
+      try {
+        const res = await fetch(`/api/competitions/${leaderboard.id}/registration/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reference: redirectPaymentRef,
+            demoVerify: isDemoVerify,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Payment verification failed.');
+
+        if (!isCancelled) {
+          setSuccessMessage('Payment verified successfully! You are officially registered.');
+          if (data.receipt) {
+            setReceiptData(data.receipt);
+            setShowReceiptModal(true);
+          }
+          void loadData();
+          if (onRegistrationUpdated) onRegistrationUpdated();
+          // Clean URL params cleanly without page reload
+          if (typeof window !== 'undefined') {
+            const cleanUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+          }
+        }
+      } catch (err: unknown) {
+        if (!isCancelled) {
+          setErrorMessage(err instanceof Error ? err.message : 'Failed to verify payment reference.');
+        }
+      } finally {
+        if (!isCancelled) setVerifyingPayment(false);
+      }
+    }
+
+    void verifyIncomingPayment();
+    return () => {
+      isCancelled = true;
+    };
+  }, [redirectPaymentRef, isRegisteredRedirect, isDemoVerify, leaderboard.id, loadData, onRegistrationUpdated]);
+
   // Handle Participant Registration Submission
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,31 +187,90 @@ export function PublicRegistrationCard({
     setSubmitting(true);
     setErrorMessage(null);
     setSuccessMessage(null);
-    try {
-      const created = await CompetitionRegistrationService.registerParticipant({
-        leaderboardId: leaderboard.id,
-        userId: profile.id,
-        participantName: participantName.trim(),
-        participantEmail: participantEmail.trim(),
-        teamId: selectedTeamId || null,
-        notes: notes.trim() || null,
-      });
 
-      setExistingReg(created);
-      if (created.status === 'confirmed') {
-        setSuccessMessage('Registration confirmed! You have been placed on the competition roster.');
-      } else if (created.status === 'approved') {
-        setSuccessMessage('Registration approved! Welcome to the competition.');
-      } else if (created.status === 'waitlisted') {
-        setSuccessMessage('Capacity reached. You have been placed on the priority waitlist.');
+    const isPaid = Boolean(config?.entry_fee && config.entry_fee > 0);
+
+    try {
+      if (isPaid) {
+        // Paid registration flow: Call server checkout
+        const res = await fetch(`/api/competitions/${leaderboard.id}/registration/checkout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            participantName: participantName.trim(),
+            participantEmail: participantEmail.trim(),
+            teamId: selectedTeamId || null,
+            notes: notes.trim() || null,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Checkout initiation failed.');
+
+        const result = data.result;
+        if (result.checkoutUrl) {
+          // Redirect to Paystack or test mode checkout URL
+          window.location.href = result.checkoutUrl;
+          return;
+        }
+
+        setExistingReg(result.registration);
+        setSuccessMessage('Registration created! Complete payment to secure your entrant slot.');
       } else {
-        setSuccessMessage('Registration submitted successfully! The organizer will review your application.');
+        // Free registration flow
+        const created = await CompetitionRegistrationService.registerParticipant({
+          leaderboardId: leaderboard.id,
+          userId: profile.id,
+          participantName: participantName.trim(),
+          participantEmail: participantEmail.trim(),
+          teamId: selectedTeamId || null,
+          notes: notes.trim() || null,
+        });
+
+        setExistingReg(created);
+        if (created.status === 'confirmed') {
+          setSuccessMessage('Registration confirmed! You have been placed on the competition roster.');
+        } else if (created.status === 'approved') {
+          setSuccessMessage('Registration approved! Welcome to the competition.');
+        } else if (created.status === 'waitlisted') {
+          setSuccessMessage('Capacity reached. You have been placed on the priority waitlist.');
+        } else {
+          setSuccessMessage('Registration submitted successfully! The organizer will review your application.');
+        }
       }
 
       void loadData();
       if (onRegistrationUpdated) onRegistrationUpdated();
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : 'Registration failed.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Resume Pending Payment
+  const handleResumePayment = async () => {
+    if (!existingReg || !profile) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/competitions/${leaderboard.id}/registration/checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          participantName: existingReg.participant_name,
+          participantEmail: existingReg.participant_email,
+          teamId: existingReg.team_id,
+          notes: existingReg.notes,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to resume payment.');
+      if (data.result?.checkoutUrl) {
+        window.location.href = data.result.checkoutUrl;
+      }
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to resume checkout.');
     } finally {
       setSubmitting(false);
     }
@@ -178,10 +331,22 @@ export function PublicRegistrationCard({
   const maxCapacity = config?.capacity || null;
   const isCapacityFull = maxCapacity !== null && activeConfirmed >= maxCapacity;
 
-  // Check window timing
+  // Check window timing & deadlines
   const now = new Date();
   const isFuture = config?.opens_at ? now < new Date(config.opens_at) : false;
   const isExpired = config?.closes_at ? now > new Date(config.closes_at) : false;
+  const isPaymentExpired = config?.payment_deadline ? now > new Date(config.payment_deadline) : false;
+
+  const entryFeeMinor = config?.entry_fee || 0;
+  const currency = config?.currency || 'NGN';
+  const isPaidCompetition = entryFeeMinor > 0;
+
+  const refundPolicyLabels: Record<string, string> = {
+    no_refunds: 'No Refunds',
+    flexible_24h: 'Flexible (24h before event)',
+    before_start: 'Until competition starts',
+    organizer_discretion: 'Organizer discretion',
+  };
 
   return (
     <div className="glass rounded-2xl border border-violet-500/20 bg-gradient-to-b from-violet-950/20 to-neutral-950/60 p-6 shadow-2xl relative overflow-hidden">
@@ -190,16 +355,28 @@ export function PublicRegistrationCard({
       {/* Header Badge & Title */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/5">
         <div>
-          <div className="flex items-center gap-2 mb-1.5">
+          <div className="flex flex-wrap items-center gap-2 mb-1.5">
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-violet-500/10 text-violet-300 border border-violet-500/30">
               <Sparkles className="w-3 h-3" /> Registration Open
             </span>
+
+            {/* Entry Fee Badge */}
+            {isPaidCompetition ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+                <CreditCard className="w-3 h-3" /> Entry Fee: {formatMinorUnits(entryFeeMinor, currency)}
+              </span>
+            ) : (
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                Free Entry
+              </span>
+            )}
+
             {config?.require_approval ? (
               <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 bg-neutral-900 px-2 py-0.5 rounded border border-white/5">
                 Review Required
               </span>
             ) : (
-              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
                 Instant Confirmation
               </span>
             )}
@@ -210,8 +387,8 @@ export function PublicRegistrationCard({
           </p>
         </div>
 
-        {/* Capacity / Window Badges */}
-        <div className="flex flex-wrap items-center gap-3 text-xs">
+        {/* Capacity / Deadline / Refund Policy Badges */}
+        <div className="flex flex-wrap items-center gap-2 text-xs">
           {maxCapacity && (
             <div className="px-3 py-1.5 rounded-xl bg-neutral-900 border border-white/5 text-neutral-300">
               <span className="text-neutral-500 mr-1.5">Capacity:</span>
@@ -221,19 +398,35 @@ export function PublicRegistrationCard({
               )}
             </div>
           )}
-          {config?.closes_at && (
+          {config?.payment_deadline && (
             <div className="px-3 py-1.5 rounded-xl bg-neutral-900 border border-white/5 text-neutral-300">
-              <span className="text-neutral-500 mr-1.5">Deadline:</span>
+              <span className="text-neutral-500 mr-1.5">Pay By:</span>
               <span className="font-semibold text-white">
-                {new Date(config.closes_at).toLocaleDateString('en-US', {
+                {new Date(config.payment_deadline).toLocaleDateString('en-US', {
                   month: 'short',
                   day: 'numeric',
                 })}
               </span>
             </div>
           )}
+          {isPaidCompetition && config?.refund_policy && (
+            <div className="px-3 py-1.5 rounded-xl bg-neutral-900 border border-white/5 text-neutral-400">
+              <span className="text-neutral-500 mr-1.5">Refund:</span>
+              <span className="text-neutral-300 font-medium">
+                {refundPolicyLabels[config.refund_policy] || config.refund_policy}
+              </span>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Verification Loading Banner */}
+      {verifyingPayment && (
+        <div className="mt-4 p-3 rounded-xl bg-violet-950/40 border border-violet-500/40 text-violet-200 text-xs flex items-center gap-2">
+          <Clock className="w-4 h-4 text-violet-400 animate-spin" />
+          <span>Verifying your secure payment with provider... Please wait.</span>
+        </div>
+      )}
 
       {/* Alerts */}
       {errorMessage && (
@@ -292,11 +485,17 @@ export function PublicRegistrationCard({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <span className="text-[10px] text-neutral-500 uppercase tracking-wider font-bold">Your Application</span>
-              <div className="flex items-center gap-2 mt-0.5">
+              <div className="flex flex-wrap items-center gap-2 mt-0.5">
                 <span className="text-sm font-bold text-white">{existingReg.participant_name}</span>
+
                 {existingReg.status === 'confirmed' && (
                   <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-1">
                     <CheckCircle2 className="w-3 h-3" /> Confirmed
+                  </span>
+                )}
+                {existingReg.status === 'pending_payment' && (
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 inline-flex items-center gap-1">
+                    <Clock className="w-3 h-3" /> Payment Pending
                   </span>
                 )}
                 {existingReg.status === 'approved' && (
@@ -322,24 +521,68 @@ export function PublicRegistrationCard({
               </div>
             </div>
 
-            {(existingReg.status === 'pending' ||
-              existingReg.status === 'approved' ||
-              existingReg.status === 'waitlisted') && (
-              <button
-                type="button"
-                onClick={handleWithdraw}
-                disabled={withdrawing}
-                className="px-3 py-1.5 rounded-xl border border-neutral-800 hover:border-red-500/30 text-neutral-400 hover:text-red-400 text-xs font-semibold transition-colors"
-              >
-                {withdrawing ? 'Withdrawing...' : 'Withdraw Registration'}
-              </button>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Receipt View Button for Confirmed Paid Registrations */}
+              {existingReg.payment_reference && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReceiptData({
+                      receiptNumber: `REC-${(existingReg.payment_reference || '').slice(0, 12)}`,
+                      reference: existingReg.payment_reference || '',
+                      amount: existingReg.amount_paid || entryFeeMinor,
+                      currency: existingReg.currency || currency,
+                      paidAt: existingReg.paid_at || existingReg.created_at,
+                      participantName: existingReg.participant_name,
+                      participantEmail: existingReg.participant_email,
+                      competitionName: leaderboard.name,
+                      refundPolicy: config?.refund_policy || 'no_refunds',
+                    });
+                    setShowReceiptModal(true);
+                  }}
+                  className="px-3 py-1.5 rounded-xl border border-violet-500/30 bg-violet-950/30 hover:bg-violet-900/40 text-violet-300 text-xs font-semibold inline-flex items-center gap-1.5 transition-all"
+                >
+                  <Receipt className="w-3.5 h-3.5" /> View Receipt
+                </button>
+              )}
+
+              {/* Resume Payment Button if pending_payment */}
+              {existingReg.status === 'pending_payment' && (
+                <button
+                  type="button"
+                  onClick={handleResumePayment}
+                  disabled={submitting || isPaymentExpired}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-lg inline-flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <CreditCard className="w-3.5 h-3.5" /> Complete Payment Now
+                </button>
+              )}
+
+              {(existingReg.status === 'pending' ||
+                existingReg.status === 'pending_payment' ||
+                existingReg.status === 'approved' ||
+                existingReg.status === 'waitlisted') && (
+                <button
+                  type="button"
+                  onClick={handleWithdraw}
+                  disabled={withdrawing}
+                  className="px-3 py-1.5 rounded-xl border border-neutral-800 hover:border-red-500/30 text-neutral-400 hover:text-red-400 text-xs font-semibold transition-colors"
+                >
+                  {withdrawing ? 'Withdrawing...' : 'Withdraw'}
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="text-xs text-neutral-400 pt-2 border-t border-white/5">
             {existingReg.status === 'confirmed' && (
               <p className="text-emerald-300">
                 You are registered and placed in the competition standings and fixture pool.
+              </p>
+            )}
+            {existingReg.status === 'pending_payment' && (
+              <p className="text-amber-300">
+                Your entrant spot is reserved pending verified payment of {formatMinorUnits(entryFeeMinor, currency)}.
               </p>
             )}
             {existingReg.status === 'approved' && (
@@ -432,7 +675,28 @@ export function PublicRegistrationCard({
                 </div>
               )}
 
-              <div className="flex items-center justify-between pt-2">
+              {/* Price Confirmation Callout for Paid Competitions */}
+              {isPaidCompetition && (
+                <div className="p-3.5 rounded-xl bg-emerald-950/20 border border-emerald-500/30 flex items-center justify-between text-neutral-300">
+                  <div className="flex items-center gap-2.5">
+                    <CreditCard className="w-4 h-4 text-emerald-400" />
+                    <div>
+                      <span className="font-semibold text-white block">Paid Competition Entry</span>
+                      <span className="text-[11px] text-neutral-400">
+                        Secure checkout powered by server-side verification.
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm font-bold font-mono text-emerald-400">
+                      {formatMinorUnits(entryFeeMinor, currency)}
+                    </span>
+                    <span className="block text-[10px] text-neutral-500">Gross entry fee</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
                 <span className="text-[11px] text-neutral-500">
                   {isCapacityFull
                     ? 'Note: Capacity is full. You will be added to the waitlist.'
@@ -443,14 +707,20 @@ export function PublicRegistrationCard({
 
                 <button
                   type="submit"
-                  disabled={submitting || isFuture || isExpired}
-                  className="px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-xs shadow-lg transition-all cursor-pointer disabled:opacity-50"
+                  disabled={submitting || isFuture || isExpired || (isPaidCompetition && isPaymentExpired)}
+                  className="px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-xs shadow-lg transition-all cursor-pointer disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
                 >
-                  {submitting
-                    ? 'Submitting...'
-                    : isCapacityFull
-                    ? 'Join Waitlist'
-                    : 'Register for Competition'}
+                  {submitting ? (
+                    'Processing...'
+                  ) : isCapacityFull ? (
+                    'Join Waitlist'
+                  ) : isPaidCompetition ? (
+                    <>
+                      <CreditCard className="w-3.5 h-3.5" /> Proceed to Secure Payment ({formatMinorUnits(entryFeeMinor, currency)})
+                    </>
+                  ) : (
+                    'Register for Competition'
+                  )}
                 </button>
               </div>
             </form>
@@ -471,6 +741,92 @@ export function PublicRegistrationCard({
               </Link>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Official Payment Receipt Modal */}
+      {showReceiptModal && receiptData && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="glass w-full max-w-md rounded-2xl border border-violet-500/30 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-white/5">
+              <div className="flex items-center gap-2">
+                <Receipt className="w-5 h-5 text-emerald-400" />
+                <h3 className="text-base font-bold text-white">Payment Receipt</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowReceiptModal(false)}
+                className="text-neutral-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-4 rounded-xl bg-neutral-900 border border-white/5 space-y-3 text-xs">
+              <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                <span className="text-neutral-500">Receipt No:</span>
+                <span className="font-mono font-bold text-white">{receiptData.receiptNumber}</span>
+              </div>
+
+              <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                <span className="text-neutral-500">Reference:</span>
+                <span className="font-mono text-neutral-300">{receiptData.reference}</span>
+              </div>
+
+              <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                <span className="text-neutral-500">Competition:</span>
+                <span className="font-semibold text-white">{receiptData.competitionName}</span>
+              </div>
+
+              <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                <span className="text-neutral-500">Entrant:</span>
+                <span className="font-medium text-white">{receiptData.participantName}</span>
+              </div>
+
+              <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                <span className="text-neutral-500">Email:</span>
+                <span className="text-neutral-300">{receiptData.participantEmail}</span>
+              </div>
+
+              <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                <span className="text-neutral-500">Paid At:</span>
+                <span className="text-neutral-300">
+                  {new Date(receiptData.paidAt).toLocaleString()}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-sm font-bold text-neutral-400">Total Amount:</span>
+                <span className="text-base font-extrabold font-mono text-emerald-400">
+                  {formatMinorUnits(receiptData.amount, receiptData.currency)}
+                </span>
+              </div>
+            </div>
+
+            <div className="text-[11px] text-neutral-400">
+              <span className="font-semibold text-neutral-300">Refund Policy: </span>
+              {refundPolicyLabels[receiptData.refundPolicy] || receiptData.refundPolicy}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-white/5">
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window !== 'undefined') window.print();
+                }}
+                className="px-4 py-2 rounded-xl bg-neutral-900 text-neutral-300 text-xs font-semibold hover:bg-neutral-800 inline-flex items-center gap-1.5 transition-colors"
+              >
+                <Printer className="w-3.5 h-3.5" /> Print Receipt
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowReceiptModal(false)}
+                className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold shadow-lg transition-all"
+              >
+                Done
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

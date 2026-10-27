@@ -144,6 +144,25 @@ export function detectDuplicateRegistration(
 }
 
 /**
+ * Validates whether payment deadline has passed for a paid competition.
+ */
+export function validatePaymentDeadline(
+  config: CompetitionRegistrationConfig,
+  now: Date = new Date()
+): { valid: boolean; error?: string } {
+  if (config.payment_deadline) {
+    const deadline = new Date(config.payment_deadline);
+    if (now.getTime() > deadline.getTime()) {
+      return {
+        valid: false,
+        error: `The payment deadline for this competition passed on ${deadline.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}.`,
+      };
+    }
+  }
+  return { valid: true };
+}
+
+/**
  * Validates allowed status transitions for organizer/participant lifecycle.
  */
 export function validateStatusTransition(
@@ -155,12 +174,13 @@ export function validateStatusTransition(
   }
 
   const allowedTransitions: Record<RegistrationStatus, RegistrationStatus[]> = {
+    pending_payment: ['confirmed', 'approved', 'rejected', 'withdrawn', 'pending'],
     pending: ['approved', 'rejected', 'waitlisted', 'withdrawn'],
     approved: ['confirmed', 'waitlisted', 'rejected', 'withdrawn'],
     waitlisted: ['approved', 'rejected', 'withdrawn'],
     confirmed: ['withdrawn', 'rejected'],
     rejected: ['pending', 'approved', 'waitlisted'],
-    withdrawn: ['pending'],
+    withdrawn: ['pending', 'pending_payment'],
   };
 
   const allowed = allowedTransitions[currentStatus] || [];
