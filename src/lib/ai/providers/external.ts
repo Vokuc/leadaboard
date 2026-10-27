@@ -55,18 +55,104 @@ export class ExternalAiProvider implements AiProvider {
     }
 
     try {
-      // If external call is made, send authoritative context and grounded system prompt
-      if (this.name === 'openai' && this.endpoint) {
-        const systemPrompt = `You are the LeaderboardOS Competition Manager.
+      const systemPrompt = `You are the LeaderboardOS Competition Manager.
 You MUST operate strictly on top of the real competition engine data provided in the context.
 Do NOT invent standings, results, participant details, or competition rules.
 If information is not present, clearly state that it is unavailable.
 Context:
 ${JSON.stringify(options.context)}`;
 
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
 
+      if (this.name === 'gemini' && this.endpoint) {
+        const contents = [
+          ...(options.history || []).map((h) => ({
+            role: h.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: h.content }],
+          })),
+          {
+            role: 'user',
+            parts: [{ text: options.prompt }],
+          },
+        ];
+
+        const res = await fetch(this.endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            systemInstruction: {
+              parts: [{ text: systemPrompt }],
+            },
+            contents,
+            generationConfig: {
+              temperature: 0.2,
+            },
+          }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const json = await res.json();
+          const reply = json.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (reply) {
+            return {
+              content: reply,
+              dataSources: ['authoritative_context_snapshot'],
+              provider: 'gemini',
+              model: this.modelName,
+              tokensUsed: {
+                prompt: json.usageMetadata?.promptTokenCount || 150,
+                completion: json.usageMetadata?.candidatesTokenCount || 100,
+              },
+            };
+          }
+        }
+      } else if (this.name === 'anthropic' && this.endpoint && this.apiKey) {
+        const res = await fetch(this.endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': this.apiKey,
+            'anthropic-version': '2023-06-01',
+          },
+          body: JSON.stringify({
+            model: this.modelName,
+            system: systemPrompt,
+            messages: [
+              ...(options.history || []).map((h) => ({ role: h.role, content: h.content })),
+              { role: 'user', content: options.prompt },
+            ],
+            max_tokens: 1024,
+            temperature: 0.2,
+          }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const json = await res.json();
+          const textBlock = json.content?.find((c: { type: string; text?: string }) => c.type === 'text');
+          const reply = textBlock?.text;
+          if (reply) {
+            return {
+              content: reply,
+              dataSources: ['authoritative_context_snapshot'],
+              provider: 'anthropic',
+              model: this.modelName,
+              tokensUsed: {
+                prompt: json.usage?.input_tokens || 150,
+                completion: json.usage?.output_tokens || 100,
+              },
+            };
+          }
+        }
+      } else if (this.name === 'openai' && this.endpoint) {
         const res = await fetch(this.endpoint, {
           method: 'POST',
           headers: {
