@@ -6,6 +6,7 @@ import { MARKETPLACE_TEMPLATES } from '@/lib/templates/marketplace';
 import { DISCOVERY_CATEGORIES } from '@/lib/discovery/registry';
 import { seoContent } from '@/lib/seo/content';
 import { getPostSlugs } from '@/lib/blog/api';
+import { getDocSlugs } from '@/lib/docs/api';
 
 // Cache sitemap requests for 24 hours to prevent database overload
 export const revalidate = 86400;
@@ -45,6 +46,8 @@ export default async function sitemap({ id }: { id: Promise<number> | number }):
     { url: BASE_URL, lastModified: new Date(), changeFrequency: 'daily', priority: 1.0 },
     { url: `${BASE_URL}/login`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
     { url: `${BASE_URL}/how-to-play`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
+    { url: `${BASE_URL}/docs`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.9 },
+    { url: `${BASE_URL}/docs/search`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
     { url: `${BASE_URL}/blog`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.9 },
     { url: `${BASE_URL}/tools`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.9 },
     { url: `${BASE_URL}/tools/leaderboard-maker`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.9 },
@@ -78,6 +81,12 @@ export default async function sitemap({ id }: { id: Promise<number> | number }):
     })),
     ...getPostSlugs().map(slug => ({
       url: `${BASE_URL}/blog/${slug.replace(/\.md$/, '')}`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly' as const,
+      priority: 0.8,
+    })),
+    ...getDocSlugs().map(slug => ({
+      url: `${BASE_URL}/docs/${slug.replace(/\.md$/, '')}`,
       lastModified: new Date(),
       changeFrequency: 'weekly' as const,
       priority: 0.8,
