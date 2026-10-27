@@ -651,11 +651,24 @@ export interface TournamentBracketView {
 
 export type RegistrationStatus =
   | 'pending'
+  | 'pending_payment'
   | 'approved'
   | 'rejected'
   | 'waitlisted'
   | 'withdrawn'
   | 'confirmed';
+
+export type RefundPolicy =
+  | 'no_refunds'
+  | 'full_refund_before_deadline'
+  | 'partial_refund'
+  | 'organizer_discretion';
+
+export type PayoutStatus =
+  | 'unconfigured'
+  | 'configured'
+  | 'pending_approval'
+  | 'disabled';
 
 export interface CompetitionEligibilityRules {
   allowed_domains?: string[];
@@ -674,9 +687,26 @@ export interface CompetitionRegistrationConfig {
   allow_waitlist: boolean;
   allow_team_registration: boolean;
   eligibility_rules: CompetitionEligibilityRules;
+  // Financial & Entry Fee additions
+  entry_fee?: number | null; // In minor currency units (e.g. 500000 = 5000.00 NGN) or 0 if free
+  currency?: string;
+  payment_deadline?: string | null;
+  refund_policy?: RefundPolicy;
+  platform_fee_percent?: number;
+  prize_pool_percentage?: number;
+  guaranteed_prize_pool?: number | null;
+  payout_status?: PayoutStatus;
   created_at: string;
   updated_at: string;
 }
+
+export type RegistrationPaymentStatus =
+  | 'not_required'
+  | 'pending'
+  | 'succeeded'
+  | 'failed'
+  | 'refunded'
+  | 'disputed';
 
 export interface CompetitionRegistration {
   id: string;
@@ -691,8 +721,156 @@ export interface CompetitionRegistration {
   claimed_at: string | null;
   rejection_reason: string | null;
   notes: string | null;
+  // Payment tracking
+  payment_id?: string | null;
+  payment_status?: RegistrationPaymentStatus | null;
+  payment_reference?: string | null;
+  amount_paid?: number;
+  currency?: string;
+  paid_at?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export type CompetitionPaymentStatus =
+  | 'pending'
+  | 'succeeded'
+  | 'failed'
+  | 'expired'
+  | 'refunded'
+  | 'partially_refunded'
+  | 'disputed';
+
+export interface CompetitionPayment {
+  id: string;
+  leaderboard_id: string;
+  registration_id: string;
+  user_id: string | null;
+  participant_name: string;
+  participant_email: string;
+  provider: string;
+  payment_reference: string;
+  external_reference?: string | null;
+  amount: number; // In minor units
+  currency: string;
+  provider_fee: number;
+  platform_fee: number;
+  net_amount: number;
+  status: CompetitionPaymentStatus;
+  idempotency_key?: string | null;
+  payment_method?: string | null;
+  receipt_url?: string | null;
+  paid_at?: string | null;
+  refund_id?: string | null;
+  refunded_at?: string | null;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export type LedgerEntryType =
+  | 'entry_fee_credit'
+  | 'gross_entry_fee'
+  | 'provider_fee_debit'
+  | 'provider_fee'
+  | 'platform_fee_debit'
+  | 'platform_fee'
+  | 'refund_debit'
+  | 'prize_allocation'
+  | 'prize_allocation_debit'
+  | 'organizer_payout'
+  | 'adjustment';
+
+export interface CompetitionLedgerEntry {
+  id: string;
+  leaderboard_id: string;
+  entry_type: LedgerEntryType;
+  amount: number; // positive for credits, negative or positive depending on type
+  currency: string;
+  balance_after: number;
+  payment_id?: string | null;
+  registration_id?: string | null;
+  actor_id?: string | null;
+  description: string;
+  metadata?: Record<string, unknown>;
+  credit_amount?: number;
+  debit_amount?: number;
+  running_balance?: number;
+  payment_reference?: string;
+  created_at: string;
+}
+
+export type CompetitionRefundStatus = 'pending' | 'succeeded' | 'failed' | 'cancelled';
+
+export interface CompetitionRefund {
+  id: string;
+  leaderboard_id: string;
+  competition_payment_id: string;
+  registration_id: string;
+  initiated_by: string | null;
+  amount: number;
+  currency: string;
+  provider: string;
+  provider_refund_id?: string | null;
+  reason?: string | null;
+  status: CompetitionRefundStatus;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export type PrizeAllocationType = 'fixed_amount' | 'percentage_of_pool';
+export type PrizePayoutStatus = 'allocated' | 'pending_approval' | 'processing' | 'paid' | 'cancelled';
+
+export interface CompetitionPrizeAllocation {
+  id: string;
+  leaderboard_id: string;
+  rank_position: number;
+  title: string;
+  allocation_type: PrizeAllocationType;
+  allocated_amount: number;
+  percentage?: number | null;
+  currency: string;
+  recipient_member_id?: string | null;
+  recipient_name?: string | null;
+  payout_status: PrizePayoutStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CompetitionFinancialSummary {
+  leaderboard_id: string;
+  currency: string;
+  total_entry_fees_gross: number;
+  total_provider_fees: number;
+  total_platform_fees: number;
+  total_refunds: number;
+  net_revenue: number;
+  total_prize_allocated: number;
+  available_organizer_balance: number;
+  paid_registrations_count: number;
+  refunded_registrations_count: number;
+  pending_payments_count: number;
+
+  // Extended summary & ledger convenience fields
+  gross_revenue?: number;
+  total_paid_registrations?: number;
+  platform_fees?: number;
+  provider_fees?: number;
+  organizer_balance?: number;
+  total_refunded?: number;
+  refund_count?: number;
+  prize_pool_allocated?: number;
+  prize_allocations?: Array<{
+    id: string;
+    rank_position: number;
+    amount: number;
+    currency: string;
+    recipient_name?: string | null;
+    notes?: string | null;
+  }>;
+  payments?: CompetitionPayment[];
+  entries?: Array<CompetitionLedgerEntry & { credit_amount?: number; debit_amount?: number; payment_reference?: string }>;
 }
 
 export type NotificationType =

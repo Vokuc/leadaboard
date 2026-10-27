@@ -227,6 +227,45 @@ export class PaystackProvider extends BaseProvider {
       status: payload.data?.status === 'processed' ? 'succeeded' : 'pending',
     };
   }
+
+  async verifyTransaction(reference: string): Promise<{
+    status: boolean;
+    data?: {
+      status?: string;
+      reference?: string;
+      amount?: number;
+      currency?: string;
+      fees?: number;
+      channel?: string;
+      paid_at?: string;
+      gateway_response?: string;
+      metadata?: Record<string, unknown>;
+    };
+    message?: string;
+  }> {
+    const secretKey = requireSecret();
+    const response = await fetch(`${PAYSTACK_API_BASE}/transaction/verify/${encodeURIComponent(reference)}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${secretKey}`,
+      },
+    });
+    return (await response.json()) as {
+      status: boolean;
+      data?: {
+        status?: string;
+        reference?: string;
+        amount?: number;
+        currency?: string;
+        fees?: number;
+        channel?: string;
+        paid_at?: string;
+        gateway_response?: string;
+        metadata?: Record<string, unknown>;
+      };
+      message?: string;
+    };
+  }
 }
 
 export interface PaystackDiagnostics {

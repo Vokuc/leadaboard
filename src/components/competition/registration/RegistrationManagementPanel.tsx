@@ -7,6 +7,7 @@ import {
   Leaderboard,
   LeaderboardMember,
   RegistrationStatus,
+  RefundPolicy,
   Team,
 } from '@/types';
 import { CompetitionRegistrationService } from '@/lib/competition/registration/service';
@@ -14,7 +15,9 @@ import {
   Check,
   CheckCircle2,
   Clock,
+  Coins,
   Copy,
+  CreditCard,
   ExternalLink,
   Filter,
   Plus,
@@ -30,6 +33,7 @@ import {
   X,
   XCircle,
 } from 'lucide-react';
+import Link from 'next/link';
 
 interface RegistrationManagementPanelProps {
   leaderboard: Leaderboard;
@@ -65,6 +69,10 @@ export function RegistrationManagementPanel({
   const [allowTeamRegistration, setAllowTeamRegistration] = useState(false);
   const [allowedDomains, setAllowedDomains] = useState<string>('');
   const [eligibilityNotes, setEligibilityNotes] = useState<string>('');
+  const [entryFee, setEntryFee] = useState<string>('');
+  const [currency, setCurrency] = useState<string>('NGN');
+  const [paymentDeadline, setPaymentDeadline] = useState<string>('');
+  const [refundPolicy, setRefundPolicy] = useState<string>('no_refunds');
 
   // Modals
   const [showConfigModal, setShowConfigModal] = useState(false);
@@ -105,6 +113,10 @@ export function RegistrationManagementPanel({
       setAllowTeamRegistration(cfg.allow_team_registration);
       setAllowedDomains((cfg.eligibility_rules?.allowed_domains || []).join(', '));
       setEligibilityNotes(cfg.eligibility_rules?.notes || '');
+      setEntryFee(cfg.entry_fee ? (cfg.entry_fee / 100).toString() : '');
+      setCurrency(cfg.currency || 'NGN');
+      setPaymentDeadline(cfg.payment_deadline ? cfg.payment_deadline.slice(0, 16) : '');
+      setRefundPolicy(cfg.refund_policy || 'no_refunds');
     } catch (err) {
       console.error(err);
       setErrorMessage('Failed to load registration data.');
@@ -132,6 +144,8 @@ export function RegistrationManagementPanel({
         .map((d) => d.trim().replace(/^@/, ''))
         .filter(Boolean);
 
+      const parsedEntryFee = entryFee.trim() ? Math.round(parseFloat(entryFee.trim()) * 100) : null;
+
       const updated = await CompetitionRegistrationService.saveConfig(leaderboard.id, {
         is_enabled: isEnabled,
         capacity: parsedCapacity,
@@ -144,6 +158,10 @@ export function RegistrationManagementPanel({
           allowed_domains: domainList,
           notes: eligibilityNotes.trim(),
         },
+        entry_fee: parsedEntryFee,
+        currency: currency.toUpperCase(),
+        payment_deadline: paymentDeadline ? new Date(paymentDeadline).toISOString() : null,
+        refund_policy: refundPolicy as RefundPolicy,
       });
 
       setConfig(updated);
@@ -240,6 +258,12 @@ export function RegistrationManagementPanel({
             <CheckCircle2 className="w-3 h-3" /> Confirmed
           </span>
         );
+      case 'pending_payment':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            <Clock className="w-3 h-3" /> Payment Pending
+          </span>
+        );
       case 'approved':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
@@ -313,6 +337,11 @@ export function RegistrationManagementPanel({
                 Instant Confirmation
               </span>
             )}
+            {config?.entry_fee && config.entry_fee > 0 && (
+              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded uppercase tracking-wider">
+                Paid: {(config.entry_fee / 100).toLocaleString()} {config.currency || 'NGN'}
+              </span>
+            )}
           </div>
           <h2 className="text-lg font-bold text-white">Participant Registration & Roster Flow</h2>
           <p className="text-xs text-neutral-400 mt-1 max-w-xl">
@@ -321,6 +350,12 @@ export function RegistrationManagementPanel({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={`/dashboard/leaderboards/${leaderboard.id}/finance`}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-emerald-500/30 bg-emerald-950/20 hover:bg-emerald-900/30 text-emerald-300 text-xs font-semibold transition-all cursor-pointer"
+          >
+            <Coins className="w-3.5 h-3.5" /> Finance & Ledger
+          </Link>
           <button
             type="button"
             onClick={() => setShowInviteModal(true)}
@@ -461,7 +496,28 @@ export function RegistrationManagementPanel({
                     <td className="py-3.5 px-4 text-neutral-400 font-mono text-[11px]">
                       {reg.participant_email}
                     </td>
-                    <td className="py-3.5 px-4">{getStatusBadge(reg.status)}</td>
+                    <td className="py-3.5 px-4">
+                      {getStatusBadge(reg.status)}
+                      {reg.payment_status && (
+                        <div className="mt-1">
+                          {reg.payment_status === 'succeeded' && (
+                            <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                              Paid
+                            </span>
+                          )}
+                          {reg.payment_status === 'pending' && (
+                            <span className="text-[10px] text-amber-400 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                              Payment Due
+                            </span>
+                          )}
+                          {reg.payment_status === 'refunded' && (
+                            <span className="text-[10px] text-rose-400 font-bold bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">
+                              Refunded
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </td>
                     <td className="py-3.5 px-4 text-neutral-400">
                       {new Date(reg.created_at).toLocaleDateString('en-US', {
                         month: 'short',
@@ -654,6 +710,69 @@ export function RegistrationManagementPanel({
                     onChange={(e) => setClosesAt(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-neutral-900 border border-white/5 text-white focus:outline-none focus:border-violet-500"
                   />
+                </div>
+              </div>
+
+              {/* Competition Financial & Pricing Settings */}
+              <div className="p-3.5 rounded-xl bg-violet-950/20 border border-violet-500/20 space-y-3">
+                <div className="font-semibold text-violet-300 text-[11px] uppercase tracking-wider flex items-center gap-1.5">
+                  <CreditCard className="w-3.5 h-3.5" /> Entry Fee & Refund Rules
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-neutral-400 mb-1">Entry Price</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00 (Free)"
+                      value={entryFee}
+                      onChange={(e) => setEntryFee(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-neutral-900 border border-white/5 text-white font-mono placeholder-neutral-500 focus:outline-none focus:border-violet-500"
+                    />
+                    <span className="text-[10px] text-neutral-500">Leave blank or 0 for free</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-neutral-400 mb-1">Currency</label>
+                    <select
+                      value={currency}
+                      onChange={(e) => setCurrency(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-neutral-900 border border-white/5 text-white focus:outline-none focus:border-violet-500"
+                    >
+                      <option value="NGN">NGN (Nigerian Naira - ₦)</option>
+                      <option value="USD">USD (US Dollar - $)</option>
+                      <option value="GHS">GHS (Ghanaian Cedi - GH₵)</option>
+                      <option value="KES">KES (Kenyan Shilling - KSh)</option>
+                      <option value="GBP">GBP (British Pound - £)</option>
+                      <option value="EUR">EUR (Euro - €)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-neutral-400 mb-1">Payment Deadline</label>
+                    <input
+                      type="datetime-local"
+                      value={paymentDeadline}
+                      onChange={(e) => setPaymentDeadline(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-neutral-900 border border-white/5 text-white focus:outline-none focus:border-violet-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-neutral-400 mb-1">Refund Policy</label>
+                    <select
+                      value={refundPolicy}
+                      onChange={(e) => setRefundPolicy(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-neutral-900 border border-white/5 text-white focus:outline-none focus:border-violet-500"
+                    >
+                      <option value="no_refunds">No Refunds</option>
+                      <option value="flexible_24h">Flexible (24h before event)</option>
+                      <option value="before_start">Until event starts</option>
+                      <option value="organizer_discretion">Organizer Discretion</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
