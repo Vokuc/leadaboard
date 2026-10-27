@@ -54,6 +54,8 @@ export interface ShareableResultPayload {
   revocationReason?: string | null;
   canonicalUrl: string;
   ogImageUrl: string;
+  sponsorName?: string | null;
+  sponsorTier?: string | null;
 }
 
 export interface ShareUrlOptions {
@@ -283,6 +285,19 @@ export async function getAuthoritativeShareData(
     DatabaseService.getRankings(lb.id),
   ]);
 
+  let sponsorName: string | null = null;
+  let sponsorTier: string | null = null;
+  try {
+    const { CompetitionSponsorshipService } = await import('@/lib/competition/sponsorship/service');
+    const sponsors = await CompetitionSponsorshipService.getSponsorsForCompetition(lb.id);
+    if (sponsors.length > 0) {
+      sponsorName = sponsors[0].name;
+      sponsorTier = sponsors[0].tier;
+    }
+  } catch {
+    // Non-blocking
+  }
+
   const updatedAt = lb.updated_at || lb.created_at;
   const versionHash = String(new Date(updatedAt).getTime());
 
@@ -340,6 +355,8 @@ export async function getAuthoritativeShareData(
       isPrivate: false,
       canonicalUrl,
       ogImageUrl,
+      sponsorName,
+      sponsorTier,
     };
   }
 
@@ -411,6 +428,8 @@ export async function getAuthoritativeShareData(
       isPrivate: false,
       canonicalUrl,
       ogImageUrl,
+      sponsorName,
+      sponsorTier,
     };
   }
 
@@ -516,6 +535,8 @@ export async function getAuthoritativeShareData(
       isPrivate: false,
       canonicalUrl,
       ogImageUrl,
+      sponsorName,
+      sponsorTier,
     };
   }
 
@@ -541,5 +562,7 @@ export async function getAuthoritativeShareData(
     isPrivate: false,
     canonicalUrl,
     ogImageUrl,
+    sponsorName,
+    sponsorTier,
   };
 }

@@ -189,24 +189,46 @@ export async function GET(request: NextRequest) {
               </div>
             </div>
 
-            {/* Verification Status Pill */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 18px',
-                borderRadius: '999px',
-                backgroundColor: badgeBg,
-                border: `1px solid ${badgeBorder}`,
-                color: badgeText,
-                fontSize: 15,
-                fontWeight: 700,
-                letterSpacing: '0.02em',
-              }}
-            >
-              <span>{payload.isVerified ? '✓' : '•'}</span>
-              <span>{payload.verificationBadgeText || 'Official Record'}</span>
+            {/* Verification Status Pill & Sponsor Badge */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 18px',
+                  borderRadius: '999px',
+                  backgroundColor: badgeBg,
+                  border: `1px solid ${badgeBorder}`,
+                  color: badgeText,
+                  fontSize: 15,
+                  fontWeight: 700,
+                  letterSpacing: '0.02em',
+                }}
+              >
+                <span>{payload.isVerified ? '✓' : '•'}</span>
+                <span>{payload.verificationBadgeText || 'Official Record'}</span>
+              </div>
+
+              {payload.sponsorName && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 14px',
+                    borderRadius: '999px',
+                    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                    border: '1px solid rgba(245, 158, 11, 0.35)',
+                    color: '#fbbf24',
+                    fontSize: 14,
+                    fontWeight: 700,
+                  }}
+                >
+                  <span>✨</span>
+                  <span>Presented by {payload.sponsorName}</span>
+                </div>
+              )}
             </div>
           </div>
 
