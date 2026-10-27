@@ -34,6 +34,7 @@ import TournamentPublicView from '@/components/tournament/TournamentPublicView';
 import Logo from '@/components/Logo';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { PublicRegistrationCard } from '@/components/competition/registration/PublicRegistrationCard';
+import { PublicSponsorBanner } from '@/components/competition/sponsorship/PublicSponsorBanner';
 import { ShareResultModal } from '@/components/sharing/ShareResultModal';
 import { ShareTriggerButton } from '@/components/sharing/ShareTriggerButton';
 import { SharedResultHighlightBanner } from '@/components/sharing/SharedResultHighlightBanner';
@@ -406,6 +407,8 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
             </div>
           )}
 
+          <PublicSponsorBanner leaderboardId={leaderboard.id} />
+
           <div id="registration" className="scroll-mt-24">
             <PublicRegistrationCard leaderboard={leaderboard} onRegistrationUpdated={() => void loadData(true)} />
           </div>
@@ -517,6 +520,8 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
               </Link>
             </div>
           )}
+
+          <PublicSponsorBanner leaderboardId={leaderboard.id} />
 
           <div id="registration" className="scroll-mt-24">
             <PublicRegistrationCard leaderboard={leaderboard} onRegistrationUpdated={() => void loadData(true)} />
@@ -698,6 +703,8 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
             </Link>
           </div>
         )}
+
+        <PublicSponsorBanner leaderboardId={leaderboard.id} />
 
         <div id="registration" className="scroll-mt-24">
           <PublicRegistrationCard leaderboard={leaderboard} onRegistrationUpdated={() => void loadData(true)} />

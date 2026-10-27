@@ -39,6 +39,8 @@ import {
   CompetitionLedgerEntry,
   CompetitionRefund,
   CompetitionPrizeAllocation,
+  CompetitionSponsor,
+  CompetitionSponsorEvent,
 } from '../types';
 import { CompetitionRulesService } from '@/lib/competition/rules/service';
 import { validateScoreAdjustment } from '@/lib/competition/rules/validation';
@@ -985,6 +987,22 @@ class LocalDb {
 
   setCompetitionPrizeAllocations(allocations: CompetitionPrizeAllocation[]): void {
     this.set('competition_prize_allocations', allocations);
+  }
+
+  getCompetitionSponsors(): CompetitionSponsor[] {
+    return this.get<CompetitionSponsor[]>('competition_sponsors', []);
+  }
+
+  setCompetitionSponsors(sponsors: CompetitionSponsor[]): void {
+    this.set('competition_sponsors', sponsors);
+  }
+
+  getCompetitionSponsorEvents(): CompetitionSponsorEvent[] {
+    return this.get<CompetitionSponsorEvent[]>('competition_sponsor_events', []);
+  }
+
+  setCompetitionSponsorEvents(events: CompetitionSponsorEvent[]): void {
+    this.set('competition_sponsor_events', events);
   }
 }
 

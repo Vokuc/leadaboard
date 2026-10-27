@@ -1587,5 +1587,55 @@ export interface ApiErrorResponse {
 
 export type ApiResponse<T> = ApiSuccessResponse<T> | ApiErrorResponse;
 
+// ─── Sponsorship & Monetization (Era 6 Prompt 2) ──────────────────────────
+
+export type SponsorshipTier =
+  | 'headline'
+  | 'gold'
+  | 'silver'
+  | 'bronze'
+  | 'community'
+  | 'partner';
+
+export interface CompetitionSponsor {
+  id: string;
+  leaderboard_id?: string | null;
+  organization_id?: string | null;
+  name: string;
+  logo_url?: string | null;
+  website_url: string;
+  tier: SponsorshipTier;
+  display_order: number;
+  tagline?: string | null;
+  campaign_start?: string | null;
+  campaign_end?: string | null;
+  is_active: boolean;
+  impressions_count: number;
+  clicks_count: number;
+  created_by?: string | null;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CompetitionSponsorEvent {
+  id: string;
+  sponsor_id: string;
+  leaderboard_id?: string | null;
+  event_type: 'impression' | 'click';
+  dedup_key?: string | null;
+  user_agent?: string | null;
+  ip_hash?: string | null;
+  created_at: string;
+}
+
+export interface SponsorMetricsSummary {
+  sponsor_id: string;
+  impressions: number;
+  clicks: number;
+  ctr: number;
+}
+
+
 
 
