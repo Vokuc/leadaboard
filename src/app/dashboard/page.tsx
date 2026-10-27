@@ -27,7 +27,8 @@ import {
   CreditCard,
   Shield,
   Code,
-  Building2
+  Building2,
+  BarChart3
 } from 'lucide-react';
 import Link from 'next/link';
 import HelpModal from '@/components/HelpModal';
@@ -224,6 +225,12 @@ export default function DashboardPage() {
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-violet-500/30 bg-violet-500/10 text-violet-200 text-xs font-semibold hover:bg-violet-500/20"
           >
             <Building2 className="w-3.5 h-3.5 text-violet-400" /> Organizations
+          </Link>
+          <Link
+            href="/dashboard/analytics"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 text-indigo-200 text-xs font-semibold hover:bg-indigo-500/20"
+          >
+            <BarChart3 className="w-3.5 h-3.5 text-indigo-400" /> Analytics
           </Link>
           <Link
             href="/dashboard/passport"

@@ -118,6 +118,8 @@ export interface Team {
   name: string;
   short_code: string | null;
   logo_url: string | null;
+  organization_id?: string | null;
+  canonical_team_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -416,6 +418,7 @@ export interface CompetitionVenue {
   court_field?: string | null;
   location?: string | null;
   capacity?: number | null;
+  organization_id?: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -1758,3 +1761,201 @@ export interface AiUsageLog {
   action_type: string;
   created_at: string;
 }
+
+// ============================================================================
+// Era 7 Prompt 2: Competition Data Graph & Cross-Competition Analytics
+// ============================================================================
+
+export interface TeamNameHistoryEntry {
+  id: string;
+  team_id: string;
+  name: string;
+  short_code?: string | null;
+  logo_url?: string | null;
+  changed_at: string;
+  changed_by?: string | null;
+  reason?: string | null;
+}
+
+export interface CompetitionParticipation {
+  id: string;
+  leaderboard_id: string;
+  season_id?: string | null;
+  entity_type: CompetitionEntityType;
+  member_id: string;
+  team_id?: string | null;
+  user_id?: string | null;
+  display_name: string;
+  team_name_snapshot?: string | null;
+  is_verified: boolean;
+  final_position?: number | null;
+  matches_played: number;
+  matches_won: number;
+  matches_drawn: number;
+  matches_lost: number;
+  total_points: number;
+  verified_matches_count: number;
+  unverified_matches_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VerificationBreakdown {
+  total: number;
+  verified: number;
+  unverified: number;
+  disputed: number;
+  voided: number;
+  verified_rate_pct: number;
+}
+
+export interface CrossCompetitionAnalyticsFilter {
+  organizationId?: string | null;
+  ownerId?: string | null;
+  competitionType?: CompetitionType | null;
+  templateKey?: CompetitionTemplateKey | null;
+  seasonId?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  isVerifiedOnly?: boolean;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface OrganizerAnalyticsOverview {
+  total_competitions: number;
+  active_competitions: number;
+  completed_competitions: number;
+  total_seasons: number;
+  total_unique_participants: number;
+  total_teams: number;
+  total_venues: number;
+  match_verification: VerificationBreakdown;
+  by_category: Record<string, number>;
+  by_template: Record<string, number>;
+  venues_utilization: Array<{
+    venue_id: string;
+    venue_name: string;
+    court_field?: string | null;
+    competitions_count: number;
+    total_matches_scheduled: number;
+    completed_matches: number;
+  }>;
+  recent_competitions: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    competition_type: CompetitionType;
+    status: LeaderboardStatus;
+    is_verified: boolean;
+    participants_count: number;
+    matches_count: number;
+    verified_matches_count: number;
+    created_at: string;
+  }>;
+}
+
+export interface TeamCrossCompetitionSummary {
+  team_id: string;
+  canonical_team_id?: string | null;
+  current_name: string;
+  short_code?: string | null;
+  logo_url?: string | null;
+  name_history: TeamNameHistoryEntry[];
+  competitions_participated: Array<{
+    leaderboard_id: string;
+    competition_name: string;
+    season_name?: string | null;
+    team_name_in_competition: string;
+    position?: number | null;
+    matches_played: number;
+    wins: number;
+    draws: number;
+    losses: number;
+    points: number;
+    is_verified: boolean;
+  }>;
+  aggregate_record: {
+    competitions_count: number;
+    total_matches: number;
+    wins: number;
+    draws: number;
+    losses: number;
+    win_rate_pct: number;
+    podiums_count: number;
+    verified_matches_count: number;
+    unverified_matches_count: number;
+  };
+  roster_transitions: Array<{
+    member_id: string;
+    player_name: string;
+    role: string;
+    jersey_number?: number | null;
+    joined_at: string;
+    left_at?: string | null;
+    competition_name: string;
+  }>;
+}
+
+export interface ParticipantCrossCompetitionSummary {
+  user_id?: string | null;
+  passport_handle?: string | null;
+  display_name: string;
+  avatar_url?: string | null;
+  is_identity_verified: boolean;
+  participations: Array<{
+    competition_id: string;
+    competition_name: string;
+    season_name?: string | null;
+    team_name_snapshot?: string | null;
+    position?: number | null;
+    matches_played: number;
+    matches_won: number;
+    total_points: number;
+    is_verified: boolean;
+  }>;
+  career_stats: {
+    competitions_entered: number;
+    total_matches: number;
+    verified_matches: number;
+    unverified_matches: number;
+    wins: number;
+    podiums: number;
+    total_points: number;
+  };
+  team_affiliations: Array<{
+    team_name: string;
+    competition_name: string;
+    role: string;
+    joined_at: string;
+    left_at?: string | null;
+  }>;
+}
+
+export interface CrossCompetitionSeasonSummary {
+  season_id: string;
+  season_name: string;
+  leaderboard_id: string;
+  competition_name: string;
+  start_date: string;
+  end_date?: string | null;
+  teams_count: number;
+  participants_count: number;
+  fixtures_total: number;
+  fixtures_completed: number;
+  fixtures_verified: number;
+  completion_rate_pct: number;
+}
+
+export interface ExternalScoringConnectorConfig {
+  id: string;
+  name: string;
+  target_system: 'manual_webhook' | 'scorekeeper_api' | 'electronic_scoreboard' | 'generic_push';
+  api_endpoint?: string | null;
+  webhook_secret_hash?: string | null;
+  status: 'active' | 'paused' | 'deprecated';
+  allowed_leaderboard_ids: string[];
+  supported_match_types: string[];
+  created_at: string;
+}
+

@@ -43,6 +43,9 @@ import {
   CompetitionSponsorEvent,
   AiActionProposal,
   AiUsageLog,
+  TeamNameHistoryEntry,
+  CompetitionParticipation,
+  CrossCompetitionAnalyticsFilter,
 } from '../types';
 import { CompetitionRulesService } from '@/lib/competition/rules/service';
 import { validateScoreAdjustment } from '@/lib/competition/rules/validation';
@@ -1021,6 +1024,22 @@ class LocalDb {
 
   setAiUsageLogs(logs: AiUsageLog[]): void {
     this.set('ai_usage_logs', logs);
+  }
+
+  getTeamNameHistory(): TeamNameHistoryEntry[] {
+    return this.get<TeamNameHistoryEntry[]>('team_name_history', []);
+  }
+
+  setTeamNameHistory(history: TeamNameHistoryEntry[]): void {
+    this.set('team_name_history', history);
+  }
+
+  getCompetitionParticipations(): CompetitionParticipation[] {
+    return this.get<CompetitionParticipation[]>('competition_participations', []);
+  }
+
+  setCompetitionParticipations(participations: CompetitionParticipation[]): void {
+    this.set('competition_participations', participations);
   }
 }
 
@@ -3377,5 +3396,49 @@ export const DatabaseService = {
   async getOrganizationAuditLogs(organizationId: string, actorUserId: string): Promise<OrganizationAuditLog[]> {
     const { OrganizationService } = await import('@/lib/organization/service');
     return OrganizationService.getAuditLogs(organizationId, actorUserId);
+  },
+
+  // ==========================================
+  // COMPETITION GRAPH & CROSS-COMPETITION ANALYTICS
+  // ==========================================
+
+  async recordTeamNameChange(params: {
+    teamId: string;
+    newName: string;
+    shortCode?: string | null;
+    logoUrl?: string | null;
+    reason?: string | null;
+    actorUserId?: string | null;
+  }) {
+    const { CompetitionGraphService } = await import('@/lib/analytics/competition-graph');
+    return CompetitionGraphService.recordTeamNameChange(params);
+  },
+
+  async getTeamNameHistory(teamId: string) {
+    const { CompetitionGraphService } = await import('@/lib/analytics/competition-graph');
+    return CompetitionGraphService.getTeamNameHistory(teamId);
+  },
+
+  async recordCompetitionParticipation(entry: Omit<CompetitionParticipation, 'id' | 'created_at' | 'updated_at'>) {
+    const { CompetitionGraphService } = await import('@/lib/analytics/competition-graph');
+    return CompetitionGraphService.recordParticipation(entry);
+  },
+
+  async getCompetitionParticipations(filter: {
+    leaderboardId?: string;
+    userId?: string;
+    teamId?: string;
+    seasonId?: string;
+  }) {
+    const { CompetitionGraphService } = await import('@/lib/analytics/competition-graph');
+    return CompetitionGraphService.getParticipations(filter);
+  },
+
+  async getOrganizerCrossCompetitionAnalytics(
+    filter: CrossCompetitionAnalyticsFilter,
+    actorUserId?: string
+  ) {
+    const { CompetitionGraphService } = await import('@/lib/analytics/competition-graph');
+    return CompetitionGraphService.getOrganizerAnalytics(filter, actorUserId);
   }
 };
