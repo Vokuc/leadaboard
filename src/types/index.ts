@@ -1636,6 +1636,125 @@ export interface SponsorMetricsSummary {
   ctr: number;
 }
 
+// ============================================================================
+// AI Competition Manager Types (Era 7 Prompt 1)
+// ============================================================================
 
+export type AiTaskType =
+  | 'schedule_draft'
+  | 'points_rules_draft'
+  | 'announcement_draft'
+  | 'pathway_proposal'
+  | 'venue_setup';
 
+export type AiProposalStatus = 'pending' | 'approved' | 'rejected' | 'expired';
 
+export interface AiActionProposal {
+  id: string;
+  leaderboard_id: string;
+  task_type: AiTaskType;
+  title: string;
+  summary: string;
+  payload: Record<string, unknown>;
+  status: AiProposalStatus;
+  validation_errors?: string[];
+  created_by?: string | null;
+  applied_at?: string | null;
+  expires_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AiChatMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  proposal?: AiActionProposal;
+  created_at: string;
+  data_sources_used?: string[];
+}
+
+export interface AiAssistantContext {
+  leaderboard: {
+    id: string;
+    name: string;
+    slug: string;
+    competition_type: string;
+    status: string;
+    visibility: string;
+    description: string | null;
+  };
+  config?: {
+    engine_type?: string;
+    template_key?: string;
+    entity_type?: string;
+  } | null;
+  members_count: number;
+  members_sample: Array<{
+    id: string;
+    name: string;
+    team: string | null;
+  }>;
+  standings_snapshot: Array<{
+    position: number;
+    name: string;
+    member_id: string;
+    points?: number;
+    played?: number;
+    wins?: number;
+    draws?: number;
+    losses?: number;
+    goal_difference?: number;
+  }>;
+  rules_summary?: {
+    engine?: string;
+    points_for_win?: number;
+    points_for_draw?: number;
+    points_for_loss?: number;
+    tie_breakers?: string[];
+    ranking_order?: string;
+  } | null;
+  fixtures_summary?: {
+    total: number;
+    completed: number;
+    outstanding: number;
+    recent_results: Array<{
+      home_name: string;
+      away_name: string;
+      home_score: number;
+      away_score: number;
+      round_name: string | null;
+    }>;
+    upcoming: Array<{
+      home_name: string;
+      away_name: string;
+      scheduled_at: string | null;
+      round_name: string | null;
+      venue_name: string | null;
+    }>;
+  };
+  registrations_summary?: {
+    is_enabled: boolean;
+    capacity: number | null;
+    approved_count: number;
+    pending_count: number;
+    waitlisted_count: number;
+  };
+  venues_summary?: Array<{
+    id: string;
+    name: string;
+    court_field: string | null;
+  }>;
+}
+
+export interface AiUsageLog {
+  id: string;
+  user_id?: string | null;
+  leaderboard_id: string;
+  provider: string;
+  model: string;
+  prompt_tokens: number;
+  completion_tokens: number;
+  action_type: string;
+  created_at: string;
+}

@@ -39,6 +39,7 @@ import { TeamRosterManagement } from '@/components/teams/TeamRosterManagement';
 import { CompetitionSchedulerPanel } from '@/components/competition/scheduling/CompetitionSchedulerPanel';
 import { RegistrationManagementPanel } from '@/components/competition/registration/RegistrationManagementPanel';
 import { EventDayControlPanel } from '@/components/competition/event-day/EventDayControlPanel';
+import AiAssistantPanel from '@/components/ai/AiAssistantPanel';
 
 interface TournamentManagementPanelProps {
   leaderboard: Leaderboard;
@@ -46,7 +47,7 @@ interface TournamentManagementPanelProps {
   onLeaderboardUpdated: (leaderboard: Leaderboard) => void;
 }
 
-type TabKey = 'overview' | 'bracket' | 'matches' | 'schedule' | 'event_day' | 'registrations' | 'participants' | 'teams' | 'settings' | 'integrations';
+type TabKey = 'overview' | 'bracket' | 'matches' | 'schedule' | 'event_day' | 'registrations' | 'participants' | 'teams' | 'settings' | 'integrations' | 'assistant';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -373,8 +374,8 @@ export default function TournamentManagementPanel({
         </div>
       </div>
 
-      <div className="flex max-w-4xl gap-2 rounded-2xl border border-neutral-850 bg-neutral-900/40 p-1 overflow-x-auto custom-scrollbar">
-        {(['overview', 'bracket', 'matches', 'schedule', 'event_day', 'registrations', 'participants', 'teams', 'settings', 'integrations'] as const).map((tab) => (
+      <div className="flex max-w-5xl gap-2 rounded-2xl border border-neutral-850 bg-neutral-900/40 p-1 overflow-x-auto custom-scrollbar">
+        {(['overview', 'bracket', 'matches', 'schedule', 'event_day', 'registrations', 'participants', 'teams', 'settings', 'integrations', 'assistant'] as const).map((tab) => (
           <button
             key={tab}
             type="button"
@@ -383,7 +384,7 @@ export default function TournamentManagementPanel({
               activeTab === tab ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white'
             }`}
           >
-            {tab === 'event_day' ? 'Event Day ⚡' : tab}
+            {tab === 'event_day' ? 'Event Day ⚡' : tab === 'assistant' ? 'AI Manager ✨' : tab}
           </button>
         ))}
       </div>
@@ -868,6 +869,10 @@ export default function TournamentManagementPanel({
             </p>
           </div>
         </div>
+      )}
+
+      {activeTab === 'assistant' && (
+        <AiAssistantPanel leaderboard={leaderboard} />
       )}
 
     {bracketView?.champion && (
