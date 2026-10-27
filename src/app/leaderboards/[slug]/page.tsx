@@ -94,8 +94,18 @@ const fetchPublicLeaderboardData = cache(async (
       .maybeSingle(),
   ]);
 
+  let org = null;
+  if (lb.organization_id) {
+    const { data: orgData } = await supabase
+      .from('organizations')
+      .select('*')
+      .eq('id', lb.organization_id)
+      .maybeSingle();
+    org = orgData;
+  }
+
   return {
-    leaderboard: lb,
+    leaderboard: { ...lb, organization: org },
     season: seasons?.[0] ?? null,
     rankings: (rankings ?? []) as LeaderboardViewInitialData['rankings'],
     activityLogs: (logs ?? []) as LeaderboardViewInitialData['activityLogs'],

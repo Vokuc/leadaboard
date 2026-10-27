@@ -28,7 +28,13 @@ import {
   WebhookSubscription,
   WebhookDelivery,
   ApiIdempotencyRecord,
-  ApiAuditLog
+  ApiAuditLog,
+  Organization,
+  OrganizationMember,
+  OrganizationRole,
+  OrganizationInvitation,
+  OrganizationAuditLog,
+  OrganizationBrandingConfig,
 } from '../types';
 import { CompetitionRulesService } from '@/lib/competition/rules/service';
 import { validateScoreAdjustment } from '@/lib/competition/rules/validation';
@@ -59,10 +65,44 @@ export const DEFAULT_PROFILE: Profile = {
   updated_at: new Date().toISOString(),
 };
 
+export const DEFAULT_ORGANIZATIONS: Organization[] = [
+  {
+    id: 'org-titan-esports',
+    name: 'Titan Esports Club',
+    slug: 'titan-esports',
+    description: 'Premier collegiate and regional esports organization',
+    logo_url: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=200&h=200&q=80',
+    website_url: 'https://titanesports.gg',
+    primary_color: '#8b5cf6',
+    secondary_color: '#06b6d4',
+    accent_color: '#f59e0b',
+    custom_domain: 'compete.titanesports.gg',
+    domain_status: 'unverified',
+    domain_verification_token: 'lb_verify_titan_9f8e7d6c',
+    domain_verified_at: null,
+    hide_powered_by: false,
+    created_by: SEED_CREATOR_ID,
+    created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+];
+
+export const DEFAULT_ORGANIZATION_MEMBERS: OrganizationMember[] = [
+  {
+    id: 'om-titan-1',
+    organization_id: 'org-titan-esports',
+    user_id: SEED_CREATOR_ID,
+    role: 'owner',
+    created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+];
+
 export const DEFAULT_LEADERBOARDS: Leaderboard[] = [
   {
     id: 'lb-gaming-1',
     owner_id: SEED_CREATOR_ID,
+    organization_id: 'org-titan-esports',
     name: 'Cyber Arena - Apex Season',
     description: 'Weekly gaming tournament for FPS players. Compete, score, and dominate the ranks!',
     slug: 'cyber-arena',
@@ -680,6 +720,10 @@ class LocalDb {
       this.set('members', DEFAULT_MEMBERS);
       this.set('score_events', DEFAULT_SCORE_EVENTS);
       this.set('activity_logs', DEFAULT_ACTIVITY_LOGS);
+      this.set('organizations', DEFAULT_ORGANIZATIONS);
+      this.set('organization_members', DEFAULT_ORGANIZATION_MEMBERS);
+      this.set('organization_invitations', []);
+      this.set('organization_audit_logs', []);
       localStorage.setItem('leaderboardos_initialized', 'true');
     }
   }
@@ -858,6 +902,38 @@ class LocalDb {
 
   setApiAuditLogs(logs: ApiAuditLog[]): void {
     this.set('api_audit_logs', logs);
+  }
+
+  getOrganizations(): Organization[] {
+    return this.get<Organization[]>('organizations', DEFAULT_ORGANIZATIONS);
+  }
+
+  setOrganizations(orgs: Organization[]): void {
+    this.set('organizations', orgs);
+  }
+
+  getOrganizationMembers(): OrganizationMember[] {
+    return this.get<OrganizationMember[]>('organization_members', DEFAULT_ORGANIZATION_MEMBERS);
+  }
+
+  setOrganizationMembers(m: OrganizationMember[]): void {
+    this.set('organization_members', m);
+  }
+
+  getOrganizationInvitations(): OrganizationInvitation[] {
+    return this.get<OrganizationInvitation[]>('organization_invitations', []);
+  }
+
+  setOrganizationInvitations(invites: OrganizationInvitation[]): void {
+    this.set('organization_invitations', invites);
+  }
+
+  getOrganizationAuditLogs(): OrganizationAuditLog[] {
+    return this.get<OrganizationAuditLog[]>('organization_audit_logs', []);
+  }
+
+  setOrganizationAuditLogs(logs: OrganizationAuditLog[]): void {
+    this.set('organization_audit_logs', logs);
   }
 }
 
@@ -1042,7 +1118,33 @@ export const DatabaseService = {
     if (leaderboard.owner_id === userId) return true;
     
     const admins = await this.getAdmins(leaderboardId);
-    return admins.some(la => la.user_id === userId);
+    if (admins.some(la => la.user_id === userId)) return true;
+
+    // Check organization role if competition is associated with an organization
+    if (leaderboard.organization_id) {
+      const orgRole = await this.getOrganizationMemberRole(leaderboard.organization_id, userId);
+      if (orgRole === 'owner' || orgRole === 'admin' || orgRole === 'manager') {
+        return true;
+      }
+    }
+
+    return false;
+  },
+
+  async canViewLeaderboard(userId: string | undefined, leaderboard: Leaderboard): Promise<boolean> {
+    if (leaderboard.visibility === 'public') return true;
+    if (!userId) return false;
+    if (leaderboard.owner_id === userId) return true;
+
+    const admins = await this.getAdmins(leaderboard.id);
+    if (admins.some(la => la.user_id === userId)) return true;
+
+    if (leaderboard.organization_id) {
+      const orgRole = await this.getOrganizationMemberRole(leaderboard.organization_id, userId);
+      if (orgRole) return true;
+    }
+
+    return false;
   },
 
   async requireAdminPermission(leaderboardId: string): Promise<string> {
@@ -1066,7 +1168,13 @@ export const DatabaseService = {
     if (!leaderboard) {
       throw new Error('Leaderboard not found.');
     }
-    if (leaderboard.owner_id !== profile.id) {
+    const isDirectOwner = leaderboard.owner_id === profile.id;
+    let isOrgOwner = false;
+    if (leaderboard.organization_id) {
+      const orgRole = await this.getOrganizationMemberRole(leaderboard.organization_id, profile.id);
+      isOrgOwner = orgRole === 'owner';
+    }
+    if (!isDirectOwner && !isOrgOwner) {
       throw new Error('Permission denied: Only the leaderboard owner can perform this action.');
     }
     return profile.id;
@@ -1149,9 +1257,21 @@ export const DatabaseService = {
         .eq('slug', slug)
         .maybeSingle();
       if (error) throw error;
+      if (data && data.organization_id) {
+        const { data: orgData } = await supabase
+          .from('organizations')
+          .select('*')
+          .eq('id', data.organization_id)
+          .maybeSingle();
+        return { ...data, organization: orgData || null };
+      }
       return data;
     }
     const found = mockDb.getLeaderboards().find(lb => lb.slug === slug);
+    if (found && found.organization_id) {
+      const org = mockDb.getOrganizations().find(o => o.id === found.organization_id);
+      return { ...found, organization: org || null };
+    }
     return found || null;
   },
 
@@ -1163,9 +1283,21 @@ export const DatabaseService = {
         .eq('id', id)
         .maybeSingle();
       if (error) throw error;
+      if (data && data.organization_id) {
+        const { data: orgData } = await supabase
+          .from('organizations')
+          .select('*')
+          .eq('id', data.organization_id)
+          .maybeSingle();
+        return { ...data, organization: orgData || null };
+      }
       return data;
     }
     const found = mockDb.getLeaderboards().find(lb => lb.id === id);
+    if (found && found.organization_id) {
+      const org = mockDb.getOrganizations().find(o => o.id === found.organization_id);
+      return { ...found, organization: org || null };
+    }
     return found || null;
   },
 
@@ -3026,5 +3158,137 @@ export const DatabaseService = {
       .getApiAuditLogs()
       .filter((l) => !ownerId || l.owner_id === ownerId)
       .slice(0, 100);
+  },
+
+  // ─── Organizations & White-Label ──────────────────────────────────────────
+
+  async getOrganization(idOrSlug: string): Promise<Organization | null> {
+    const { OrganizationService } = await import('@/lib/organization/service');
+    return OrganizationService.getOrganization(idOrSlug);
+  },
+
+  async getUserOrganizations(userId: string): Promise<Array<Organization & { user_role: OrganizationRole }>> {
+    const { OrganizationService } = await import('@/lib/organization/service');
+    return OrganizationService.getUserOrganizations(userId);
+  },
+
+  async getOrganizationMembers(organizationId: string): Promise<OrganizationMember[]> {
+    const { OrganizationService } = await import('@/lib/organization/service');
+    return OrganizationService.getMembers(organizationId);
+  },
+
+  async getOrganizationMemberRole(organizationId: string, userId: string): Promise<OrganizationRole | null> {
+    const { OrganizationService } = await import('@/lib/organization/service');
+    return OrganizationService.getMemberRole(organizationId, userId);
+  },
+
+  async createOrganization(
+    input: {
+      name: string;
+      slug?: string;
+      description?: string | null;
+      website_url?: string | null;
+      logo_url?: string | null;
+      primary_color?: string;
+      secondary_color?: string;
+      accent_color?: string;
+    },
+    creatorId?: string
+  ): Promise<Organization> {
+    const { OrganizationService } = await import('@/lib/organization/service');
+    return OrganizationService.createOrganization(input, creatorId);
+  },
+
+  async inviteOrganizationMember(
+    organizationId: string,
+    actorUserId: string,
+    email: string,
+    role: 'admin' | 'manager' | 'viewer'
+  ): Promise<OrganizationInvitation> {
+    const { OrganizationService } = await import('@/lib/organization/service');
+    return OrganizationService.inviteMember(organizationId, actorUserId, email, role);
+  },
+
+  async getOrganizationInvitations(organizationId: string): Promise<OrganizationInvitation[]> {
+    const { OrganizationService } = await import('@/lib/organization/service');
+    return OrganizationService.getInvitations(organizationId);
+  },
+
+  async acceptOrganizationInvitation(token: string, userId: string) {
+    const { OrganizationService } = await import('@/lib/organization/service');
+    return OrganizationService.acceptInvitation(token, userId);
+  },
+
+  async updateOrganizationMemberRole(
+    organizationId: string,
+    actorUserId: string,
+    targetUserId: string,
+    newRole: OrganizationRole
+  ): Promise<OrganizationMember> {
+    const { OrganizationService } = await import('@/lib/organization/service');
+    return OrganizationService.updateMemberRole(organizationId, actorUserId, targetUserId, newRole);
+  },
+
+  async removeOrganizationMember(
+    organizationId: string,
+    actorUserId: string,
+    targetUserId: string
+  ): Promise<{ success: boolean }> {
+    const { OrganizationService } = await import('@/lib/organization/service');
+    return OrganizationService.removeMember(organizationId, actorUserId, targetUserId);
+  },
+
+  async updateOrganizationBranding(
+    organizationId: string,
+    actorUserId: string,
+    branding: Partial<OrganizationBrandingConfig>
+  ): Promise<Organization> {
+    const { OrganizationService } = await import('@/lib/organization/service');
+    return OrganizationService.updateBranding(organizationId, actorUserId, branding);
+  },
+
+  async configureOrganizationDomain(
+    organizationId: string,
+    actorUserId: string,
+    domain: string
+  ) {
+    const { OrganizationService } = await import('@/lib/organization/service');
+    return OrganizationService.configureCustomDomain(organizationId, actorUserId, domain);
+  },
+
+  async verifyOrganizationDomain(
+    organizationId: string,
+    actorUserId: string,
+    options?: { forceSimulateSuccess?: boolean }
+  ) {
+    const { OrganizationService } = await import('@/lib/organization/service');
+    return OrganizationService.verifyCustomDomain(organizationId, actorUserId, options);
+  },
+
+  async linkCompetitionToOrganization(
+    leaderboardId: string,
+    organizationId: string,
+    actorUserId: string
+  ): Promise<Leaderboard> {
+    const { OrganizationService } = await import('@/lib/organization/service');
+    return OrganizationService.linkCompetition(leaderboardId, organizationId, actorUserId);
+  },
+
+  async unlinkCompetitionFromOrganization(
+    leaderboardId: string,
+    actorUserId: string
+  ): Promise<Leaderboard> {
+    const { OrganizationService } = await import('@/lib/organization/service');
+    return OrganizationService.unlinkCompetition(leaderboardId, actorUserId);
+  },
+
+  async getOrganizationCompetitions(organizationId: string): Promise<Leaderboard[]> {
+    const { OrganizationService } = await import('@/lib/organization/service');
+    return OrganizationService.getOrganizationCompetitions(organizationId);
+  },
+
+  async getOrganizationAuditLogs(organizationId: string, actorUserId: string): Promise<OrganizationAuditLog[]> {
+    const { OrganizationService } = await import('@/lib/organization/service');
+    return OrganizationService.getAuditLogs(organizationId, actorUserId);
   }
 };

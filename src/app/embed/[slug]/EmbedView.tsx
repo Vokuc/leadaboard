@@ -173,12 +173,31 @@ export default function EmbedView({ slug, initialData }: EmbedViewProps) {
 
   const isLight = theme === 'light';
 
+  const org = leaderboard.organization;
+
   return (
     <div className={`flex flex-col min-h-screen ${isLight ? 'bg-white text-neutral-900' : 'bg-black/40 backdrop-blur-md text-white'} overflow-hidden text-xs`}>
+      {/* Brand Accent Top Line */}
+      {org?.primary_color && (
+        <div
+          className="h-1 w-full shrink-0"
+          style={{ backgroundColor: org.primary_color }}
+        />
+      )}
+
       {/* Header */}
       <header className={`p-3 sm:p-4 border-b ${isLight ? 'border-neutral-200 bg-neutral-50/50' : 'border-white/10 bg-neutral-950/40'} flex flex-col gap-1 shrink-0`}>
         <div className="flex justify-between items-center gap-2">
           <div className="flex items-center gap-2 min-w-0">
+            {org?.logo_url && (
+              <SafeImage
+                src={org.logo_url}
+                alt={org.name}
+                width={20}
+                height={20}
+                className="h-5 w-5 rounded object-contain shrink-0"
+              />
+            )}
             <h1 className="font-bold text-sm sm:text-base truncate">{leaderboard.name}</h1>
             {competitionConfig?.engine_type === 'league_table' ? (
               <span className="text-[9px] font-bold text-cyan-400 uppercase tracking-widest bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20 shrink-0">
@@ -189,6 +208,11 @@ export default function EmbedView({ slug, initialData }: EmbedViewProps) {
                 Bracket
               </span>
             ) : null}
+            {org?.name && (
+              <span className={`text-[9px] font-medium hidden sm:inline-block px-1.5 py-0.2 rounded ${isLight ? 'bg-neutral-100 text-neutral-600' : 'bg-white/5 text-neutral-400'}`}>
+                {org.name}
+              </span>
+            )}
           </div>
           {season && (
             <span className={`text-[9px] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wider shrink-0 ${isLight ? 'bg-neutral-100 text-neutral-600' : 'bg-white/10 text-neutral-300'}`}>
@@ -427,7 +451,14 @@ export default function EmbedView({ slug, initialData }: EmbedViewProps) {
       </main>
 
       {/* Footer */}
-      <footer className={`p-2.5 text-center border-t ${isLight ? 'border-neutral-200 bg-neutral-50' : 'border-white/10 bg-black/60'} shrink-0`}>
+      <footer className={`p-2.5 border-t ${isLight ? 'border-neutral-200 bg-neutral-50' : 'border-white/10 bg-black/60'} shrink-0 flex items-center justify-between px-3`}>
+        {org ? (
+          <span className={`text-[9px] font-medium truncate max-w-[150px] ${isLight ? 'text-neutral-500' : 'text-neutral-400'}`}>
+            {org.name}
+          </span>
+        ) : (
+          <span />
+        )}
         <a
           href={`/leaderboards/${leaderboard.slug}`}
           target="_blank"

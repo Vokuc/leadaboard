@@ -137,8 +137,10 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
   useEffect(() => {
     if (initialData) {
       // We already have data from SSR — just resolve the share URL on the client.
-      const host = typeof window !== 'undefined' ? window.location.origin : '';
-      setShareUrl(`${host}/leaderboards/${initialData.leaderboard.slug}`);
+      queueMicrotask(() => {
+        const host = typeof window !== 'undefined' ? window.location.origin : '';
+        setShareUrl(`${host}/leaderboards/${initialData.leaderboard.slug}`);
+      });
     } else {
       queueMicrotask(() => {
         void loadData();
@@ -310,10 +312,34 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
     return (
       <div className="min-h-screen bg-black bg-grid flex flex-col text-white pb-16 relative">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[400px] rounded-full blur-[140px] pointer-events-none opacity-40 bg-cyan-900/15" />
+        {leaderboard.organization?.primary_color && (
+          <div
+            className="h-1 w-full shrink-0"
+            style={{ backgroundColor: leaderboard.organization.primary_color }}
+          />
+        )}
         <header className="glass border-b border-white/5 py-4 px-6 md:px-12 flex justify-between items-center sticky top-0 z-40">
-          <Link href="/" className="flex items-center gap-2">
-            <Logo className="scale-75 origin-left" />
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-2">
+              <Logo className="scale-75 origin-left" />
+            </Link>
+            {leaderboard.organization && (
+              <div className="flex items-center gap-2 pl-3 border-l border-white/10">
+                {leaderboard.organization.logo_url && (
+                  <SafeImage
+                    src={leaderboard.organization.logo_url}
+                    alt={leaderboard.organization.name}
+                    width={20}
+                    height={20}
+                    className="w-5 h-5 rounded object-contain shrink-0"
+                  />
+                )}
+                <span className="text-xs font-semibold text-neutral-300">
+                  {leaderboard.organization.name}
+                </span>
+              </div>
+            )}
+          </div>
 
           <div className="flex items-center gap-2">
             <NotificationBell />
@@ -334,6 +360,23 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
           <SharedResultHighlightBanner slug={leaderboard.slug} />
 
           <div className="text-center max-w-2xl mx-auto">
+            {leaderboard.organization && (
+              <div className="flex items-center justify-center gap-1.5 mb-2">
+                <span className="text-xs text-neutral-400">Presented by</span>
+                <span className="text-xs font-bold text-white px-2 py-0.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-1.5">
+                  {leaderboard.organization.logo_url && (
+                    <SafeImage
+                      src={leaderboard.organization.logo_url}
+                      alt={leaderboard.organization.name}
+                      width={14}
+                      height={14}
+                      className="w-3.5 h-3.5 rounded object-contain"
+                    />
+                  )}
+                  {leaderboard.organization.name}
+                </span>
+              </div>
+            )}
             <div className="flex justify-center items-center gap-2 mb-3">
               <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
                 League Table
@@ -381,13 +424,34 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
     return (
       <div className="min-h-screen bg-black bg-grid flex flex-col text-white pb-16 relative">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[400px] rounded-full blur-[140px] pointer-events-none opacity-40 bg-cyan-900/15" />
+        {leaderboard.organization?.primary_color && (
+          <div
+            className="h-1 w-full shrink-0"
+            style={{ backgroundColor: leaderboard.organization.primary_color }}
+          />
+        )}
         <header className="glass border-b border-white/5 py-4 px-6 md:px-12 flex justify-between items-center sticky top-0 z-40">
-          <Link href="/" className="flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-violet-500 animate-pulse-glow" />
-            <span className="font-bold text-base tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
-              LeaderboardOS
-            </span>
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-2">
+              <Logo className="scale-75 origin-left" />
+            </Link>
+            {leaderboard.organization && (
+              <div className="flex items-center gap-2 pl-3 border-l border-white/10">
+                {leaderboard.organization.logo_url && (
+                  <SafeImage
+                    src={leaderboard.organization.logo_url}
+                    alt={leaderboard.organization.name}
+                    width={20}
+                    height={20}
+                    className="w-5 h-5 rounded object-contain shrink-0"
+                  />
+                )}
+                <span className="text-xs font-semibold text-neutral-300">
+                  {leaderboard.organization.name}
+                </span>
+              </div>
+            )}
+          </div>
 
           <div className="flex items-center gap-2">
             <NotificationBell />
@@ -408,6 +472,23 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
           <SharedResultHighlightBanner slug={leaderboard.slug} />
 
           <div className="text-center max-w-2xl mx-auto">
+            {leaderboard.organization && (
+              <div className="flex items-center justify-center gap-1.5 mb-2">
+                <span className="text-xs text-neutral-400">Presented by</span>
+                <span className="text-xs font-bold text-white px-2 py-0.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-1.5">
+                  {leaderboard.organization.logo_url && (
+                    <SafeImage
+                      src={leaderboard.organization.logo_url}
+                      alt={leaderboard.organization.name}
+                      width={14}
+                      height={14}
+                      className="w-3.5 h-3.5 rounded object-contain"
+                    />
+                  )}
+                  {leaderboard.organization.name}
+                </span>
+              </div>
+            )}
             <div className="flex justify-center items-center gap-2 mb-3">
               <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
                 Tournament
@@ -483,6 +564,12 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
 
   return (
     <div className="min-h-screen bg-black bg-grid flex flex-col text-white pb-16 relative">
+      {leaderboard.organization?.primary_color && (
+        <div
+          className="h-1 w-full shrink-0 relative z-20"
+          style={{ backgroundColor: leaderboard.organization.primary_color }}
+        />
+      )}
       {/* Glow overlays */}
       <div
         className={`absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[400px] rounded-full blur-[140px] pointer-events-none opacity-40 ${
@@ -496,6 +583,23 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
 
       {/* Public Header */}
       <div className="relative z-10 p-6 sm:p-10 flex flex-col items-center text-center mt-6">
+        {leaderboard.organization && (
+          <div className="flex items-center justify-center gap-1.5 mb-2">
+            <span className="text-xs text-neutral-400">Presented by</span>
+            <span className="text-xs font-bold text-white px-2 py-0.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-1.5">
+              {leaderboard.organization.logo_url && (
+                <SafeImage
+                  src={leaderboard.organization.logo_url}
+                  alt={leaderboard.organization.name}
+                  width={14}
+                  height={14}
+                  className="w-3.5 h-3.5 rounded object-contain"
+                />
+              )}
+              {leaderboard.organization.name}
+            </span>
+          </div>
+        )}
         <div className="flex justify-center items-center gap-2 mb-3">
           <span className="text-[10px] font-bold text-violet-400 uppercase tracking-widest bg-violet-500/10 px-2 py-0.5 rounded border border-violet-500/20">
             {displayCategoryLabel(leaderboard.competition_type)}
@@ -541,12 +645,30 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
 
       <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 relative z-10 space-y-8">
         <header className="glass border-b border-white/5 py-4 px-6 md:px-12 flex justify-between items-center sticky top-0 z-40 rounded-2xl">
-          <Link href="/" className="flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-violet-500 animate-pulse-glow" />
-            <span className="font-bold text-base tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
-              LeaderboardOS
-            </span>
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-violet-500 animate-pulse-glow" />
+              <span className="font-bold text-base tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
+                LeaderboardOS
+              </span>
+            </Link>
+            {leaderboard.organization && (
+              <div className="flex items-center gap-2 pl-3 border-l border-white/10">
+                {leaderboard.organization.logo_url && (
+                  <SafeImage
+                    src={leaderboard.organization.logo_url}
+                    alt={leaderboard.organization.name}
+                    width={20}
+                    height={20}
+                    className="w-5 h-5 rounded object-contain shrink-0"
+                  />
+                )}
+                <span className="text-xs font-semibold text-neutral-300">
+                  {leaderboard.organization.name}
+                </span>
+              </div>
+            )}
+          </div>
 
           <div className="flex items-center gap-2">
             <NotificationBell />
