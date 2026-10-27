@@ -210,9 +210,18 @@ DO $$
 BEGIN
   IF EXISTS (
     SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND tablename = 'competition_sponsors'
   ) THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.competition_sponsors;
   END IF;
+EXCEPTION
+  WHEN duplicate_object THEN
+    NULL; -- Already a member of publication
+  WHEN OTHERS THEN
+    NULL; -- Ignore publication errors if realtime publication is not configured in local environment
 END $$;
 
 COMMIT;
