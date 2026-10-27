@@ -21,13 +21,20 @@ import {
 const VENUES_STORAGE_KEY = 'competition_venues';
 const CONFIGS_STORAGE_KEY = 'competition_schedule_configs';
 
+const inMemoryStore = new Map<string, string>();
+
 function localGet<T>(key: string, defaults: T): T {
-  if (typeof window === 'undefined') {
-    return defaults;
+  let value: string | null = null;
+  if (typeof window !== 'undefined' && window.localStorage) {
+    value = window.localStorage.getItem(`leaderboardos_${key}`);
+  } else if (typeof localStorage !== 'undefined') {
+    value = localStorage.getItem(`leaderboardos_${key}`);
+  } else {
+    value = inMemoryStore.get(`leaderboardos_${key}`) || null;
   }
-  const value = localStorage.getItem(`leaderboardos_${key}`);
+
   if (!value) {
-    localStorage.setItem(`leaderboardos_${key}`, JSON.stringify(defaults));
+    localSet(key, defaults);
     return defaults;
   }
   try {
@@ -38,10 +45,14 @@ function localGet<T>(key: string, defaults: T): T {
 }
 
 function localSet<T>(key: string, value: T): void {
-  if (typeof window === 'undefined') {
-    return;
+  const serialized = JSON.stringify(value);
+  if (typeof window !== 'undefined' && window.localStorage) {
+    window.localStorage.setItem(`leaderboardos_${key}`, serialized);
+  } else if (typeof localStorage !== 'undefined') {
+    localStorage.setItem(`leaderboardos_${key}`, serialized);
+  } else {
+    inMemoryStore.set(`leaderboardos_${key}`, serialized);
   }
-  localStorage.setItem(`leaderboardos_${key}`, JSON.stringify(value));
 }
 
 function nowIso(): string {
