@@ -16,6 +16,7 @@ export default function SeoFooter() {
         <div className="flex flex-col gap-3">
           <h3 className="font-bold text-white mb-1 text-base">Platform</h3>
           <Link href="/" className="hover:text-white transition-colors">Home</Link>
+          <Link href="/docs" className="hover:text-white transition-colors">Help Center & Docs</Link>
           <Link href="/blog" className="hover:text-white transition-colors">Blog</Link>
           <Link href="/directory" className="hover:text-white transition-colors">Discover Public Boards</Link>
           <Link href="/how-to-play" className="hover:text-white transition-colors">How it Works</Link>

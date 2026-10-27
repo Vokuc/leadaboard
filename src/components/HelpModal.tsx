@@ -84,6 +84,15 @@ export default function HelpModal({ title, description, sections, label = 'How t
                 </div>
               ))}
             </div>
+            <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between text-xs">
+              <span className="text-neutral-400">Need in-depth guides?</span>
+              <a 
+                href="/docs" 
+                className="text-violet-400 hover:text-violet-300 font-medium inline-flex items-center gap-1 transition-colors"
+              >
+                Help Center & Docs &rarr;
+              </a>
+            </div>
           </div>
         </div>
       )}

@@ -1,0 +1,553 @@
+{
+  "$schema": "./feature-registry.schema.json",
+  "version": "1.0.0",
+  "lastUpdated": "2026-10-27",
+  "features": [
+    {
+      "id": "points_leaderboard_engine",
+      "name": "Simple Points Leaderboard Engine",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/lib/competition/engines/simple/index.ts",
+        "src/lib/db.ts",
+        "src/app/leaderboards/[slug]/LeaderboardView.tsx"
+      ],
+      "relevantTests": [
+        "tests/permissions/leaderboard-access.test.ts",
+        "tests/activity/cross-engine-logging.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#51-simple-points-leaderboard-engine",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#32-managing-a-simple-points-leaderboard",
+      "roadmapEra": "Era 1: Foundation",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "dual_mode_persistence",
+      "name": "Dual-Mode Persistence Layer (Supabase + Demo)",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/lib/db.ts",
+        "src/context/AuthContext.tsx",
+        "src/lib/supabase/server.ts"
+      ],
+      "relevantTests": [
+        "tests/discovery/demo-directory.test.ts",
+        "tests/embed/embed-parity.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#24-dual-mode-storage-architecture",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#14-sandbox-demo-mode-vs-live-supabase-mode",
+      "roadmapEra": "Era 1: Foundation",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "public_leaderboard_view",
+      "name": "Public Leaderboard & Podium Display",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/app/leaderboards/[slug]/page.tsx",
+        "src/app/leaderboards/[slug]/LeaderboardView.tsx"
+      ],
+      "relevantTests": [
+        "tests/embed/embed-parity.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#78-public-publishing-and-viewing",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#51-public-competition-views",
+      "roadmapEra": "Era 1: Foundation",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "embed_system",
+      "name": "Responsive iFrame Embed System",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/app/embed/[slug]/page.tsx",
+        "src/app/embed/[slug]/EmbedView.tsx"
+      ],
+      "relevantTests": [
+        "tests/embed/embed-parity.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#79-embedding-competitions",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#53-embedding-competitions",
+      "roadmapEra": "Era 1: Foundation",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "league_table_engine",
+      "name": "Round-Robin League Table Engine",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/lib/competition/engines/league/index.ts",
+        "src/lib/league/service.ts",
+        "src/lib/league/standings.ts",
+        "src/components/league/LeagueManagementPanel.tsx"
+      ],
+      "relevantTests": [
+        "tests/seeding/league-standings-seeding.test.ts",
+        "tests/competition/rules-engine.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#52-league-table-engine",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#33-managing-a-league-table-competition",
+      "roadmapEra": "Era 2: Organizer OS",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "tournament_knockout_engine",
+      "name": "Single Elimination Knockout Tournament Engine",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/lib/competition/engines/tournament/index.ts",
+        "src/lib/tournament/service.ts",
+        "src/components/tournament/TournamentManagementPanel.tsx",
+        "src/components/tournament/TournamentPublicView.tsx"
+      ],
+      "relevantTests": [
+        "tests/competition/lifecycle-and-pathways.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#53-knockout-tournament-engine",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#34-managing-a-knockout-tournament",
+      "roadmapEra": "Era 2: Organizer OS",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "competition_rules_engine",
+      "name": "Configurable Competition Rules & Tie-Breakers",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/lib/competition/rules/service.ts",
+        "src/lib/competition/rules/evaluator.ts",
+        "src/components/competition/CompetitionRulesSettings.tsx"
+      ],
+      "relevantTests": [
+        "tests/competition/rules-engine.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#54-competition-rules--tie-breaking-engine",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#35-configuring-scoring-rules-and-tie-breakers",
+      "roadmapEra": "Era 2: Organizer OS",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "fixture_scheduler_engine",
+      "name": "Automated Fixture & Round-Robin Scheduler",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/lib/competition/scheduling/service.ts",
+        "src/lib/competition/scheduling/engine.ts",
+        "src/components/competition/scheduling/CompetitionSchedulerPanel.tsx"
+      ],
+      "relevantTests": [
+        "tests/competition/scheduler.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#74-fixture-generation-and-scheduling",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#36-automated-scheduling--fixture-generation",
+      "roadmapEra": "Era 2: Organizer OS",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "result_audit_provenance",
+      "name": "Append-Only Fixture Result Audit & Provenance Log",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/lib/competition/audit/service.ts",
+        "src/components/competition/ResultAuditDrawer.tsx"
+      ],
+      "relevantTests": [
+        "tests/competition/result-history.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#44-audit-logs-result-history-and-provenance",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#37-result-corrections--audit-trails",
+      "roadmapEra": "Era 2: Organizer OS",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "competition_lifecycle_pathways",
+      "name": "Competition Lifecycle & Multi-Stage Pathways",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/lib/competition/lifecycle/service.ts",
+        "src/lib/competition/pathway/service.ts"
+      ],
+      "relevantTests": [
+        "tests/competition/lifecycle-and-pathways.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#77-connecting-competition-stages-pathways",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#38-multi-stage-competitions-and-pathways",
+      "roadmapEra": "Era 2: Organizer OS",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "event_day_manager",
+      "name": "Live Event-Day Management Console",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/lib/competition/event-day/service.ts",
+        "src/app/dashboard/leaderboards/[id]/event-day/page.tsx",
+        "src/components/competition/event-day/EventDayControlPanel.tsx"
+      ],
+      "relevantTests": [
+        "tests/competition/templates-and-event-day.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#75-event-day-operations",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#39-live-event-day-operations",
+      "roadmapEra": "Era 2: Organizer OS",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "competition_templates",
+      "name": "Domain-Specific Competition Presets & Templates",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/lib/competition/templates/registry.ts",
+        "src/components/competition/templates/TemplatePicker.tsx"
+      ],
+      "relevantTests": [
+        "tests/competition/templates-and-event-day.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#71-creating-a-competition",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#31-creating-and-configuring-a-competition",
+      "roadmapEra": "Era 2: Organizer OS",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "participant_passports",
+      "name": "Participant Profiles & Competition Passports",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/lib/competition/passport/service.ts",
+        "src/app/passport/[handle]/page.tsx",
+        "src/components/competition/passport/CompetitionPassportView.tsx"
+      ],
+      "relevantTests": [
+        "tests/competition/passport-and-claims.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#42-participant-profiles-and-passports",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#41-participant-passports--profiles",
+      "roadmapEra": "Era 3: Participant Network",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "team_roster_management",
+      "name": "Team Roster & Squad Management",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/components/teams/TeamRosterManagement.tsx",
+        "src/lib/db.ts"
+      ],
+      "relevantTests": [
+        "tests/teams/teams-and-rosters.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#43-teams-rosters-and-player-assignments",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#42-teams-and-squad-management",
+      "roadmapEra": "Era 3: Participant Network",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "competition_registration",
+      "name": "Public Registration & Notification Workflows",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/lib/competition/registration/service.ts",
+        "src/components/competition/registration/PublicRegistrationCard.tsx",
+        "src/components/competition/registration/RegistrationManagementPanel.tsx"
+      ],
+      "relevantTests": [
+        "tests/competition/registration-and-notifications.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#72-participant-registration-and-attendance",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#43-registering-for-a-competition",
+      "roadmapEra": "Era 3: Participant Network",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "ratings_and_achievements",
+      "name": "Elo/Glicko Ratings & Achievement System",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/lib/competition/ratings/service.ts",
+        "src/lib/competition/achievements/service.ts",
+        "src/app/tools/elo-calculator/page.tsx"
+      ],
+      "relevantTests": [
+        "tests/competition/achievements-and-ratings.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#55-ratings-and-achievement-engine",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#44-understanding-ratings-and-achievements",
+      "roadmapEra": "Era 3: Participant Network",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "social_shareable_cards",
+      "name": "Shareable Result Cards & Dynamic OG Images",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/lib/sharing/service.ts",
+        "src/components/sharing/ShareResultModal.tsx",
+        "src/app/api/og/share/route.tsx"
+      ],
+      "relevantTests": [
+        "tests/sharing/shareable-results.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#710-shareable-result-cards-and-open-graph",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#45-sharing-results-on-social-media",
+      "roadmapEra": "Era 3: Participant Network",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "competition_marketplace",
+      "name": "Public Competition Directory & Marketplace",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/app/directory/page.tsx",
+        "src/app/directory/[category]/page.tsx",
+        "src/components/discovery/MarketplaceView.tsx"
+      ],
+      "relevantTests": [
+        "tests/competition/marketplace-discovery.test.ts",
+        "tests/discovery/demo-directory.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#711-competition-discovery-and-marketplace",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#52-discovering-public-competitions",
+      "roadmapEra": "Era 4: Competition Marketplace",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "seo_landing_pages",
+      "name": "Programmatic SEO Landing Pages & Resources",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/app/(seo)/[slug]/page.tsx",
+        "src/lib/seo/metadata.ts",
+        "src/lib/seo/content.ts",
+        "src/app/resources/page.tsx"
+      ],
+      "relevantTests": [
+        "tests/discovery/demo-directory.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#26-seo-and-discovery-architecture",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#54-seo-pages-and-free-tools",
+      "roadmapEra": "Era 4: Competition Marketplace",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "developer_api_v1",
+      "name": "Developer API v1 (Scoped Keys & Secure Endpoints)",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/app/api/v1/competitions/route.ts",
+        "src/app/api/v1/competitions/[idOrSlug]/route.ts",
+        "src/app/api/v1/competitions/[idOrSlug]/scores/route.ts",
+        "src/app/api/v1/competitions/[idOrSlug]/standings/route.ts",
+        "src/app/api/v1/competitions/[idOrSlug]/fixtures/route.ts",
+        "src/lib/api/auth.ts",
+        "src/lib/api/crypto.ts",
+        "src/lib/api/rateLimiter.ts"
+      ],
+      "relevantTests": [
+        "tests/api/v1/secure-api.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#81-developer-api-v1-reference",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#81-developer-api-access",
+      "roadmapEra": "Era 5: Infrastructure",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "developer_webhooks",
+      "name": "Developer Webhooks & Delivery Logs",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/app/api/v1/webhooks/route.ts",
+        "src/app/api/v1/webhooks/[id]/test/route.ts",
+        "src/lib/api/webhooks.ts"
+      ],
+      "relevantTests": [
+        "tests/api/v1/secure-api.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#82-webhooks-and-event-delivery",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#82-configuring-webhooks",
+      "roadmapEra": "Era 5: Infrastructure",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "organization_workspaces",
+      "name": "Organization Workspaces, Branding & Custom Domains",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/lib/organization/service.ts",
+        "src/app/dashboard/organizations/page.tsx",
+        "src/app/dashboard/organizations/[id]/page.tsx",
+        "src/app/dashboard/organizations/[id]/branding/page.tsx",
+        "src/app/dashboard/organizations/[id]/audit/page.tsx"
+      ],
+      "relevantTests": [
+        "tests/organizations/organizations-and-branding.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#45-organizations-branding-and-multi-tenant-domains",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#83-organization-workspaces-and-branding",
+      "roadmapEra": "Era 5: Infrastructure",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "saas_subscription_billing",
+      "name": "SaaS Subscription Billing (Paystack Provider)",
+      "status": "Requires configuration",
+      "primaryCodeLocations": [
+        "src/lib/payments/core/service.ts",
+        "src/lib/payments/providers/paystack.ts",
+        "src/app/dashboard/billing/page.tsx",
+        "src/app/api/payments/checkout/route.ts",
+        "src/app/api/payments/verify/route.ts"
+      ],
+      "relevantTests": [
+        "tests/payments/access.test.ts",
+        "tests/payments/service.test.ts",
+        "tests/payments/webhooks.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#83-billing-subscriptions-and-entitlements",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#61-leaderboardos-saas-plans",
+      "roadmapEra": "Era 6: Money",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "paid_competition_registration",
+      "name": "Paid Competition Registrations & Entry Fees",
+      "status": "Requires configuration",
+      "primaryCodeLocations": [
+        "src/app/api/competitions/[idOrSlug]/registration/checkout/route.ts",
+        "src/app/api/competitions/[idOrSlug]/registration/verify/route.ts",
+        "src/lib/payments/competition/service.ts"
+      ],
+      "relevantTests": [
+        "tests/payments/paid-registration-and-ledger.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#712-paid-competition-registration",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#62-paid-competition-registration-fees",
+      "roadmapEra": "Era 6: Money",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "financial_ledger_prizes",
+      "name": "Competition Financial Ledger, Prize Pools & Refunds",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/lib/payments/competition/service.ts",
+        "src/app/api/competitions/[idOrSlug]/finance/ledger/route.ts",
+        "src/app/api/competitions/[idOrSlug]/finance/prizes/route.ts",
+        "src/app/dashboard/leaderboards/[id]/finance/page.tsx",
+        "src/components/competition/finance/FinanceManagementPanel.tsx"
+      ],
+      "relevantTests": [
+        "tests/payments/paid-registration-and-ledger.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#46-financial-ledger-prizes-and-refunds",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#63-managing-finances-prizes-and-refunds",
+      "roadmapEra": "Era 6: Money",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "competition_sponsorship",
+      "name": "Competition Sponsorship & Ad Monetization",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/lib/competition/sponsorship/service.ts",
+        "src/app/api/competitions/[idOrSlug]/sponsors/route.ts",
+        "src/components/competition/sponsorship/SponsorshipManagementPanel.tsx",
+        "src/components/competition/sponsorship/PublicSponsorBanner.tsx"
+      ],
+      "relevantTests": [
+        "tests/competition/sponsorship.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#47-competition-sponsorship-and-ad-placements",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#64-competition-sponsorship-management",
+      "roadmapEra": "Era 6: Money",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "ai_competition_manager",
+      "name": "AI Competition Manager (Grounded Co-Pilot)",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/lib/ai/service.ts",
+        "src/lib/ai/context.ts",
+        "src/lib/ai/proposals/executor.ts",
+        "src/components/ai/AiAssistantPanel.tsx",
+        "src/app/api/competitions/[idOrSlug]/assistant/chat/route.ts",
+        "src/app/api/competitions/[idOrSlug]/assistant/proposals/[proposalId]/route.ts"
+      ],
+      "relevantTests": [
+        "tests/ai/ai-competition-manager.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#56-ai-competition-manager-internals",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#310-using-the-ai-competition-manager",
+      "roadmapEra": "Era 7: Global Competition Network",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "competition_data_graph",
+      "name": "Normalized Cross-Competition Relational Graph",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/lib/analytics/competition-graph.ts",
+        "supabase/migrations/202611040001_competition_data_graph_and_analytics.sql"
+      ],
+      "relevantTests": [
+        "tests/analytics/competition-data-graph.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#48-competition-data-graph-and-analytics-schema",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#71-cross-competition-insights-and-passports",
+      "roadmapEra": "Era 7: Global Competition Network",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "cross_competition_analytics",
+      "name": "Cross-Competition Analytics & Streaming CSV Export",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/app/api/v1/analytics/cross-competition/route.ts",
+        "src/app/api/v1/analytics/export/route.ts",
+        "src/app/dashboard/analytics/page.tsx",
+        "src/components/analytics/CrossCompetitionAnalyticsView.tsx"
+      ],
+      "relevantTests": [
+        "tests/analytics/competition-data-graph.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#84-cross-competition-analytics-api--export",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#72-viewing-cross-competition-analytics",
+      "roadmapEra": "Era 7: Global Competition Network",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "external_scoring_connectors",
+      "name": "External Hardware & Gaming Scoring Webhook Connectors",
+      "status": "Requires configuration",
+      "primaryCodeLocations": [
+        "docs/external-scoring-connectors.md",
+        "src/app/api/v1/competitions/[idOrSlug]/scores/route.ts",
+        "src/lib/api/auth.ts"
+      ],
+      "relevantTests": [
+        "tests/api/v1/secure-api.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#85-external-scoring-connectors",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#84-connecting-external-hardware--game-engines",
+      "roadmapEra": "Era 7: Global Competition Network",
+      "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "public_documentation_hub",
+      "name": "Public Documentation Hub & Help Center",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/app/docs/page.tsx",
+        "src/app/docs/[slug]/page.tsx",
+        "src/app/docs/search/page.tsx",
+        "src/lib/docs/api.ts"
+      ],
+      "relevantTests": [
+        "tests/docs/documentation-hub.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#26-seo-and-discovery-architecture",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#54-seo-pages-and-free-tools",
+      "roadmapEra": "Era 4: Competition Marketplace",
+      "lastVerified": "2026-10-27"
+    }
+  ]
+}

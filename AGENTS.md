@@ -82,6 +82,10 @@ If you edit scoring or leaderboard logic, confirm it still behaves correctly for
 - The public leaderboard pages subscribe to real-time score events with Supabase Realtime when configured
 - There is a mock/demo mode that stores data in browser localStorage for local development and debugging
 
+### 5) Keep documentation synchronized with implementation
+
+Before finishing any feature task, inspect the documentation policy in `docs/DOCUMENTATION_POLICY.md` and update the technical bible (`docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md`), user guide (`docs/user/LEADERBOARDOS_USER_GUIDE.md`), feature registry (`docs/feature-registry.json`), and relevant focused documentation to reflect the implementation. Document only behavior that exists and has been verified. Update roadmap status, tests, configuration, migrations, and limitations as needed. Do not finish with stale documentation.
+
 ## Final instruction
 
 Treat agent work as repository-aware engineering: match the app’s existing patterns, verify the behavior with the smallest relevant checks, and keep the platform stable across both Supabase and demo modes.

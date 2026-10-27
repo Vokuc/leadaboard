@@ -11,6 +11,7 @@ export default function SimpleHeader() {
         </Link>
         <nav className="flex items-center gap-4 text-sm font-medium">
           <Link href="/blog" className="text-neutral-400 hover:text-white transition-colors">Blog</Link>
+          <Link href="/docs" className="text-neutral-400 hover:text-white transition-colors">Docs</Link>
           <Link href="/directory" className="text-neutral-400 hover:text-white transition-colors">Discover</Link>
           <Link 
             href="/login"
