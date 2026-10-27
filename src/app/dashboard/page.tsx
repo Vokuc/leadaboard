@@ -26,7 +26,8 @@ import {
   GraduationCap,
   CreditCard,
   Shield,
-  Code
+  Code,
+  Building2
 } from 'lucide-react';
 import Link from 'next/link';
 import HelpModal from '@/components/HelpModal';
@@ -219,8 +220,14 @@ export default function DashboardPage() {
 
         <div className="flex items-center gap-4">
           <Link
-            href="/dashboard/passport"
+            href="/dashboard/organizations"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-violet-500/30 bg-violet-500/10 text-violet-200 text-xs font-semibold hover:bg-violet-500/20"
+          >
+            <Building2 className="w-3.5 h-3.5 text-violet-400" /> Organizations
+          </Link>
+          <Link
+            href="/dashboard/passport"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-violet-500/30 bg-violet-500/10 text-violet-200 text-xs font-semibold hover:bg-violet-500/20"
           >
             <Shield className="w-3.5 h-3.5 text-violet-400" /> Passport
           </Link>
@@ -426,6 +433,13 @@ export default function DashboardPage() {
                           )}
                         </button>
 
+                        <Link
+                          href="/dashboard/organizations"
+                          className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-neutral-300 hover:text-white hover:bg-white/5 transition-colors"
+                        >
+                          <Building2 className="w-3.5 h-3.5 text-violet-400" /> Workspaces
+                        </Link>
+
                         <div className="border-t border-white/5 my-1" />
                         
                         <button
@@ -448,6 +462,11 @@ export default function DashboardPage() {
                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">
                       {lb.competition_type}
                     </span>
+                    {lb.organization_id && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-violet-500/10 text-violet-300 border border-violet-500/20">
+                        <Building2 className="w-2.5 h-2.5" /> Org
+                      </span>
+                    )}
                   </div>
 
                   <h3 className="font-bold text-base text-white tracking-tight group-hover:text-violet-400 transition-colors">

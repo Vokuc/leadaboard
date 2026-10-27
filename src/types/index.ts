@@ -77,6 +77,8 @@ export interface Leaderboard {
   cover_image_url: string | null;
   status: LeaderboardStatus;
   is_verified?: boolean;
+  organization_id?: string | null;
+  organization?: Organization | null;
   created_at: string;
   updated_at: string;
 }
@@ -1223,6 +1225,7 @@ export type ApiKeyStatus = 'active' | 'revoked' | 'expired';
 export interface ApiKey {
   id: string;
   owner_id: string;
+  organization_id?: string | null;
   name: string;
   key_prefix: string;
   secret_hash: string;
@@ -1245,6 +1248,80 @@ export interface ApiKeyCreateInput {
 export interface ApiKeyCreatedResult {
   apiKey: ApiKey;
   plaintextSecret: string;
+}
+
+// ─── Organizations & White-Label ──────────────────────────────────────────────
+
+export type OrganizationRole = 'owner' | 'admin' | 'manager' | 'viewer';
+export type DomainStatus = 'unverified' | 'pending' | 'verified' | 'failed';
+
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  logo_url: string | null;
+  website_url: string | null;
+  primary_color: string;
+  secondary_color: string;
+  accent_color: string;
+  custom_domain: string | null;
+  domain_status: DomainStatus;
+  custom_domain_status?: DomainStatus;
+  domain_verification_token?: string | null;
+  domain_verified_at?: string | null;
+  hide_powered_by: boolean;
+  created_by: string;
+  owner_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrganizationMember {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  role: OrganizationRole;
+  created_at: string;
+  updated_at: string;
+  profile?: Profile;
+  user?: Profile;
+}
+
+export interface OrganizationInvitation {
+  id: string;
+  organization_id: string;
+  email: string;
+  role: 'admin' | 'manager' | 'viewer';
+  token: string;
+  invited_by: string;
+  status: 'pending' | 'accepted' | 'declined' | 'expired';
+  expires_at: string;
+  created_at: string;
+  organization?: Organization;
+}
+
+export interface OrganizationAuditLog {
+  id: string;
+  organization_id: string;
+  actor_id: string | null;
+  actor_user_id?: string | null;
+  action: string;
+  target_type: string;
+  target_id: string | null;
+  details: Record<string, unknown>;
+  created_at: string;
+  actor_profile?: Profile;
+  actor?: Profile;
+}
+
+export interface OrganizationBrandingConfig {
+  logo_url?: string | null;
+  website_url?: string | null;
+  primary_color: string;
+  secondary_color: string;
+  accent_color: string;
+  hide_powered_by: boolean;
 }
 
 export type WebhookEventType =
