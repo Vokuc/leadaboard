@@ -127,8 +127,19 @@ export function getDocSlugs(): string[] {
 }
 
 export function getDocBySlug(slug: string): DocArticle | null {
+  // Prevent path traversal and enforce single segment slug
+  if (!slug || slug.includes('..') || slug.includes('/') || slug.includes('\\')) {
+    return null;
+  }
+
   const realSlug = slug.replace(/\.md$/, '');
-  const fullPath = path.join(docsDirectory, `${realSlug}.md`);
+  const resolvedDir = path.resolve(docsDirectory);
+  const fullPath = path.resolve(resolvedDir, `${realSlug}.md`);
+
+  // Verify the resolved path is strictly within the docs directory
+  if (!fullPath.startsWith(resolvedDir + path.sep)) {
+    return null;
+  }
 
   if (!fs.existsSync(fullPath)) {
     return null;

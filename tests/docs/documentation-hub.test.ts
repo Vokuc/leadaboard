@@ -36,6 +36,15 @@ describe('Public Documentation Hub API', () => {
     expect(doc).toBeNull();
   });
 
+  it('strictly protects internal technical documentation and blocks path traversal attempts', () => {
+    expect(getDocBySlug('../docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE')).toBeNull();
+    expect(getDocBySlug('..\\docs\\user\\LEADERBOARDOS_USER_GUIDE')).toBeNull();
+    expect(getDocBySlug('../../docs/DOCUMENTATION_POLICY')).toBeNull();
+    expect(getDocBySlug('LEADERBOARDOS_TECHNICAL_BIBLE')).toBeNull();
+    expect(getDocBySlug('LEADERBOARDOS_USER_GUIDE')).toBeNull();
+    expect(getDocBySlug('DOCUMENTATION_POLICY')).toBeNull();
+  });
+
   it('groups articles into canonical categories', () => {
     const categories = getCategories();
     expect(categories.length).toBeGreaterThanOrEqual(8);

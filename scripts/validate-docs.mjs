@@ -270,6 +270,16 @@ if (fs.existsSync(publicDocsDir)) {
         }
       }
     }
+
+    // Check internal /docs/ links in markdown body
+    const linkRegex = /\]\(\/docs\/([a-zA-Z0-9-]+)\)/g;
+    let linkMatch;
+    while ((linkMatch = linkRegex.exec(content)) !== null) {
+      const targetSlug = linkMatch[1];
+      if (!allSlugs.has(targetSlug)) {
+        reportError(`In ${file}: Broken link to "/docs/${targetSlug}"`);
+      }
+    }
   }
 } else {
   reportError('Missing public documentation directory: content/docs/');
