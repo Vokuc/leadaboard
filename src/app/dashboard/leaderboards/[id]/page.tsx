@@ -42,6 +42,7 @@ import { RegistrationManagementPanel } from '@/components/competition/registrati
 import { EventDayControlPanel } from '@/components/competition/event-day/EventDayControlPanel';
 import { FinanceManagementPanel } from '@/components/competition/finance/FinanceManagementPanel';
 import { SponsorshipManagementPanel } from '@/components/competition/sponsorship/SponsorshipManagementPanel';
+import AiAssistantPanel from '@/components/ai/AiAssistantPanel';
 import { Play } from 'lucide-react';
 
 function getErrorMessage(error: unknown, fallback: string): string {
@@ -71,7 +72,7 @@ export default function LeaderboardManagementPage() {
   const [coverUploading, setCoverUploading] = useState(false);
 
   // Layout Tab
-  const [activeTab, setActiveTab] = useState<'overview' | 'players' | 'registrations' | 'event_day' | 'teams' | 'scores' | 'settings' | 'integrations' | 'finance' | 'sponsors'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'players' | 'registrations' | 'event_day' | 'teams' | 'scores' | 'settings' | 'integrations' | 'finance' | 'sponsors' | 'assistant'>('overview');
   const [teams, setTeams] = useState<Team[]>([]);
   const [showEmbedModal, setShowEmbedModal] = useState(false);
   const [embedCopied, setEmbedCopied] = useState(false);
@@ -819,7 +820,7 @@ export default function LeaderboardManagementPage() {
 
         {/* Tab selection */}
         <div className="flex border-b border-neutral-850 p-1 bg-neutral-900/40 rounded-2xl border mb-8 overflow-x-auto custom-scrollbar">
-          {(['overview', 'players', 'registrations', 'event_day', 'teams', 'scores', 'finance', 'sponsors', 'settings', 'integrations'] as const).map((tab) => (
+          {(['overview', 'players', 'registrations', 'event_day', 'teams', 'scores', 'finance', 'sponsors', 'settings', 'integrations', 'assistant'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -829,7 +830,7 @@ export default function LeaderboardManagementPage() {
                   : 'text-neutral-400 hover:text-white'
               }`}
             >
-              {tab === 'event_day' ? 'Event Day ⚡' : tab === 'finance' ? 'Finance 💰' : tab === 'sponsors' ? 'Sponsors ✨' : tab}
+              {tab === 'event_day' ? 'Event Day ⚡' : tab === 'finance' ? 'Finance 💰' : tab === 'sponsors' ? 'Sponsors ✨' : tab === 'assistant' ? 'AI Manager ✨' : tab}
             </button>
           ))}
         </div>
@@ -1545,6 +1546,13 @@ export default function LeaderboardManagementPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* ==========================================
+            TAB CONTENT: AI ASSISTANT
+            ========================================== */}
+        {activeTab === 'assistant' && leaderboard && (
+          <AiAssistantPanel leaderboard={leaderboard} />
         )}
 
       </main>

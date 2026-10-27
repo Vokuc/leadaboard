@@ -41,6 +41,8 @@ import {
   CompetitionPrizeAllocation,
   CompetitionSponsor,
   CompetitionSponsorEvent,
+  AiActionProposal,
+  AiUsageLog,
 } from '../types';
 import { CompetitionRulesService } from '@/lib/competition/rules/service';
 import { validateScoreAdjustment } from '@/lib/competition/rules/validation';
@@ -1003,6 +1005,22 @@ class LocalDb {
 
   setCompetitionSponsorEvents(events: CompetitionSponsorEvent[]): void {
     this.set('competition_sponsor_events', events);
+  }
+
+  getAiProposals(): AiActionProposal[] {
+    return this.get<AiActionProposal[]>('ai_action_proposals', []);
+  }
+
+  setAiProposals(proposals: AiActionProposal[]): void {
+    this.set('ai_action_proposals', proposals);
+  }
+
+  getAiUsageLogs(): AiUsageLog[] {
+    return this.get<AiUsageLog[]>('ai_usage_logs', []);
+  }
+
+  setAiUsageLogs(logs: AiUsageLog[]): void {
+    this.set('ai_usage_logs', logs);
   }
 }
 

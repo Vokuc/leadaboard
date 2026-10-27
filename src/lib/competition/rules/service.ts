@@ -114,9 +114,10 @@ export const CompetitionRulesService = {
    */
   async saveRules(
     leaderboardId: string,
-    updates: Partial<CompetitionRules>
+    updates: Partial<CompetitionRules>,
+    actorUserId?: string
   ): Promise<CompetitionRules> {
-    await DatabaseService.requireAdminPermission(leaderboardId);
+    await DatabaseService.requireAdminPermission(leaderboardId, actorUserId);
     const currentRules = await this.getRules(leaderboardId);
 
     const mergedPointsConfig = {

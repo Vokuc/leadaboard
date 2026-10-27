@@ -17,8 +17,9 @@ import { ResultAuditDrawer } from '@/components/competition/ResultAuditDrawer';
 import { CompetitionSchedulerPanel } from '@/components/competition/scheduling/CompetitionSchedulerPanel';
 import { RegistrationManagementPanel } from '@/components/competition/registration/RegistrationManagementPanel';
 import { EventDayControlPanel } from '@/components/competition/event-day/EventDayControlPanel';
+import AiAssistantPanel from '@/components/ai/AiAssistantPanel';
 
-type TabKey = 'overview' | 'standings' | 'fixtures' | 'schedule' | 'event_day' | 'registrations' | 'teams' | 'settings' | 'integrations';
+type TabKey = 'overview' | 'standings' | 'fixtures' | 'schedule' | 'event_day' | 'registrations' | 'teams' | 'settings' | 'integrations' | 'assistant';
 
 interface LeagueManagementPanelProps {
   leaderboard: Leaderboard;
@@ -328,8 +329,8 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
         </div>
       </div>
 
-      <div className="flex max-w-4xl gap-2 rounded-2xl border border-neutral-850 bg-neutral-900/40 p-1 overflow-x-auto custom-scrollbar">
-        {(['overview', 'standings', 'fixtures', 'schedule', 'event_day', 'registrations', 'teams', 'settings', 'integrations'] as const).map((tab) => (
+      <div className="flex max-w-5xl gap-2 rounded-2xl border border-neutral-850 bg-neutral-900/40 p-1 overflow-x-auto custom-scrollbar">
+        {(['overview', 'standings', 'fixtures', 'schedule', 'event_day', 'registrations', 'teams', 'settings', 'integrations', 'assistant'] as const).map((tab) => (
           <button
             key={tab}
             type="button"
@@ -338,7 +339,7 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
               activeTab === tab ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white'
             }`}
           >
-            {tab === 'event_day' ? 'Event Day ⚡' : tab}
+            {tab === 'event_day' ? 'Event Day ⚡' : tab === 'assistant' ? 'AI Manager ✨' : tab}
           </button>
         ))}
       </div>
@@ -716,6 +717,10 @@ export default function LeagueManagementPanel({ leaderboard, competitionConfig, 
             </p>
           </div>
         </div>
+      )}
+
+      {activeTab === 'assistant' && (
+        <AiAssistantPanel leaderboard={leaderboard} />
       )}
 
       {auditDrawerFixture && (
