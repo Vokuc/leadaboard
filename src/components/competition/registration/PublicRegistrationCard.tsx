@@ -349,7 +349,7 @@ export function PublicRegistrationCard({
   };
 
   return (
-    <div className="glass rounded-2xl border border-violet-500/20 bg-gradient-to-b from-violet-950/20 to-neutral-950/60 p-6 shadow-2xl relative overflow-hidden">
+    <div id="registration" className="glass rounded-2xl border border-violet-500/20 bg-gradient-to-b from-violet-950/20 to-neutral-950/60 p-6 shadow-2xl relative overflow-hidden scroll-mt-24">
       <div className="absolute top-0 right-0 w-48 h-48 bg-violet-600/10 blur-[60px] pointer-events-none" />
 
       {/* Header Badge & Title */}
@@ -734,7 +734,7 @@ export function PublicRegistrationCard({
                 </p>
               </div>
               <Link
-                href={`/login?next=/leaderboards/${leaderboard.slug}`}
+                href={`/login?next=${encodeURIComponent(`/leaderboards/${leaderboard.slug}?register=true#registration`)}`}
                 className="mt-1 flex items-center gap-2 px-5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold shadow-lg transition-all"
               >
                 <LogIn className="w-3.5 h-3.5" /> Sign In / Create Account

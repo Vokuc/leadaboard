@@ -3299,10 +3299,11 @@ export const DatabaseService = {
       secondary_color?: string;
       accent_color?: string;
     },
-    creatorId?: string
+    creatorId?: string,
+    client?: unknown
   ): Promise<Organization> {
     const { OrganizationService } = await import('@/lib/organization/service');
-    return OrganizationService.createOrganization(input, creatorId);
+    return OrganizationService.createOrganization(input, creatorId, client);
   },
 
   async inviteOrganizationMember(

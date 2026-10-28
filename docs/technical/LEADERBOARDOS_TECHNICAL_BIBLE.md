@@ -268,6 +268,16 @@ erDiagram
 | `financial_ledger` | Inflow/outflow transactions | `id`, `competition_id`, `transaction_type`, `amount_kobo`, `currency`, `reference_id` | Check: `transaction_type IN ('registration_fee', 'sponsorship_payout', 'prize_distribution', 'refund')` | [FinanceService](file:///c:/Users/DELL/Documents/leaderboard/src/lib/payments/competition/service.ts) |
 | `api_keys` | Developer authentication | `id`, `user_id`, `key_prefix`, `key_hash`, `scopes`, `revoked_at` | Unique on `key_hash`; scopes stored as text array | [ApiAuth](file:///c:/Users/DELL/Documents/leaderboard/src/lib/api/auth.ts) |
 
+### 4.6 Organizations and Memberships
+- **Entity Model**:
+  - `organizations`: Root multi-competition entity with `id`, `name`, `slug (UNIQUE)`, `logo_url`, `branding (JSONB)`, `custom_domain`.
+  - `organization_members`: Junction table mapping users to organizations with `role IN ('owner', 'admin', 'manager', 'viewer')`.
+- **Security & Authorization Model**:
+  - Route Handlers resolve authentication via `getServerAuthUser()` ([src/lib/auth/server-user.ts](file:///c:/Users/DELL/Documents/leaderboard/src/lib/auth/server-user.ts)), reading request cookies via `createSupabaseServerClient` rather than relying on browser singleton clients in Node.js runtime.
+  - Creation authorization: Any authenticated user can create an organization. The creator is granted the initial `owner` role.
+  - RLS Policy: Migration `202611050001_fix_organization_creation_rls.sql` permits an authenticated creator (`auth.uid() = user_id`) with `role = 'owner'` to insert their initial membership row when no prior members exist, avoiding the chicken-and-egg query deadlock.
+  - Organization Administration: Sub-routes (`/branding`, `/members`, `/domain`, `/audit`) require verified `['owner', 'admin']` membership roles via `OrganizationService.requireRole()`.
+
 ---
 
 ## 5. Competition Engine Internals

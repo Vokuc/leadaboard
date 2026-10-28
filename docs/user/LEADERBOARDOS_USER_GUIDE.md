@@ -197,6 +197,27 @@ Every operational workflow is documented below with prerequisites, exact step-by
   5. Click **"Accept & Apply"** to execute the change, or **"Reject"** to discard.
 - **What You Should See**: The action executes safely through domain services with zero hallucination risk.
 
+### 3.11 Organization Workspaces & Team Administration
+- **Purpose**: For leagues, esports organizations, clubs, and schools hosting multiple competitions under unified branding and staff administration.
+- **Prerequisites**: An authenticated user account.
+- **Step-by-Step Instructions**:
+  1. Navigate to `/dashboard/organizations` from the console header or mobile menu drawer.
+  2. Click **"Create Organization"**.
+  3. Enter the **Organization Name** and a unique **Workspace Slug** (e.g. `/org/acme-esports`).
+  4. Upload an **Organization Logo** directly from your device (PNG, JPEG, WebP up to 2 MB) or enter a hosted image URL.
+  5. The creator is automatically designated as the **Owner**.
+  6. Invite team members (`admin`, `manager`, `viewer`) under `/dashboard/organizations/[id]/members`.
+- **What You Should See**: A dedicated multi-competition hub where you can manage organization competitions, custom branding colors, and domain settings.
+
+### 3.12 Dedicated Registration Invitation Links
+- **Purpose**: Invite participants directly into the registration flow without them having to search for the registration card on the public standings page.
+- **Step-by-Step Instructions**:
+  1. Open your competition management console (`/dashboard/leaderboards/[id]`).
+  2. In the top banner action group, click **"Registration Link"** (with the user-plus icon).
+  3. The dedicated invitation URL (`/leaderboards/[slug]?register=true#registration`) is automatically copied to your clipboard.
+  4. Share this link with prospective competitors via email, WhatsApp, Discord, or social media.
+- **Recipient Experience**: Clicking the link opens the competition page and automatically scrolls directly to the registration card with smooth viewport positioning. If the competitor is not signed in, clicking "Sign In / Create Account" preserves the destination and returns them directly to the registration card upon login.
+
 ---
 
 ## 4. Participant's Complete Guide

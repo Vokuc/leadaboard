@@ -10,7 +10,6 @@ import {
   Trophy,
   RefreshCw,
   Megaphone,
-  Settings,
   X,
   ExternalLink,
   Sliders,
@@ -218,7 +217,7 @@ export function NotificationBell() {
 
       {/* Notifications Dropdown Drawer */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl border border-neutral-800 bg-neutral-950/95 shadow-2xl backdrop-blur-xl z-50 overflow-hidden animate-fade-in">
+        <div className="absolute -right-2 sm:right-0 mt-2 w-[calc(100vw-2rem)] sm:w-96 max-w-sm rounded-2xl border border-neutral-800 bg-neutral-950/95 shadow-2xl backdrop-blur-xl z-50 overflow-hidden animate-fade-in">
           {/* Header */}
           <div className="p-4 border-b border-white/5 flex items-center justify-between">
             <div className="flex items-center gap-2">

@@ -277,6 +277,19 @@ export default function LeaderboardManagementPage() {
     });
   };
 
+  const copyRegistrationLink = async () => {
+    if (!leaderboard) return;
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const regUrl = `${origin}/leaderboards/${leaderboard.slug}?register=true#registration`;
+
+    try {
+      await navigator.clipboard.writeText(regUrl);
+      showToast('Registration invitation link copied to clipboard!', 'success');
+    } catch {
+      showToast('Could not copy registration link to clipboard.', 'error');
+    }
+  };
+
   const handlePlayerAvatarSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -628,26 +641,41 @@ export default function LeaderboardManagementPage() {
               <h1 className="text-2xl font-bold tracking-tight text-white">{leaderboard.name}</h1>
               <p className="text-xs text-neutral-400 mt-1 max-w-xl">{leaderboard.description || 'No description supplied.'}</p>
             </div>
-            <div className="flex flex-wrap gap-2 justify-end">
-              <button
-                onClick={() => setShowEmbedModal(true)}
-                className="flex items-center gap-1.5 px-3 py-2 border border-neutral-800 hover:border-neutral-700 bg-neutral-900 rounded-xl text-xs font-semibold text-neutral-300 hover:text-white transition-all cursor-pointer"
-              >
-                <Code className="w-3.5 h-3.5" /> <span className="hidden md:inline">Embed</span>
-              </button>
-              <button
-                onClick={copyPublicLink}
-                className="flex items-center gap-1.5 px-3 py-2 border border-neutral-800 hover:border-neutral-700 bg-neutral-900 rounded-xl text-xs font-semibold text-neutral-300 hover:text-white transition-all cursor-pointer"
-              >
-                <Share2 className="w-3.5 h-3.5" /> Share
-              </button>
+            <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end w-full sm:w-auto">
+              <div className="flex flex-wrap items-center gap-1.5 p-1 bg-neutral-900/80 rounded-xl border border-neutral-800">
+                <button
+                  type="button"
+                  onClick={() => setShowEmbedModal(true)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-neutral-800 rounded-lg text-xs font-semibold text-neutral-300 hover:text-white transition-all cursor-pointer"
+                  title="Embed widget code"
+                >
+                  <Code className="w-3.5 h-3.5 text-neutral-400" /> <span className="hidden sm:inline">Embed</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={copyPublicLink}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-neutral-800 rounded-lg text-xs font-semibold text-neutral-300 hover:text-white transition-all cursor-pointer"
+                  title="Share public link"
+                >
+                  <Share2 className="w-3.5 h-3.5 text-neutral-400" /> <span>Share</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={copyRegistrationLink}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-violet-900/30 text-violet-300 hover:text-violet-200 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                  title="Copy registration invitation link"
+                >
+                  <UserPlus className="w-3.5 h-3.5 text-violet-400" /> <span>Registration Link</span>
+                </button>
+              </div>
+
               <a
                 href={`/leaderboards/${leaderboard.slug}`}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-violet-600 hover:bg-violet-500 rounded-xl text-xs font-semibold text-white shadow-lg transition-all cursor-pointer"
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-violet-600 hover:bg-violet-500 rounded-xl text-xs font-semibold text-white shadow-lg shadow-violet-600/20 transition-all cursor-pointer shrink-0"
               >
-                Public View <ExternalLink className="w-3.5 h-3.5" />
+                <span>View Public Leaderboard</span> <ExternalLink className="w-3.5 h-3.5" />
               </a>
             </div>
           </div>
@@ -705,26 +733,41 @@ export default function LeaderboardManagementPage() {
               <h1 className="text-2xl font-bold tracking-tight text-white">{leaderboard.name}</h1>
               <p className="text-xs text-neutral-400 mt-1 max-w-xl">{leaderboard.description || 'No description supplied.'}</p>
             </div>
-            <div className="flex flex-wrap gap-2 justify-end">
-              <button
-                onClick={() => setShowEmbedModal(true)}
-                className="flex items-center gap-1.5 px-3 py-2 border border-neutral-800 hover:border-neutral-700 bg-neutral-900 rounded-xl text-xs font-semibold text-neutral-300 hover:text-white transition-all cursor-pointer"
-              >
-                <Code className="w-3.5 h-3.5" /> <span className="hidden md:inline">Embed</span>
-              </button>
-              <button
-                onClick={copyPublicLink}
-                className="flex items-center gap-1.5 px-3 py-2 border border-neutral-800 hover:border-neutral-700 bg-neutral-900 rounded-xl text-xs font-semibold text-neutral-300 hover:text-white transition-all cursor-pointer"
-              >
-                <Share2 className="w-3.5 h-3.5" /> Share
-              </button>
+            <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end w-full sm:w-auto">
+              <div className="flex flex-wrap items-center gap-1.5 p-1 bg-neutral-900/80 rounded-xl border border-neutral-800">
+                <button
+                  type="button"
+                  onClick={() => setShowEmbedModal(true)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-neutral-800 rounded-lg text-xs font-semibold text-neutral-300 hover:text-white transition-all cursor-pointer"
+                  title="Embed widget code"
+                >
+                  <Code className="w-3.5 h-3.5 text-neutral-400" /> <span className="hidden sm:inline">Embed</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={copyPublicLink}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-neutral-800 rounded-lg text-xs font-semibold text-neutral-300 hover:text-white transition-all cursor-pointer"
+                  title="Share public link"
+                >
+                  <Share2 className="w-3.5 h-3.5 text-neutral-400" /> <span>Share</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={copyRegistrationLink}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-violet-900/30 text-violet-300 hover:text-violet-200 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                  title="Copy registration invitation link"
+                >
+                  <UserPlus className="w-3.5 h-3.5 text-violet-400" /> <span>Registration Link</span>
+                </button>
+              </div>
+
               <a
                 href={`/leaderboards/${leaderboard.slug}`}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-violet-600 hover:bg-violet-500 rounded-xl text-xs font-semibold text-white shadow-lg transition-all cursor-pointer"
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-violet-600 hover:bg-violet-500 rounded-xl text-xs font-semibold text-white shadow-lg shadow-violet-600/20 transition-all cursor-pointer shrink-0"
               >
-                Public View <ExternalLink className="w-3.5 h-3.5" />
+                <span>View Public Leaderboard</span> <ExternalLink className="w-3.5 h-3.5" />
               </a>
             </div>
           </div>
@@ -788,46 +831,62 @@ export default function LeaderboardManagementPage() {
             <p className="text-xs text-neutral-400 mt-1 max-w-xl">{leaderboard?.description || 'No description supplied.'}</p>
           </div>
 
-          <div className="flex flex-wrap gap-2 justify-end">
-            <button
-              onClick={() => setShowEmbedModal(true)}
-              className="flex items-center gap-1.5 px-3 py-2 border border-neutral-800 hover:border-neutral-700 bg-neutral-900 rounded-xl text-xs font-semibold text-neutral-300 hover:text-white transition-all cursor-pointer"
-            >
-              <Code className="w-3.5 h-3.5" /> <span className="hidden md:inline">Embed</span>
-            </button>
-            <button
-              onClick={copyPublicLink}
-              className="flex items-center gap-1.5 px-3 py-2 border border-neutral-800 hover:border-neutral-700 bg-neutral-900 rounded-xl text-xs font-semibold text-neutral-300 hover:text-white transition-all cursor-pointer"
-            >
-              <Share2 className="w-3.5 h-3.5" /> Share
-            </button>
+          <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end w-full sm:w-auto">
+            <div className="flex flex-wrap items-center gap-1.5 p-1 bg-neutral-900/80 rounded-xl border border-neutral-800">
+              <button
+                type="button"
+                onClick={() => setShowEmbedModal(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-neutral-800 rounded-lg text-xs font-semibold text-neutral-300 hover:text-white transition-all cursor-pointer"
+                title="Embed widget code"
+              >
+                <Code className="w-3.5 h-3.5 text-neutral-400" /> <span className="hidden sm:inline">Embed</span>
+              </button>
+              <button
+                type="button"
+                onClick={copyPublicLink}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-neutral-800 rounded-lg text-xs font-semibold text-neutral-300 hover:text-white transition-all cursor-pointer"
+                title="Share public link"
+              >
+                <Share2 className="w-3.5 h-3.5 text-neutral-400" /> <span>Share</span>
+              </button>
+              <button
+                type="button"
+                onClick={copyRegistrationLink}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-violet-900/30 text-violet-300 hover:text-violet-200 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                title="Copy registration invitation link"
+              >
+                <UserPlus className="w-3.5 h-3.5 text-violet-400" /> <span>Registration Link</span>
+              </button>
+            </div>
+
             <Link
               href={`/dashboard/leaderboards/${leaderboard?.id}/event-day`}
-              className="flex items-center gap-1.5 px-3 py-2 bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 rounded-xl text-xs font-bold text-rose-300 shadow-lg transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-2 bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 rounded-xl text-xs font-bold text-rose-300 shadow-lg transition-all cursor-pointer shrink-0"
             >
               <Play className="w-3.5 h-3.5 fill-rose-400 text-rose-400" /> Event-Day Arena
             </Link>
+
             <a
               href={`/leaderboards/${leaderboard?.slug}`}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-violet-600 hover:bg-violet-500 rounded-xl text-xs font-semibold text-white shadow-lg transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-violet-600 hover:bg-violet-500 rounded-xl text-xs font-semibold text-white shadow-lg shadow-violet-600/20 transition-all cursor-pointer shrink-0"
             >
-              Public View <ExternalLink className="w-3.5 h-3.5" />
+              <span>View Public Leaderboard</span> <ExternalLink className="w-3.5 h-3.5" />
             </a>
           </div>
         </div>
 
         {/* Tab selection */}
-        <div className="flex border-b border-neutral-850 p-1 bg-neutral-900/40 rounded-2xl border mb-8 overflow-x-auto custom-scrollbar">
+        <div className="flex items-center gap-1.5 p-1.5 bg-neutral-900/60 rounded-2xl border border-neutral-800 mb-8 overflow-x-auto custom-scrollbar scroll-smooth w-full">
           {(['overview', 'players', 'registrations', 'event_day', 'teams', 'scores', 'finance', 'sponsors', 'settings', 'integrations', 'assistant'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-2 text-xs font-bold rounded-xl capitalize transition-all cursor-pointer whitespace-nowrap ${
+              className={`shrink-0 px-3.5 py-2 min-h-[38px] text-xs font-bold rounded-xl capitalize transition-all cursor-pointer whitespace-nowrap flex items-center justify-center ${
                 activeTab === tab 
-                  ? 'bg-neutral-800 text-white shadow-md' 
-                  : 'text-neutral-400 hover:text-white'
+                  ? 'bg-neutral-800 text-white shadow-md border border-neutral-700/60' 
+                  : 'text-neutral-400 hover:text-white hover:bg-neutral-850/50'
               }`}
             >
               {tab === 'event_day' ? 'Event Day ⚡' : tab === 'finance' ? 'Finance 💰' : tab === 'sponsors' ? 'Sponsors ✨' : tab === 'assistant' ? 'AI Manager ✨' : tab}

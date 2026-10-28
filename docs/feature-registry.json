@@ -548,6 +548,27 @@
       "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#54-seo-pages-and-free-tools",
       "roadmapEra": "Era 4: Competition Marketplace",
       "lastVerified": "2026-10-27"
+    },
+    {
+      "id": "organization_workspaces",
+      "name": "Organization Workspaces & Multi-Tenant Branding",
+      "status": "Implemented",
+      "primaryCodeLocations": [
+        "src/app/dashboard/organizations/page.tsx",
+        "src/app/api/organizations/route.ts",
+        "src/lib/organization/service.ts",
+        "src/lib/image-upload.ts",
+        "src/lib/auth/server-user.ts",
+        "src/components/navigation/DashboardHeader.tsx"
+      ],
+      "relevantTests": [
+        "tests/organizations/organization-creation-api.test.ts",
+        "tests/organizations/organizations-and-branding.test.ts"
+      ],
+      "technicalDoc": "docs/technical/LEADERBOARDOS_TECHNICAL_BIBLE.md#46-organizations-and-memberships",
+      "userDoc": "docs/user/LEADERBOARDOS_USER_GUIDE.md#311-organization-workspaces--team-administration",
+      "roadmapEra": "Era 5: Infrastructure",
+      "lastVerified": "2026-10-28"
     }
   ]
 }

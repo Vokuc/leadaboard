@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { DatabaseService, isSupabaseConfigured } from '@/lib/db';
+import { isSupabaseConfigured } from '@/lib/db';
 import { OrganizationService } from '@/lib/organization/service';
 import { ensureFeatureAccess } from '@/lib/billing/guards';
+import { getServerAuthUser } from '@/lib/auth/server-user';
+import { createSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/supabase/server';
+
+export const runtime = 'nodejs';
 
 export async function PATCH(
   req: NextRequest,
@@ -9,12 +13,13 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const profile = await DatabaseService.getCurrentProfile();
-    if (!profile) {
+    const user = await getServerAuthUser();
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const org = await OrganizationService.getOrganization(id);
+    const client = isSupabaseServerConfigured ? await createSupabaseServerClient() : null;
+    const org = await OrganizationService.getOrganization(id, client);
     if (!org) {
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 });
     }
@@ -22,7 +27,7 @@ export async function PATCH(
     // Enforce custom branding plan entitlement
     if (isSupabaseConfigured) {
       try {
-        await ensureFeatureAccess(org.created_by || profile.id, 'custom_branding');
+        await ensureFeatureAccess(org.created_by || user.id, 'custom_branding');
       } catch (err: unknown) {
         if (err instanceof Error && (err.message.includes('subscription') || err.message.includes('plan') || err.message.includes('Feature'))) {
           return NextResponse.json(
@@ -38,7 +43,7 @@ export async function PATCH(
 
     const updated = await OrganizationService.updateBranding(
       org.id,
-      profile.id,
+      user.id,
       {
         logo_url,
         website_url,
