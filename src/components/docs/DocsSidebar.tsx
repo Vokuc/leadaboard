@@ -93,7 +93,7 @@ export default function DocsSidebar({ categories, currentSlug }: DocsSidebarProp
               </button>
 
               {isOpen && (
-                <ul className="pl-2 space-y-0.5 mt-1 border-l border-white/10 ml-3">
+                <ul className="pl-2 space-y-1 mt-1 border-l border-white/10 ml-3">
                   {category.articles.map((article) => {
                     const isActive = article.slug === currentSlug || pathname === `/docs/${article.slug}`;
 
@@ -102,10 +102,10 @@ export default function DocsSidebar({ categories, currentSlug }: DocsSidebarProp
                         <Link
                           href={`/docs/${article.slug}`}
                           onClick={() => setMobileOpen(false)}
-                          className={`block px-3 py-1.5 text-xs rounded-md transition-colors leading-snug ${
+                          className={`block px-3 py-1.5 text-xs rounded-lg transition-colors leading-snug ${
                             isActive
-                              ? 'bg-violet-600 text-white font-medium shadow-sm'
-                              : 'text-neutral-400 hover:text-neutral-200 hover:bg-white/5'
+                              ? 'bg-violet-600/20 text-violet-300 font-bold border-l-2 -ml-[9px] pl-3 border-violet-500 rounded-r-lg'
+                              : 'text-neutral-400 hover:text-white hover:bg-white/5'
                           }`}
                         >
                           {article.title}
@@ -146,7 +146,7 @@ export default function DocsSidebar({ categories, currentSlug }: DocsSidebarProp
         <button
           type="button"
           onClick={() => setMobileOpen(prev => !prev)}
-          className="flex items-center gap-2 px-4 py-3 bg-violet-600 hover:bg-violet-500 text-white font-medium rounded-full shadow-2xl transition-all"
+          className="flex items-center gap-2 px-4 py-3 bg-violet-600 hover:bg-violet-500 text-white font-medium rounded-full shadow-2xl transition-all cursor-pointer"
         >
           {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           <span>{mobileOpen ? 'Close Menu' : 'Docs Navigation'}</span>
@@ -162,7 +162,7 @@ export default function DocsSidebar({ categories, currentSlug }: DocsSidebarProp
       )}
 
       {/* Mobile Drawer Panel */}
-      <aside className={`lg:hidden fixed top-0 bottom-0 left-0 w-80 bg-neutral-950 border-r border-white/10 z-50 transform transition-transform duration-200 ease-in-out ${
+      <aside className={`lg:hidden fixed top-0 bottom-0 left-0 w-[85%] max-w-xs bg-neutral-950 border-r border-white/10 z-50 transform transition-transform duration-200 ease-in-out ${
         mobileOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         {sidebarContent}

@@ -46,7 +46,8 @@ export const OrganizationService = {
       secondary_color?: string;
       accent_color?: string;
     },
-    creatorId?: string
+    creatorId?: string,
+    client?: unknown
   ): Promise<Organization> {
     const actorId = creatorId || (await DatabaseService.getCurrentProfile())?.id;
     if (!actorId) {
@@ -63,7 +64,7 @@ export const OrganizationService = {
     const timestamp = nowIso();
 
     // Check slug collision
-    const existing = await this.getOrganization(finalSlug);
+    const existing = await this.getOrganization(finalSlug, client);
     if (existing) {
       finalSlug = `${finalSlug}-${Math.random().toString(36).substring(2, 6)}`;
     }
@@ -89,8 +90,10 @@ export const OrganizationService = {
       updated_at: timestamp,
     };
 
-    if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase
+    const db = (client as typeof supabase) || (isSupabaseConfigured && supabase ? supabase : null);
+
+    if (db) {
+      const { data, error } = await db
         .from('organizations')
         .insert([{
           name: newOrg.name,
@@ -109,7 +112,7 @@ export const OrganizationService = {
       newOrg.id = data.id;
 
       // Add creator as owner
-      const { error: memberError } = await supabase
+      const { error: memberError } = await db
         .from('organization_members')
         .insert([{
           organization_id: newOrg.id,
@@ -140,15 +143,16 @@ export const OrganizationService = {
       target_type: 'organization',
       target_id: newOrg.id,
       details: { name: newOrg.name, slug: newOrg.slug },
-    });
+    }, client);
 
     return newOrg;
   },
 
-  async getOrganization(idOrSlug: string): Promise<Organization | null> {
-    if (isSupabaseConfigured && supabase) {
+  async getOrganization(idOrSlug: string, client?: unknown): Promise<Organization | null> {
+    const db = (client as typeof supabase) || (isSupabaseConfigured && supabase ? supabase : null);
+    if (db) {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
-      const query = supabase.from('organizations').select('*');
+      const query = db.from('organizations').select('*');
       const { data, error } = isUuid
         ? await query.eq('id', idOrSlug).maybeSingle()
         : await query.eq('slug', idOrSlug).maybeSingle();
@@ -161,11 +165,12 @@ export const OrganizationService = {
     return found ? { ...found } : null;
   },
 
-  async getUserOrganizations(userId: string): Promise<Array<Organization & { user_role: OrganizationRole }>> {
+  async getUserOrganizations(userId: string, client?: unknown): Promise<Array<Organization & { user_role: OrganizationRole }>> {
     if (!userId) return [];
 
-    if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase
+    const db = (client as typeof supabase) || (isSupabaseConfigured && supabase ? supabase : null);
+    if (db) {
+      const { data, error } = await db
         .from('organization_members')
         .select('role, organizations(*)')
         .eq('user_id', userId);
@@ -207,9 +212,10 @@ export const OrganizationService = {
 
   // ─── Membership & Roles ─────────────────────────────────────────────────────
 
-  async getMembers(organizationId: string): Promise<OrganizationMember[]> {
-    if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase
+  async getMembers(organizationId: string, client?: unknown): Promise<OrganizationMember[]> {
+    const db = (client as typeof supabase) || (isSupabaseConfigured && supabase ? supabase : null);
+    if (db) {
+      const { data, error } = await db
         .from('organization_members')
         .select('*, profiles:user_id(id, email, full_name, avatar_url, role)')
         .eq('organization_id', organizationId);
@@ -236,11 +242,12 @@ export const OrganizationService = {
     });
   },
 
-  async getMemberRole(organizationId: string, userId: string): Promise<OrganizationRole | null> {
+  async getMemberRole(organizationId: string, userId: string, client?: unknown): Promise<OrganizationRole | null> {
     if (!organizationId || !userId) return null;
 
-    if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase
+    const db = (client as typeof supabase) || (isSupabaseConfigured && supabase ? supabase : null);
+    if (db) {
+      const { data, error } = await db
         .from('organization_members')
         .select('role')
         .eq('organization_id', organizationId)
@@ -889,7 +896,7 @@ export const OrganizationService = {
     target_type: string;
     target_id: string | null;
     details?: Record<string, unknown>;
-  }): Promise<void> {
+  }, client?: unknown): Promise<void> {
     const timestamp = nowIso();
     const entry: OrganizationAuditLog = {
       id: `oal-${Math.random().toString(36).substring(2, 9)}`,
@@ -902,9 +909,10 @@ export const OrganizationService = {
       created_at: timestamp,
     };
 
-    if (isSupabaseConfigured && supabase) {
+    const db = (client as typeof supabase) || (isSupabaseConfigured && supabase ? supabase : null);
+    if (db) {
       try {
-        await supabase.from('organization_audit_logs').insert([entry]);
+        await db.from('organization_audit_logs').insert([entry]);
       } catch {
         // Safe fallback if audit log table not yet migrated
       }

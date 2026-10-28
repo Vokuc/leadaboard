@@ -235,6 +235,25 @@ export default function LeaderboardView({ slug, initialData }: LeaderboardViewPr
     }
   }, [showShareModal, shareUrl]);
 
+  // ─── Registration Scroll Anchor ───────────────────────────────────────────
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasRegisterParam = urlParams.get('register') === 'true';
+    const hasRegisterHash = window.location.hash === '#registration';
+
+    if (hasRegisterParam || hasRegisterHash) {
+      const scrollTimer = setTimeout(() => {
+        const regElement = document.getElementById('registration');
+        if (regElement) {
+          regElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 350);
+      return () => clearTimeout(scrollTimer);
+    }
+  }, []);
+
   // ─── Player History ────────────────────────────────────────────────────────
 
   useEffect(() => {

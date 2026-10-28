@@ -162,9 +162,86 @@ export default async function DocArticlePage({
           </header>
 
           {/* Markdown Body */}
-          <article className="prose prose-invert prose-violet max-w-none prose-headings:scroll-mt-24 prose-headings:tracking-tight prose-headings:font-bold prose-h2:text-2xl sm:prose-h2:text-3xl prose-h2:mt-12 prose-h2:mb-4 prose-h2:pb-2 prose-h2:border-b prose-h2:border-white/5 prose-h3:text-xl prose-h3:mt-8 prose-h3:mb-3 prose-p:text-neutral-300 prose-p:leading-relaxed prose-p:mb-6 prose-ul:my-6 prose-li:text-neutral-300 prose-li:my-1 prose-table:my-8 prose-th:bg-white/5 prose-th:p-3 prose-td:p-3 prose-td:border-b prose-td:border-white/5 prose-pre:bg-neutral-900 prose-pre:border prose-pre:border-white/10 prose-code:text-violet-300 prose-code:bg-white/5 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:font-mono">
+          <article className="max-w-none text-neutral-300">
             <ReactMarkdown
               components={{
+                h1: ({ node, ...props }) => (
+                  <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mt-10 mb-4 pb-2 border-b border-white/10" {...props} />
+                ),
+                h2: ({ node, ...props }) => {
+                  const text = props.children?.toString() || '';
+                  const id = text.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
+                  return (
+                    <h2
+                      id={id}
+                      className="text-xl sm:text-2xl font-bold tracking-tight text-white mt-10 mb-4 pb-2 border-b border-white/5 scroll-mt-24"
+                      {...props}
+                    />
+                  );
+                },
+                h3: ({ node, ...props }) => {
+                  const text = props.children?.toString() || '';
+                  const id = text.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
+                  return (
+                    <h3
+                      id={id}
+                      className="text-lg sm:text-xl font-bold tracking-tight text-violet-200 mt-8 mb-3 scroll-mt-24"
+                      {...props}
+                    />
+                  );
+                },
+                h4: ({ node, ...props }) => (
+                  <h4 className="text-sm sm:text-base font-bold text-neutral-200 mt-6 mb-2" {...props} />
+                ),
+                p: ({ node, ...props }) => (
+                  <p className="text-sm sm:text-base text-neutral-300 leading-relaxed mb-5" {...props} />
+                ),
+                strong: ({ node, ...props }) => (
+                  <strong className="text-white font-bold" {...props} />
+                ),
+                em: ({ node, ...props }) => (
+                  <em className="italic text-violet-200/90 font-medium" {...props} />
+                ),
+                ul: ({ node, ...props }) => (
+                  <ul className="list-disc list-inside space-y-2 mb-6 text-sm text-neutral-300 pl-1" {...props} />
+                ),
+                ol: ({ node, ...props }) => (
+                  <ol className="list-decimal list-inside space-y-2 mb-6 text-sm text-neutral-300 pl-1" {...props} />
+                ),
+                li: ({ node, ...props }) => (
+                  <li className="leading-relaxed text-neutral-300" {...props} />
+                ),
+                blockquote: ({ node, ...props }) => (
+                  <blockquote className="my-6 border-l-4 border-violet-500 bg-violet-950/20 px-4 py-3 rounded-r-xl text-sm italic text-neutral-300" {...props} />
+                ),
+                code: ({ node, className, children, ...props }) => {
+                  const isInline = !className && typeof children === 'string' && !children.includes('\n');
+                  if (isInline) {
+                    return (
+                      <code
+                        className="text-violet-300 bg-neutral-900 border border-neutral-800 px-1.5 py-0.5 rounded font-mono text-xs font-semibold"
+                        {...props}
+                      >
+                        {children}
+                      </code>
+                    );
+                  }
+                  return (
+                    <code className="text-xs font-mono text-neutral-200 block" {...props}>
+                      {children}
+                    </code>
+                  );
+                },
+                pre: ({ node, children, ...props }) => (
+                  <div className="my-6 rounded-xl border border-neutral-800 bg-neutral-950/90 shadow-xl overflow-hidden">
+                    <div className="px-4 py-2 border-b border-white/5 bg-neutral-900/60 flex items-center justify-between text-[11px] font-mono text-neutral-400">
+                      <span>Code Snippet</span>
+                    </div>
+                    <pre className="p-4 text-xs font-mono text-neutral-200 overflow-x-auto custom-scrollbar leading-relaxed" {...props}>
+                      {children}
+                    </pre>
+                  </div>
+                ),
                 a: ({ node, ...props }) => {
                   const href = props.href || '#';
                   const isExternal = href.startsWith('http');
@@ -180,20 +257,19 @@ export default async function DocArticlePage({
                     </Link>
                   );
                 },
-                h2: ({ node, ...props }) => {
-                  const text = props.children?.toString() || '';
-                  const id = text.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
-                  return <h2 id={id} {...props} />;
-                },
-                h3: ({ node, ...props }) => {
-                  const text = props.children?.toString() || '';
-                  const id = text.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
-                  return <h3 id={id} {...props} />;
-                },
                 table: ({ node, ...props }) => (
-                  <div className="overflow-x-auto my-8 border border-white/10 rounded-xl">
-                    <table className="w-full text-left text-sm" {...props} />
+                  <div className="overflow-x-auto my-8 border border-neutral-800 rounded-xl bg-neutral-950/50 custom-scrollbar">
+                    <table className="w-full text-left text-xs" {...props} />
                   </div>
+                ),
+                th: ({ node, ...props }) => (
+                  <th className="py-2.5 px-3.5 bg-neutral-900/80 font-bold text-white border-b border-neutral-800" {...props} />
+                ),
+                td: ({ node, ...props }) => (
+                  <td className="py-2.5 px-3.5 border-b border-neutral-850 text-neutral-300" {...props} />
+                ),
+                hr: ({ node, ...props }) => (
+                  <hr className="my-8 border-neutral-800" {...props} />
                 ),
               }}
             >

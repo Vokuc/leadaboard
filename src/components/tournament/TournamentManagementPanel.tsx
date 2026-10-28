@@ -374,14 +374,14 @@ export default function TournamentManagementPanel({
         </div>
       </div>
 
-      <div className="flex max-w-5xl gap-2 rounded-2xl border border-neutral-850 bg-neutral-900/40 p-1 overflow-x-auto custom-scrollbar">
+      <div className="flex max-w-5xl items-center gap-1.5 rounded-2xl border border-neutral-800 bg-neutral-900/60 p-1.5 overflow-x-auto custom-scrollbar scroll-smooth w-full">
         {(['overview', 'bracket', 'matches', 'schedule', 'event_day', 'registrations', 'participants', 'teams', 'settings', 'integrations', 'assistant'] as const).map((tab) => (
           <button
             key={tab}
             type="button"
             onClick={() => setActiveTab(tab)}
-            className={`flex-1 rounded-xl px-3 py-2 text-xs font-bold capitalize transition-all whitespace-nowrap ${
-              activeTab === tab ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white'
+            className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-xl text-xs font-bold capitalize transition-all whitespace-nowrap flex items-center justify-center cursor-pointer ${
+              activeTab === tab ? 'bg-neutral-800 text-white shadow-md border border-neutral-700/60' : 'text-neutral-400 hover:text-white hover:bg-neutral-850/50'
             }`}
           >
             {tab === 'event_day' ? 'Event Day ⚡' : tab === 'assistant' ? 'AI Manager ✨' : tab}

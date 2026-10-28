@@ -115,4 +115,18 @@ More text
       level: 2,
     });
   });
+
+  it('retrieves and indexes the creating-and-managing-organizations guide', () => {
+    const doc = getDocBySlug('creating-and-managing-organizations');
+    expect(doc).not.toBeNull();
+    expect(doc?.title).toBe('Creating and Managing Organizations');
+    expect(doc?.category).toBe('Participants & Administration');
+    expect(doc?.headings.some(h => h.text.includes('What is an Organization?'))).toBe(true);
+    expect(doc?.headings.some(h => h.text.includes('Uploading or Selecting an Organization Logo'))).toBe(true);
+    expect(doc?.headings.some(h => h.text.includes('Organization Ownership and Roles'))).toBe(true);
+
+    // Verify it is found in search queries
+    const searchResults = searchDocs('organization logo');
+    expect(searchResults.some(r => r.slug === 'creating-and-managing-organizations')).toBe(true);
+  });
 });

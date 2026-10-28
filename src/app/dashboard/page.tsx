@@ -34,7 +34,7 @@ import Link from 'next/link';
 import HelpModal from '@/components/HelpModal';
 import { dashboardHelp } from '@/lib/help-content';
 import SafeImage from '@/components/SafeImage';
-import { NotificationBell } from '@/components/notifications/NotificationBell';
+import DashboardHeader from '@/components/navigation/DashboardHeader';
 
 export default function DashboardPage() {
   const { profile, logout, loading: authLoading } = useAuth();
@@ -206,78 +206,11 @@ export default function DashboardPage() {
       )}
 
       {/* Top Header */}
-      <header className="glass border-b border-white/5 py-4 px-6 md:px-12 flex justify-between items-center sticky top-0 z-40">
-        <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-violet-500" />
-            <span className="font-bold text-lg tracking-tight bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-transparent">
-              LeaderboardOS
-            </span>
-          </Link>
-          <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-neutral-900 border-neutral-800 text-neutral-400">
-            Console
-          </span>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <Link
-            href="/dashboard/organizations"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-violet-500/30 bg-violet-500/10 text-violet-200 text-xs font-semibold hover:bg-violet-500/20"
-          >
-            <Building2 className="w-3.5 h-3.5 text-violet-400" /> Organizations
-          </Link>
-          <Link
-            href="/dashboard/analytics"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 text-indigo-200 text-xs font-semibold hover:bg-indigo-500/20"
-          >
-            <BarChart3 className="w-3.5 h-3.5 text-indigo-400" /> Analytics
-          </Link>
-          <Link
-            href="/dashboard/passport"
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-violet-500/30 bg-violet-500/10 text-violet-200 text-xs font-semibold hover:bg-violet-500/20"
-          >
-            <Shield className="w-3.5 h-3.5 text-violet-400" /> Passport
-          </Link>
-          <Link
-            href="/dashboard/billing"
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-neutral-800 bg-neutral-900/60 text-neutral-300 text-xs font-semibold hover:bg-neutral-800"
-          >
-            <CreditCard className="w-3.5 h-3.5" /> Billing
-          </Link>
-          <Link
-            href="/dashboard/developer"
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-200 text-xs font-semibold hover:bg-cyan-500/20"
-          >
-            <Code className="w-3.5 h-3.5 text-cyan-400" /> Developer
-          </Link>
-          {canOpenAdminPages && (
-            <Link
-              href="/dashboard/admin/users"
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-200 text-xs font-semibold hover:bg-cyan-500/20"
-            >
-              <Users className="w-3.5 h-3.5" /> Admin Users
-            </Link>
-          )}
-          <NotificationBell />
-          <div className="flex items-center gap-3">
-            {profile?.avatar_url && (
-              <SafeImage src={profile.avatar_url} alt="Profile" width={32} height={32} className="h-8 w-8 rounded-lg border border-white/10 object-cover" />
-            )}
-            <div className="hidden md:block text-left">
-              <h4 className="text-xs font-bold leading-none">{profile?.full_name}</h4>
-              <p className="text-[10px] text-muted-foreground mt-0.5">{profile?.email}</p>
-            </div>
-          </div>
-
-          <button 
-            onClick={handleLogout} 
-            className="p-2 border border-neutral-800 hover:border-neutral-700 bg-neutral-900 rounded-xl text-neutral-400 hover:text-white transition-colors cursor-pointer"
-            title="Log Out"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div>
-      </header>
+      <DashboardHeader
+        profile={profile}
+        canOpenAdminPages={canOpenAdminPages}
+        onLogout={handleLogout}
+      />
 
       <main className="flex-1 max-w-6xl mx-auto w-full px-6 mt-8">
         {/* Statistics Panels */}
