@@ -30,6 +30,7 @@ interface CreateTournamentCompetitionInput {
   visibility: VisibilityType;
   competitionType: Leaderboard['competition_type'];
   coverImageUrl: string | null;
+  organizationId?: string | null;
   slug: string;
   templateKey: CompetitionTemplateKey;
   seasonName: string;
@@ -180,6 +181,7 @@ export const TournamentService = {
         visibility: input.visibility,
         competition_type: input.competitionType,
         cover_image_url: input.coverImageUrl,
+        organization_id: input.organizationId || null,
       },
       [],
       {

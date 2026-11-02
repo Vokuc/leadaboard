@@ -17,7 +17,7 @@ export async function GET(
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 });
     }
 
-    const competitions = await OrganizationService.getOrganizationCompetitions(org.id);
+    const competitions = await OrganizationService.getOrganizationCompetitions(org.id, client);
     return NextResponse.json({ success: true, competitions });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to fetch competitions';
@@ -80,7 +80,16 @@ export async function DELETE(
     }
 
     const { searchParams } = new URL(req.url);
-    const leaderboardId = searchParams.get('leaderboard_id');
+    let leaderboardId = searchParams.get('leaderboard_id');
+
+    if (!leaderboardId) {
+      try {
+        const body = await req.json();
+        leaderboardId = body.leaderboard_id;
+      } catch {
+        // Body was empty or non-JSON
+      }
+    }
 
     if (!leaderboardId) {
       return NextResponse.json({ error: 'leaderboard_id is required' }, { status: 400 });

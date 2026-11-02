@@ -36,7 +36,7 @@ export default function OrganizationAuditPage() {
       if (orgRes.ok) {
         const orgData = await orgRes.json();
         setOrg(orgData.organization);
-        setRole(orgData.role);
+        setRole(orgData.role || orgData.organization?.user_role || null);
       }
 
       const auditRes = await fetch(`/api/organizations/${orgId}/audit`);

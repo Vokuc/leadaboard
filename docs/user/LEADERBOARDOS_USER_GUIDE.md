@@ -197,16 +197,21 @@ Every operational workflow is documented below with prerequisites, exact step-by
   5. Click **"Accept & Apply"** to execute the change, or **"Reject"** to discard.
 - **What You Should See**: The action executes safely through domain services with zero hallucination risk.
 
-### 3.11 Organization Workspaces & Team Administration
+### 3.11 Organization Workspaces, Discovery & Team Administration
 - **Purpose**: For leagues, esports organizations, clubs, and schools hosting multiple competitions under unified branding and staff administration.
 - **Prerequisites**: An authenticated user account.
-- **Step-by-Step Instructions**:
+- **My Organizations (`/dashboard/organizations`)**:
   1. Navigate to `/dashboard/organizations` from the console header or mobile menu drawer.
   2. Click **"Create Organization"**.
-  3. Enter the **Organization Name** and a unique **Workspace Slug** (e.g. `/org/acme-esports`).
+  3. Enter the **Organization Name** and a unique **Workspace Slug** (e.g. `acme-esports`).
   4. Upload an **Organization Logo** directly from your device (PNG, JPEG, WebP up to 2 MB) or enter a hosted image URL.
   5. The creator is automatically designated as the **Owner**.
-  6. Invite team members (`admin`, `manager`, `viewer`) under `/dashboard/organizations/[id]/members`.
+  6. In your organization workspace (`/dashboard/organizations/[id]`), click **"New Competition"** to create a competition directly within the workspace context, or click **"Associate Competition"** to link existing leaderboards from a dropdown list.
+  7. Invite team members (`admin`, `manager`, `viewer`) under `/dashboard/organizations/[id]/members`.
+- **Public Discovery & Profiles (`/directory?tab=organizations` and `/organizations/[slug]`)**:
+  1. Discover public clubs and leagues in the Directory marketplace under the **Public Organizations** tab.
+  2. Only organizations with active public competitions or verified custom domains appear in public discovery; private workspaces remain confidential.
+  3. Visitors can view an organization's public profile (`/organizations/[slug]`) to browse its active tournaments and standings without exposing member rosters or administrative settings.
 - **What You Should See**: A dedicated multi-competition hub where you can manage organization competitions, custom branding colors, and domain settings.
 
 ### 3.12 Dedicated Registration Invitation Links

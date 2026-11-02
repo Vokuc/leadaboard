@@ -42,6 +42,7 @@ export async function POST(request: Request) {
         competition_type: leaderboard.competition_type || 'custom',
         cover_image_url: leaderboard.cover_image_url || null,
         owner_id: user.id,
+        organization_id: leaderboard.organization_id || null,
         status: 'active',
       }])
       .select()

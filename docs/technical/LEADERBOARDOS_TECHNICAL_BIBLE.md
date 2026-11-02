@@ -272,11 +272,15 @@ erDiagram
 - **Entity Model**:
   - `organizations`: Root multi-competition entity with `id`, `name`, `slug (UNIQUE)`, `logo_url`, `branding (JSONB)`, `custom_domain`.
   - `organization_members`: Junction table mapping users to organizations with `role IN ('owner', 'admin', 'manager', 'viewer')`.
+  - `leaderboards.organization_id`: Foreign key associating any competition engine (simple points, league table, tournament) with an organization.
 - **Security & Authorization Model**:
   - Route Handlers resolve authentication via `getServerAuthUser()` ([src/lib/auth/server-user.ts](file:///c:/Users/DELL/Documents/leaderboard/src/lib/auth/server-user.ts)), reading request cookies via `createSupabaseServerClient` rather than relying on browser singleton clients in Node.js runtime.
   - Creation authorization: Any authenticated user can create an organization. The creator is granted the initial `owner` role.
-  - RLS Policy: Migration `202611050001_fix_organization_creation_rls.sql` permits an authenticated creator (`auth.uid() = user_id`) with `role = 'owner'` to insert their initial membership row when no prior members exist, avoiding the chicken-and-egg query deadlock.
+  - RLS Policy Recursion Elimination: Migration `202611050002_fix_organization_members_rls_recursion.sql` implements `SECURITY DEFINER` helper functions (`is_org_member`, `is_org_admin_or_owner`, `is_org_owner`) with `SET search_path = public`. This prevents PostgreSQL from triggering infinite RLS recursion (SQLSTATE 42P17) when querying `organization_members` during membership retrieval.
+  - Resilience & Creator Guarantee: `OrganizationService.getUserOrganizations()` queries both user membership rows and organizations where `created_by = userId`, guaranteeing that an organization creator is never locked out or hidden even if membership rows encounter eventual consistency delays.
   - Organization Administration: Sub-routes (`/branding`, `/members`, `/domain`, `/audit`) require verified `['owner', 'admin']` membership roles via `OrganizationService.requireRole()`.
+  - Workspace Competition Linking: Competitions preserve organization context during creation (`/dashboard/create?orgId=...`) across all engines, and existing competitions can be linked or unlinked by authorized admins without modifying underlying competition ownership.
+  - Public Discovery Separation: Public organization discovery in `/directory?tab=organizations` and `/organizations/[slug]` displays only organizations hosting active public competitions (`visibility = 'public'`). Private organizations, team rosters, audit logs, and internal settings are strictly isolated and never exposed.
 
 ---
 

@@ -5,6 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Building2,
+  AlertCircle,
+  Compass,
+  Globe,
   Plus,
   Users,
   Trophy,
@@ -31,6 +34,7 @@ export default function OrganizationsListPage() {
   const router = useRouter();
   const [organizations, setOrganizations] = useState<OrgWithMembership[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,14 +49,19 @@ export default function OrganizationsListPage() {
 
   const loadOrganizations = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await fetch('/api/organizations');
       if (res.ok) {
         const data = await res.json();
         setOrganizations(data.organizations || []);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setLoadError(errData.error || `Failed to load organizations (${res.status})`);
       }
     } catch (err) {
       console.error('Failed to load organizations:', err);
+      setLoadError(err instanceof Error ? err.message : 'Network error loading organizations');
     } finally {
       setLoading(false);
     }
@@ -196,18 +205,44 @@ export default function OrganizationsListPage() {
               Group your competitions under dedicated school, club, or enterprise organizations with custom branding and role-based permissions.
             </p>
           </div>
-          <Link
-            href="/docs/creating-and-managing-organizations"
-            className="inline-flex sm:hidden items-center gap-1.5 text-xs text-violet-400 hover:text-violet-300"
-          >
-            <HelpCircle className="w-3.5 h-3.5" /> How organizations work
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/directory?tab=organizations"
+              className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white transition-colors px-3 py-1.5 rounded-xl border border-white/10 bg-neutral-900/60"
+            >
+              <Compass className="w-3.5 h-3.5 text-cyan-400" /> Discover Public Organizations
+            </Link>
+            <Link
+              href="/docs/creating-and-managing-organizations"
+              className="hidden sm:inline-flex items-center gap-1.5 text-xs text-violet-400 hover:text-violet-300"
+            >
+              <HelpCircle className="w-3.5 h-3.5" /> Guide
+            </Link>
+          </div>
         </div>
 
         {loading ? (
           <div className="py-20 flex flex-col items-center justify-center text-neutral-500 gap-3">
             <Building2 className="w-8 h-8 text-violet-500 animate-pulse" />
             <p className="text-sm">Loading your workspaces...</p>
+          </div>
+        ) : loadError ? (
+          <div className="glass rounded-2xl p-8 sm:p-12 text-center max-w-lg mx-auto border border-red-500/20 bg-red-950/10 space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto text-red-400">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-bold text-white">Failed to load organizations</h3>
+            <p className="text-xs text-red-300/80 leading-relaxed">
+              {loadError}
+            </p>
+            <div className="pt-2">
+              <button
+                onClick={() => void loadOrganizations()}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer border border-neutral-700"
+              >
+                Try Again
+              </button>
+            </div>
           </div>
         ) : organizations.length === 0 ? (
           <div className="glass rounded-2xl p-12 text-center max-w-lg mx-auto border border-white/10 space-y-4">
@@ -308,6 +343,13 @@ export default function OrganizationsListPage() {
                       title="Team Members"
                     >
                       <Users className="w-3.5 h-3.5" />
+                    </Link>
+                    <Link
+                      href={`/organizations/${org.slug}`}
+                      className="p-2 rounded-lg bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white transition-colors"
+                      title="Public Profile"
+                    >
+                      <Globe className="w-3.5 h-3.5" />
                     </Link>
                   </div>
 

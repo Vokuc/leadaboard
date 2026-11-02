@@ -61,7 +61,7 @@ export default function OrganizationBrandingPage() {
         const data = await res.json();
         const o = data.organization as Organization;
         setOrg(o);
-        setRole(data.role);
+        setRole(data.role || data.organization?.user_role || null);
 
         setName(o.name || '');
         setLogoUrl(o.logo_url || '');

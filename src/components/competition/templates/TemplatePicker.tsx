@@ -53,9 +53,9 @@ export function TemplatePicker({ onSelectTemplate, selectedTemplateKey }: Templa
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-full">
       {/* Header and Filter Pills */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-white/5">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-white/5 w-full max-w-full">
         <div>
           <h3 className="text-lg font-bold text-white flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-violet-400" />
@@ -66,52 +66,66 @@ export function TemplatePicker({ onSelectTemplate, selectedTemplateKey }: Templa
           </p>
         </div>
 
-        {/* Engine Filter Pills */}
-        <div className="flex items-center gap-1.5 p-1 bg-neutral-900/80 rounded-xl border border-white/5 text-xs">
-          <button
-            type="button"
-            onClick={() => setActiveFilter('all')}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-              activeFilter === 'all'
-                ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/30'
-                : 'text-neutral-400 hover:text-white'
-            }`}
+        {/* Engine Filter Pills with Contained Responsive Horizontal Scroll on Mobile */}
+        <div className="w-full sm:w-auto max-w-full overflow-x-auto custom-scrollbar scroll-smooth py-0.5 -my-0.5">
+          <div
+            role="tablist"
+            aria-label="Filter blueprints by format"
+            className="flex items-center gap-1.5 p-1 bg-neutral-900/80 rounded-xl border border-white/5 text-xs min-w-max sm:min-w-0"
           >
-            All Formats
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveFilter('league_table')}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-              activeFilter === 'league_table'
-                ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/30'
-                : 'text-neutral-400 hover:text-white'
-            }`}
-          >
-            Leagues
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveFilter('tournament')}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-              activeFilter === 'tournament'
-                ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/30'
-                : 'text-neutral-400 hover:text-white'
-            }`}
-          >
-            Tournaments
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveFilter('simple_points')}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-              activeFilter === 'simple_points'
-                ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/30'
-                : 'text-neutral-400 hover:text-white'
-            }`}
-          >
-            Points
-          </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeFilter === 'all'}
+              onClick={() => setActiveFilter('all')}
+              className={`min-h-[38px] px-3.5 py-2 rounded-lg font-medium whitespace-nowrap transition-all touch-manipulation cursor-pointer ${
+                activeFilter === 'all'
+                  ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/30'
+                  : 'text-neutral-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              All Formats
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeFilter === 'league_table'}
+              onClick={() => setActiveFilter('league_table')}
+              className={`min-h-[38px] px-3.5 py-2 rounded-lg font-medium whitespace-nowrap transition-all touch-manipulation cursor-pointer ${
+                activeFilter === 'league_table'
+                  ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/30'
+                  : 'text-neutral-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              Leagues
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeFilter === 'tournament'}
+              onClick={() => setActiveFilter('tournament')}
+              className={`min-h-[38px] px-3.5 py-2 rounded-lg font-medium whitespace-nowrap transition-all touch-manipulation cursor-pointer ${
+                activeFilter === 'tournament'
+                  ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/30'
+                  : 'text-neutral-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              Tournaments
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeFilter === 'simple_points'}
+              onClick={() => setActiveFilter('simple_points')}
+              className={`min-h-[38px] px-3.5 py-2 rounded-lg font-medium whitespace-nowrap transition-all touch-manipulation cursor-pointer ${
+                activeFilter === 'simple_points'
+                  ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/30'
+                  : 'text-neutral-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              Points
+            </button>
+          </div>
         </div>
       </div>
 

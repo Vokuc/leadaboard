@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import SafeImage from '@/components/SafeImage';
 import { Organization, OrganizationRole, Leaderboard } from '@/types';
+import { DatabaseService } from '@/lib/db';
 
 export default function OrganizationWorkspacePage() {
   const params = useParams();
@@ -30,8 +31,19 @@ export default function OrganizationWorkspacePage() {
   const [loading, setLoading] = useState(true);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [selectedLbId, setSelectedLbId] = useState<string>('');
+  const [availableCompetitions, setAvailableCompetitions] = useState<Leaderboard[]>([]);
   const [linkLoading, setLinkLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const openLinkModal = async () => {
+    setShowLinkModal(true);
+    try {
+      const all = await DatabaseService.getLeaderboards();
+      setAvailableCompetitions(all.filter((l) => !l.organization_id || l.organization_id !== orgId));
+    } catch (err) {
+      console.warn('Failed to load available competitions:', err);
+    }
+  };
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
@@ -49,7 +61,7 @@ export default function OrganizationWorkspacePage() {
       }
       const orgData = await orgRes.json();
       setOrg(orgData.organization);
-      setRole(orgData.role);
+      setRole(orgData.role || orgData.organization?.user_role || null);
 
       // 2. Load linked competitions
       const compRes = await fetch(`/api/organizations/${orgId}/competitions`);
@@ -104,7 +116,7 @@ export default function OrganizationWorkspacePage() {
       return;
     }
     try {
-      const res = await fetch(`/api/organizations/${orgId}/competitions`, {
+      const res = await fetch(`/api/organizations/${orgId}/competitions?leaderboard_id=${encodeURIComponent(lbId)}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ leaderboard_id: lbId }),
@@ -204,7 +216,14 @@ export default function OrganizationWorkspacePage() {
 
         <div className="flex items-center gap-3">
           <Link
-            href={`/dashboard/create`}
+            href={`/organizations/${org.slug}`}
+            target="_blank"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-neutral-400 hover:text-white bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 transition-colors"
+          >
+            Public Profile <ExternalLink className="w-3 h-3" />
+          </Link>
+          <Link
+            href={`/dashboard/create?orgId=${org.id}`}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-lg shadow-violet-600/20"
           >
             <Plus className="w-3.5 h-3.5" /> New Competition
@@ -289,7 +308,7 @@ export default function OrganizationWorkspacePage() {
 
             {canManage && (
               <button
-                onClick={() => setShowLinkModal(true)}
+                onClick={() => openLinkModal()}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-xs font-semibold rounded-xl text-neutral-200 hover:text-white transition-colors cursor-pointer"
               >
                 <Layers className="w-3.5 h-3.5" /> Associate Competition
@@ -306,7 +325,7 @@ export default function OrganizationWorkspacePage() {
               </p>
               {canManage && (
                 <button
-                  onClick={() => setShowLinkModal(true)}
+                  onClick={() => openLinkModal()}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" /> Associate Existing Competition
@@ -397,9 +416,28 @@ export default function OrganizationWorkspacePage() {
             </div>
 
             <form onSubmit={handleLinkCompetition} className="space-y-4 text-xs">
+              {availableCompetitions.length > 0 && (
+                <div>
+                  <label className="block text-neutral-300 font-semibold mb-1">
+                    Choose from Your Competitions
+                  </label>
+                  <select
+                    value={selectedLbId}
+                    onChange={(e) => setSelectedLbId(e.target.value)}
+                    className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-xl text-white focus:outline-none focus:border-violet-500 cursor-pointer"
+                  >
+                    <option value="">-- Choose a competition --</option>
+                    {availableCompetitions.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} ({c.id})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="block text-neutral-300 font-semibold mb-1">
-                  Select Competition to Link *
+                  {availableCompetitions.length > 0 ? 'Or Enter Competition ID Directly *' : 'Select Competition to Link *'}
                 </label>
                 <input
                   type="text"

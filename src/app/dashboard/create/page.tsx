@@ -17,8 +17,8 @@ import {
   Info,
   Calendar,
   Sparkles,
-  Lock,
-  Globe
+  Lock,  Globe,
+  Building2
 } from 'lucide-react';
 import Link from 'next/link';
 import HelpModal from '@/components/HelpModal';
@@ -115,6 +115,24 @@ function CreateLeaderboardForm() {
   const { profile, loading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const targetOrgId = searchParams.get('orgId') || searchParams.get('org') || null;
+  const [orgName, setOrgName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (targetOrgId) {
+      void (async () => {
+        try {
+          const res = await fetch(`/api/organizations/${targetOrgId}`);
+          if (res.ok) {
+            const data = await res.json();
+            setOrgName(data.organization?.name || null);
+          }
+        } catch {
+          // ignore
+        }
+      })();
+    }
+  }, [targetOrgId]);
 
   useEffect(() => {
     if (!authLoading && !profile) {
@@ -164,7 +182,7 @@ function CreateLeaderboardForm() {
           initialRules.push({ event_name: name.trim(), points: Number(pts), description: '' });
         }
       });
-    } catch(e) {
+    } catch {
       // Ignore parse errors
     }
   }
@@ -341,6 +359,7 @@ function CreateLeaderboardForm() {
             visibility,
             competitionType,
             coverImageUrl: coverImageUrl || null,
+            organizationId: targetOrgId,
             templateKey,
             entityType: LeagueService.getTemplate(templateKey).entity_type,
             seasonName: seasonName || 'Season 1',
@@ -361,6 +380,7 @@ function CreateLeaderboardForm() {
               visibility,
               competitionType,
               coverImageUrl: coverImageUrl || null,
+              organizationId: targetOrgId,
               templateKey,
               seasonName: seasonName || 'Season 1',
               startDate,
@@ -375,7 +395,8 @@ function CreateLeaderboardForm() {
               slug,
               visibility,
               competition_type: competitionType,
-              cover_image_url: coverImageUrl || null
+              cover_image_url: coverImageUrl || null,
+              organization_id: targetOrgId
             },
             rulesToInsert,
             seasonToInsert
@@ -454,6 +475,23 @@ function CreateLeaderboardForm() {
                 <h2 className="text-xl font-bold text-white tracking-tight">Step 1: Competition Identity</h2>
                 <p className="text-xs text-neutral-400 mt-1">Provide a name, visibility configurations, or start from a blueprint.</p>
               </div>
+
+              {targetOrgId && (
+                <div className="flex items-center justify-between p-3.5 bg-violet-500/10 border border-violet-500/25 rounded-xl text-xs text-violet-300">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-violet-400 shrink-0" />
+                    <span>
+                      Creating inside workspace: <strong className="text-white">{orgName || targetOrgId}</strong>
+                    </span>
+                  </div>
+                  <Link
+                    href={`/dashboard/organizations/${targetOrgId}`}
+                    className="text-neutral-400 hover:text-white underline text-[11px]"
+                  >
+                    View Workspace
+                  </Link>
+                </div>
+              )}
 
               {/* Template Blueprint Showcase */}
               <div className="p-4 rounded-2xl bg-gradient-to-r from-violet-950/40 via-neutral-900 to-neutral-950 border border-violet-500/20 space-y-3">

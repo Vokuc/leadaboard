@@ -29,6 +29,7 @@ export async function GET(
         ...org,
         user_role: userRole,
       },
+      role: userRole,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to fetch organization';
