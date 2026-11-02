@@ -53,7 +53,7 @@ export default function OrganizationMembersPage() {
       if (orgRes.ok) {
         const orgData = await orgRes.json();
         setOrg(orgData.organization);
-        setCurrentUserRole(orgData.role);
+        setCurrentUserRole(orgData.role || orgData.organization?.user_role || null);
       }
 
       // 2. Members & Invitations

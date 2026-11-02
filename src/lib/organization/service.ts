@@ -170,18 +170,23 @@ export const OrganizationService = {
 
     const db = (client as typeof supabase) || (isSupabaseConfigured && supabase ? supabase : null);
     if (db) {
-      const { data, error } = await db
+      // 1. Fetch memberships for the user
+      const { data: memberRows, error: memberError } = await db
         .from('organization_members')
         .select('role, organizations(*)')
         .eq('user_id', userId);
-      if (error) return [];
+
+      if (memberError) {
+        console.error('[getUserOrganizations] member query error:', memberError);
+        throw memberError;
+      }
 
       type OrgMemberRow = {
         role: OrganizationRole;
         organizations: Organization | Organization[] | null;
       };
 
-      return ((data as unknown as OrgMemberRow[]) || [])
+      const result: Array<Organization & { user_role: OrganizationRole }> = ((memberRows as unknown as OrgMemberRow[]) || [])
         .map((row) => {
           const org = Array.isArray(row.organizations) ? row.organizations[0] : row.organizations;
           if (!org) return null;
@@ -191,6 +196,29 @@ export const OrganizationService = {
           };
         })
         .filter((item): item is Organization & { user_role: OrganizationRole } => item !== null);
+
+      // 2. Also ensure any organization created by this user is included (even if membership row is missing or decoupled)
+      try {
+        const { data: createdOrgs, error: createdError } = await db
+          .from('organizations')
+          .select('*')
+          .eq('created_by', userId);
+
+        if (!createdError && createdOrgs) {
+          for (const org of createdOrgs) {
+            if (!result.some((r) => r.id === org.id)) {
+              result.push({
+                ...org,
+                user_role: 'owner' as OrganizationRole,
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[getUserOrganizations] Failed to query creator orgs fallback:', e);
+      }
+
+      return result;
     }
 
     const members = mockDb.getOrganizationMembers().filter((m) => m.user_id === userId);
@@ -207,6 +235,17 @@ export const OrganizationService = {
         });
       }
     }
+
+    // Ensure any organization created by user is included in demo mode as owner
+    for (const o of orgs) {
+      if ((o.created_by === userId || o.owner_id === userId) && !result.some((r) => r.id === o.id)) {
+        result.push({
+          ...o,
+          user_role: 'owner',
+        });
+      }
+    }
+
     return result;
   },
 
@@ -253,14 +292,33 @@ export const OrganizationService = {
         .eq('organization_id', organizationId)
         .eq('user_id', userId)
         .maybeSingle();
-      if (error || !data) return null;
-      return data.role as OrganizationRole;
+
+      if (!error && data?.role) {
+        return data.role as OrganizationRole;
+      }
+
+      // Check if user is the organization creator
+      const org = await this.getOrganization(organizationId, client);
+      if (org && (org.created_by === userId || org.owner_id === userId)) {
+        return 'owner';
+      }
+
+      return null;
     }
 
     const member = mockDb
       .getOrganizationMembers()
       .find((m) => m.organization_id === organizationId && m.user_id === userId);
-    return member?.role || null;
+    if (member?.role) {
+      return member.role;
+    }
+
+    const org = mockDb.getOrganizations().find((o) => o.id === organizationId);
+    if (org && (org.created_by === userId || org.owner_id === userId)) {
+      return 'owner';
+    }
+
+    return null;
   },
 
   async requireRole(
@@ -873,18 +931,92 @@ export const OrganizationService = {
     return lb;
   },
 
-  async getOrganizationCompetitions(organizationId: string): Promise<Leaderboard[]> {
-    if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase
+  async getOrganizationCompetitions(organizationId: string, client?: unknown): Promise<Leaderboard[]> {
+    const db = (client as typeof supabase) || (isSupabaseConfigured && supabase ? supabase : null);
+    if (db) {
+      const { data, error } = await db
         .from('leaderboards')
         .select('*')
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false });
-      if (error) return [];
+      if (error) {
+        console.error('[getOrganizationCompetitions] query error:', error);
+        throw error;
+      }
       return data || [];
     }
 
     return mockDb.getLeaderboards().filter((l) => l.organization_id === organizationId);
+  },
+
+  async getDiscoverableOrganizations(
+    query?: string,
+    client?: unknown
+  ): Promise<Array<Organization & { public_competition_count: number }>> {
+    const db = (client as typeof supabase) || (isSupabaseConfigured && supabase ? supabase : null);
+    if (db) {
+      // Find organizations hosting active public competitions
+      const { data: publicLbs, error: lbsError } = await db
+        .from('leaderboards')
+        .select('organization_id')
+        .not('organization_id', 'is', null)
+        .eq('visibility', 'public')
+        .eq('status', 'active');
+
+      if (lbsError) {
+        console.error('[getDiscoverableOrganizations] leaderboards query error:', lbsError);
+        return [];
+      }
+
+      const orgCounts = new Map<string, number>();
+      for (const lb of publicLbs || []) {
+        if (lb.organization_id) {
+          orgCounts.set(lb.organization_id, (orgCounts.get(lb.organization_id) || 0) + 1);
+        }
+      }
+
+      if (orgCounts.size === 0) return [];
+
+      const orgIds = Array.from(orgCounts.keys());
+      let orgQuery = db.from('organizations').select('*').in('id', orgIds);
+      if (query && query.trim()) {
+        orgQuery = orgQuery.ilike('name', `%${query.trim()}%`);
+      }
+
+      const { data: orgs, error: orgsError } = await orgQuery;
+      if (orgsError || !orgs) return [];
+
+      return orgs.map((o) => ({
+        ...o,
+        public_competition_count: orgCounts.get(o.id) || 0,
+      }));
+    }
+
+    // Demo / mockDb fallback
+    const publicLbs = mockDb
+      .getLeaderboards()
+      .filter((l) => l.organization_id && l.visibility === 'public' && l.status === 'active');
+
+    const orgCounts = new Map<string, number>();
+    for (const lb of publicLbs) {
+      if (lb.organization_id) {
+        orgCounts.set(lb.organization_id, (orgCounts.get(lb.organization_id) || 0) + 1);
+      }
+    }
+
+    const orgs = mockDb.getOrganizations().filter((o) => orgCounts.has(o.id));
+    const filtered = query && query.trim()
+      ? orgs.filter(
+          (o) =>
+            o.name.toLowerCase().includes(query.trim().toLowerCase()) ||
+            o.description?.toLowerCase().includes(query.trim().toLowerCase())
+        )
+      : orgs;
+
+    return filtered.map((o) => ({
+      ...o,
+      public_competition_count: orgCounts.get(o.id) || 0,
+    }));
   },
 
   // ─── Audit Trail ────────────────────────────────────────────────────────────

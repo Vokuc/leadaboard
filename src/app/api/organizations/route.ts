@@ -6,18 +6,34 @@ import { createSupabaseAdminClient, isSupabaseAdminConfigured } from '@/lib/supa
 
 export const runtime = 'nodejs';
 
-export async function GET() {
+export async function GET(req?: NextRequest) {
   try {
-    const user = await getServerAuthUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const url = req ? new URL(req.url) : null;
+    const isDiscover = url ? url.searchParams.get('discover') === 'true' : false;
+    const query = url ? url.searchParams.get('q') || undefined : undefined;
 
     const client = isSupabaseServerConfigured ? await createSupabaseServerClient() : null;
+
+    if (isDiscover) {
+      // Public organization discovery: does not require user authentication
+      const organizations = await OrganizationService.getDiscoverableOrganizations(query, client);
+      return NextResponse.json({ success: true, organizations });
+    }
+
+    // Authenticated "My Organizations": requires authenticated user
+    const user = await getServerAuthUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized', code: 'UNAUTHORIZED' },
+        { status: 401 }
+      );
+    }
+
     const organizations = await OrganizationService.getUserOrganizations(user.id, client);
     return NextResponse.json({ success: true, organizations });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to fetch organizations';
+    console.error('[GET /api/organizations error]:', error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

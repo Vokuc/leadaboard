@@ -25,6 +25,7 @@ interface CreateLeagueCompetitionInput {
   visibility: VisibilityType;
   competitionType: Leaderboard['competition_type'];
   coverImageUrl: string | null;
+  organizationId?: string | null;
   slug: string;
   templateKey: CompetitionTemplateKey;
   entityType: CompetitionEntityType;
@@ -331,6 +332,7 @@ export const LeagueService = {
         visibility: input.visibility,
         competition_type: input.competitionType,
         cover_image_url: input.coverImageUrl,
+        organization_id: input.organizationId || null,
       },
       [],
       {
