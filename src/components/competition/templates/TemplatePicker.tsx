@@ -136,30 +136,30 @@ export function TemplatePicker({ onSelectTemplate, selectedTemplateKey }: Templa
           return (
             <div
               key={item.key}
-              className={`group relative flex flex-col justify-between p-5 rounded-2xl border transition-all duration-200 text-left bg-gradient-to-b from-neutral-900/90 to-neutral-950/90 backdrop-blur-sm ${
+              className={`group relative flex flex-col justify-between p-4 sm:p-5 rounded-2xl border transition-all duration-200 text-left bg-gradient-to-b from-neutral-900/90 to-neutral-950/90 backdrop-blur-sm min-w-0 overflow-hidden ${
                 isSelected
                   ? 'border-violet-500 shadow-xl shadow-violet-500/10 ring-2 ring-violet-500/30'
                   : 'border-white/10 hover:border-white/20 hover:shadow-lg'
               }`}
             >
-              <div>
+              <div className="min-w-0">
                 {/* Header: Icon, Format, Version */}
-                <div className="flex items-center justify-between mb-3">
-                  <div className="p-2.5 rounded-xl bg-white/5 border border-white/5 group-hover:scale-105 transition-transform">
+                <div className="flex items-center justify-between gap-2 mb-3 min-w-0">
+                  <div className="p-2 sm:p-2.5 rounded-xl bg-white/5 border border-white/5 shrink-0 group-hover:scale-105 transition-transform">
                     {getFormatIcon(item.format)}
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/5 border border-white/5 text-neutral-400">
+                  <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/5 border border-white/5 text-neutral-400 shrink-0">
                       v{item.version}
                     </span>
-                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300">
+                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 shrink-0 whitespace-nowrap">
                       {item.format.replace('_', ' ')}
                     </span>
                   </div>
                 </div>
 
                 {/* Name & Description */}
-                <h4 className="text-base font-bold text-white group-hover:text-violet-300 transition-colors">
+                <h4 className="text-sm sm:text-base font-bold text-white group-hover:text-violet-300 transition-colors truncate">
                   {item.name}
                 </h4>
                 <p className="text-xs text-neutral-400 mt-1 line-clamp-2 leading-relaxed">
@@ -167,44 +167,53 @@ export function TemplatePicker({ onSelectTemplate, selectedTemplateKey }: Templa
                 </p>
 
                 {/* Quick Rules Summary */}
-                <div className="mt-4 pt-3 border-t border-white/5 flex flex-wrap gap-2 text-[11px] text-neutral-300">
+                <div className="mt-4 pt-3 border-t border-white/5 flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] text-neutral-300 min-w-0">
                   {item.engine === 'league_table' && (
-                    <span className="px-2 py-0.5 rounded bg-neutral-800/80 border border-white/5">
-                      Win: <strong className="text-white">{item.rules.points_for_win} pts</strong> &bull; Draw:{' '}
-                      <strong className="text-white">{item.rules.points_for_draw} pts</strong>
-                    </span>
+                    <>
+                      <span className="px-2 py-0.5 rounded-md bg-neutral-800/80 border border-white/5 whitespace-nowrap text-[10px] sm:text-[11px]">
+                        Win: <strong className="text-white">{item.rules.points_for_win} pts</strong>
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md bg-neutral-800/80 border border-white/5 whitespace-nowrap text-[10px] sm:text-[11px]">
+                        Draw: <strong className="text-white">{item.rules.points_for_draw} pts</strong>
+                      </span>
+                    </>
                   )}
                   {item.engine === 'tournament' && (
-                    <span className="px-2 py-0.5 rounded bg-neutral-800/80 border border-white/5">
-                      Knockout Bracket &bull; {item.fixture_settings.default_bracket_size} Teams
-                    </span>
+                    <>
+                      <span className="px-2 py-0.5 rounded-md bg-neutral-800/80 border border-white/5 whitespace-nowrap text-[10px] sm:text-[11px]">
+                        Knockout Bracket
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md bg-neutral-800/80 border border-white/5 whitespace-nowrap text-[10px] sm:text-[11px]">
+                        {item.fixture_settings.default_bracket_size} Teams
+                      </span>
+                    </>
                   )}
                   {item.engine === 'simple_points' && item.rules.scoring_rules && (
-                    <span className="px-2 py-0.5 rounded bg-neutral-800/80 border border-white/5">
+                    <span className="px-2 py-0.5 rounded-md bg-neutral-800/80 border border-white/5 whitespace-nowrap text-[10px] sm:text-[11px]">
                       {item.rules.scoring_rules.length} Scoring Presets
                     </span>
                   )}
-                  <span className="px-2 py-0.5 rounded bg-neutral-800/80 border border-white/5 capitalize">
+                  <span className="px-2 py-0.5 rounded-md bg-neutral-800/80 border border-white/5 capitalize whitespace-nowrap text-[10px] sm:text-[11px]">
                     {item.entity_type}s
                   </span>
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="mt-5 pt-3 border-t border-white/5 flex items-center justify-between gap-2">
+              <div className="mt-4 sm:mt-5 pt-3 border-t border-white/5 flex items-center justify-between gap-2 min-w-0">
                 <button
                   type="button"
                   onClick={() => setPreviewTemplate(item)}
-                  className="text-xs text-neutral-400 hover:text-white flex items-center gap-1 transition-colors px-2 py-1 rounded hover:bg-white/5"
+                  className="text-xs text-neutral-400 hover:text-white flex items-center gap-1 transition-colors px-2 py-1.5 rounded-lg hover:bg-white/5 shrink-0 cursor-pointer"
                 >
-                  <Info className="w-3.5 h-3.5" />
-                  Details
+                  <Info className="w-3.5 h-3.5 shrink-0" />
+                  <span>Details</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => onSelectTemplate(item)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
                     isSelected
                       ? 'bg-violet-600 text-white shadow-md shadow-violet-600/30'
                       : 'bg-white/10 hover:bg-white/20 text-white'
@@ -212,11 +221,11 @@ export function TemplatePicker({ onSelectTemplate, selectedTemplateKey }: Templa
                 >
                   {isSelected ? (
                     <>
-                      <Check className="w-3.5 h-3.5" /> Selected
+                      <Check className="w-3.5 h-3.5 shrink-0" /> Selected
                     </>
                   ) : (
                     <>
-                      Use Template <ArrowRight className="w-3 h-3" />
+                      Use Template <ArrowRight className="w-3 h-3 shrink-0" />
                     </>
                   )}
                 </button>

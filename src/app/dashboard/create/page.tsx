@@ -18,7 +18,8 @@ import {
   Calendar,
   Sparkles,
   Lock,  Globe,
-  Building2
+  Building2,
+  X
 } from 'lucide-react';
 import Link from 'next/link';
 import HelpModal from '@/components/HelpModal';
@@ -438,7 +439,7 @@ function CreateLeaderboardForm() {
         <HelpModal {...createLeaderboardHelp} />
       </header>
 
-      <main className="flex-1 max-w-2xl mx-auto w-full px-6 mt-10">
+      <main className={`flex-1 mx-auto w-full px-4 sm:px-6 mt-10 transition-all duration-300 ${showTemplatePicker ? 'max-w-5xl' : 'max-w-2xl'}`}>
         {/* Step Indicator Header */}
         <div className="flex items-center justify-between mb-8 px-4">
           {[1, 2, 3].map((num) => (
@@ -981,27 +982,94 @@ function CreateLeaderboardForm() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">
+                      <label htmlFor="start-date" className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2 cursor-pointer">
                         Start Date
                       </label>
-                      <input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="block w-full px-3.5 py-2.5 bg-neutral-900/60 border border-neutral-850 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-violet-500 focus:border-violet-500 text-sm transition-all cursor-pointer"
-                      />
+                      <div className="relative flex items-center">
+                        <input
+                          id="start-date"
+                          type="date"
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          onClick={(e) => {
+                            try {
+                              e.currentTarget.showPicker?.();
+                            } catch {
+                              // Browser fallback
+                            }
+                          }}
+                          className="block w-full min-h-[44px] px-3.5 pr-10 py-2.5 bg-neutral-900/60 border border-neutral-850 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-violet-500 focus:border-violet-500 text-sm transition-all cursor-pointer [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-80 hover:[&::-webkit-calendar-picker-indicator]:opacity-100"
+                        />
+                        <button
+                          type="button"
+                          tabIndex={-1}
+                          onClick={(e) => {
+                            const input = e.currentTarget.parentElement?.querySelector('input') as HTMLInputElement | null;
+                            try {
+                              input?.showPicker?.();
+                              input?.focus();
+                            } catch {
+                              input?.focus();
+                            }
+                          }}
+                          className="absolute right-3 text-neutral-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+                          aria-label="Open start date calendar"
+                        >
+                          <Calendar className="w-4 h-4 text-violet-400" />
+                        </button>
+                      </div>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">
+                      <label htmlFor="end-date" className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2 cursor-pointer">
                         End Date (Optional)
                       </label>
-                      <input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="block w-full px-3.5 py-2.5 bg-neutral-900/60 border border-neutral-850 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-violet-500 focus:border-violet-500 text-sm transition-all cursor-pointer"
-                      />
+                      <div className="relative flex items-center">
+                        <input
+                          id="end-date"
+                          type="date"
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          onClick={(e) => {
+                            try {
+                              e.currentTarget.showPicker?.();
+                            } catch {
+                              // Browser fallback
+                            }
+                          }}
+                          className="block w-full min-h-[44px] px-3.5 pr-10 py-2.5 bg-neutral-900/60 border border-neutral-850 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-violet-500 focus:border-violet-500 text-sm transition-all cursor-pointer [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-80 hover:[&::-webkit-calendar-picker-indicator]:opacity-100"
+                        />
+                        <div className="absolute right-2.5 flex items-center gap-1">
+                          {endDate && (
+                            <button
+                              type="button"
+                              onClick={() => setEndDate('')}
+                              className="text-neutral-500 hover:text-neutral-300 p-1 rounded transition-colors cursor-pointer"
+                              title="Clear end date"
+                              aria-label="Clear end date"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            tabIndex={-1}
+                            onClick={(e) => {
+                              const input = e.currentTarget.closest('.relative')?.querySelector('input') as HTMLInputElement | null;
+                              try {
+                                input?.showPicker?.();
+                                input?.focus();
+                              } catch {
+                                input?.focus();
+                              }
+                            }}
+                            className="text-neutral-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+                            aria-label="Open end date calendar"
+                          >
+                            <Calendar className="w-4 h-4 text-violet-400" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
